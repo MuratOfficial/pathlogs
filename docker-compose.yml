@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pathlogs-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pathlogs
+      POSTGRES_PASSWORD: pathlogs
+      POSTGRES_DB: pathlogs
+    ports:
+      - "5433:5432"
+    volumes:
+      - pathlogs_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pathlogs -d pathlogs"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Раскомментируйте, если понадобится кэш
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: pathlogs-redis
+  #   restart: unless-stopped
+  #   ports:
+  #     - "6380:6379"
+
+volumes:
+  pathlogs_pgdata:

@@ -1,26 +1,67 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0b0f1a;
+  --surface: #111827;
+  --surface-2: #1a2235;
+  --border: #243049;
+  --foreground: #e5e9f2;
+  --muted: #8a94ab;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-edge: var(--border);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2b3650;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4769;
+}
+
+/* React Flow под тёмную тему */
+.react-flow__attribution {
+  background: transparent !important;
+  color: var(--muted) !important;
+}
+.react-flow__controls button {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--foreground) !important;
+}
+.react-flow__controls button:hover {
+  background: var(--border) !important;
+}
+.react-flow__controls button svg {
+  fill: var(--foreground) !important;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
 }
