@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PathLogs
 
-## Getting Started
+Система управления проектами с **ветвлением задач** (как в git), **канбан-доской** (как в Trello) и **патч-логами** — полной историей реализации каждой задачи.
 
-First, run the development server:
+## Стек
+
+| Слой | Технология |
+|---|---|
+| Фреймворк | Next.js 16 (App Router, FullStack, TypeScript) |
+| БД | PostgreSQL 16 в Docker + Prisma ORM |
+| Авторизация | Auth.js (NextAuth v5), JWT-сессии, bcrypt, роли |
+| Визуализация веток | React Flow (@xyflow/react) |
+| Стили | TailwindCSS 4, тёмная тема |
+| Файлы | S3-совместимое хранилище (S3 / R2 / MinIO) с автоматическим fallback на локальный диск |
+
+## Запуск
 
 ```bash
+# 1. Поднять PostgreSQL
+docker compose up -d postgres
+
+# 2. Установить зависимости и применить миграции
+npm install
+npx prisma migrate dev
+
+# 3. (опционально) Демо-данные
+node prisma/seed.mjs
+
+# 4. Запустить
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Открыть http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Демо-аккаунты** (после seed, пароль у всех `demo1234`):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `admin@pathlogs.dev` — администратор
+- `manager@pathlogs.dev` — менеджер
+- `analyst@pathlogs.dev` — аналитик
+- `dev@pathlogs.dev` — разработчик
 
-## Learn More
+Без seed: первый зарегистрированный пользователь автоматически становится администратором.
 
-To learn more about Next.js, take a look at the following resources:
+## Возможности
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Проекты** с ключами (как в Jira: `PAY-12`), участниками, прогрессом и архивированием
+- **Задачи с ветвлением**: у любой задачи могут быть подзадачи любой глубины — дерево отображается на интерактивном **графе веток** (цвет ребра = статус, анимация = «в работе», пунктир = связи «блокирует / связана / дублирует»)
+- **Канбан-доска** с drag & drop по колонкам: К выполнению → В работе → На проверке → Готово (+ статусы Закрыта и В архиве)
+- **Патч-лог** у каждой задачи — журнал реализации с автором и временем
+- **Трудозатраты**: оценка в часах, записи времени с комментариями, прогресс-бар «потрачено / оценка»
+- **Категоризация**: тип (фича, баг, аналитика, менеджмент, дизайн…), приоритет, даты начала и срока
+- **Несколько исполнителей** на задачу, связи между задачами
+- **Файлы** к задачам: загрузка в S3/R2, при недоступности — локально в `./uploads`
+- **Админка**: пользователи, роли (админ / менеджер / аналитик / разработчик), деактивация, статистика
+- **Список задач** с поиском и фильтрами по статусу, типу, исполнителю
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Хранилище файлов
 
-## Deploy on Vercel
+Заполните в `.env` переменные `S3_*` (работает с AWS S3, Cloudflare R2, MinIO). Если они пусты или загрузка в S3 падает — файл автоматически сохраняется локально в `./uploads` и раздаётся через `/api/files/[key]` (только авторизованным).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Структура
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+prisma/schema.prisma        — модели: User, Project, Task (self-relation = ветки),
+                              TaskLink, PatchLog, TimeEntry, Attachment
+src/auth.ts                 — Auth.js: credentials + JWT + роли
+src/proxy.ts                — защита маршрутов
+src/lib/actions/            — server actions (auth, projects, tasks, admin)
+src/lib/storage.ts          — S3 + локальный fallback
+src/app/(app)/dashboard     — проекты
+src/app/(app)/projects/[id] — канбан / граф веток / список
+src/app/(app)/tasks/[id]    — задача: патч-лог, время, файлы, связи
+src/app/(app)/admin         — администрирование
+src/components/TaskGraph.tsx — граф на React Flow с авто-раскладкой дерева
+```
