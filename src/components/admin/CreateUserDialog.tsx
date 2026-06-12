@@ -1,17 +1,20 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { createUserAction } from "@/lib/actions/admin";
 import { ROLE_LABELS } from "@/lib/labels";
 import type { Role } from "@prisma/client";
 
 export function CreateUserDialog() {
   const [open, setOpen] = useState(false);
-  const [state, formAction, pending] = useActionState(createUserAction, undefined);
-
-  useEffect(() => {
-    if (state && !state.error) setOpen(false);
-  }, [state]);
+  const [state, formAction, pending] = useActionState(
+    async (prev: { error?: string } | undefined, formData: FormData) => {
+      const res = await createUserAction(prev, formData);
+      if (!res.error) setOpen(false);
+      return res;
+    },
+    undefined
+  );
 
   const inputCls =
     "w-full rounded-lg border border-edge bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent";

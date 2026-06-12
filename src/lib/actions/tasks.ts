@@ -70,10 +70,20 @@ export async function createTaskAction(
 
 export async function updateTaskStatusAction(taskId: string, status: TaskStatus) {
   await requireUser();
+  const current = await prisma.task.findUniqueOrThrow({
+    where: { id: taskId },
+    select: { projectId: true },
+  });
+  // Смена статуса переносит карточку в колонку этого статуса (если она есть)
+  const statusColumn = await prisma.boardColumn.findFirst({
+    where: { projectId: current.projectId, status },
+    select: { id: true },
+  });
   const task = await prisma.task.update({
     where: { id: taskId },
     data: {
       status,
+      columnId: statusColumn?.id ?? null,
       closedAt: status === "CLOSED" || status === "DONE" ? new Date() : null,
     },
   });

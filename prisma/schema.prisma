@@ -84,8 +84,25 @@ model Project {
   ownerId     String
   members     ProjectMember[]
   tasks       Task[]
+  columns     BoardColumn[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+}
+
+/// Колонка канбан-доски. Колонки со status — стандартные (перенос задачи меняет её статус),
+/// колонки без status — кастомные, статус задачи при переносе не трогают.
+model BoardColumn {
+  id        String      @id @default(cuid())
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  name      String
+  color     String      @default("#94a3b8")
+  order     Float       @default(0)
+  status    TaskStatus?
+  tasks     Task[]
+  createdAt DateTime    @default(now())
+
+  @@index([projectId])
 }
 
 model ProjectMember {
@@ -115,6 +132,9 @@ model Task {
   creator       User         @relation("TaskCreator", fields: [creatorId], references: [id])
   creatorId     String
   assignees     User[]       @relation("TaskAssignees")
+  column        BoardColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
+  columnId      String?
+  color         String?
   estimateHours Float?
   startDate     DateTime?
   dueDate       DateTime?

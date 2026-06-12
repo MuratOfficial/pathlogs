@@ -21,6 +21,22 @@ import { TypeBadge, PriorityDot } from "./TaskBadges";
 
 const GAP_X = 320;
 const GAP_Y = 120;
+// Явные стартовые размеры и handles узлов: без них React Flow держит узлы
+// скрытыми (visibility: hidden) и не рисует рёбра, пока ResizeObserver не
+// измерит DOM — в фоновых/встроенных окнах это может не произойти вовсе.
+// После реального измерения позиции уточняются автоматически.
+const TASK_NODE_W = 256;
+const TASK_NODE_H = 104;
+const ROOT_NODE_W = 180;
+const ROOT_NODE_H = 96;
+
+const TASK_HANDLES: Node["handles"] = [
+  { type: "target", position: Position.Left, x: 0, y: TASK_NODE_H / 2, width: 6, height: 6 },
+  { type: "source", position: Position.Right, x: TASK_NODE_W, y: TASK_NODE_H / 2, width: 6, height: 6 },
+];
+const ROOT_HANDLES: Node["handles"] = [
+  { type: "source", position: Position.Right, x: ROOT_NODE_W, y: ROOT_NODE_H / 2, width: 6, height: 6 },
+];
 
 type TaskNodeData = {
   task: TaskDTO;
@@ -160,12 +176,18 @@ export function TaskGraph({
         id: "__project__",
         type: "root",
         position: { x: 0, y: projectY },
+        initialWidth: ROOT_NODE_W,
+        initialHeight: ROOT_NODE_H,
+        handles: ROOT_HANDLES,
         data: { name: projectName, projectKey, total: tasks.length },
       },
       ...tasks.map((t) => ({
         id: t.id,
         type: "task",
         position: positions.get(t.id) ?? { x: GAP_X, y: 0 },
+        initialWidth: TASK_NODE_W,
+        initialHeight: TASK_NODE_H,
+        handles: TASK_HANDLES,
         data: { task: t, projectKey },
       })),
     ];
@@ -189,7 +211,7 @@ export function TaskGraph({
         id: `link-${l.id}`,
         source: l.fromId,
         target: l.toId,
-        type: "bezier",
+        type: "default",
         label: s.label,
         labelStyle: { fill: s.stroke, fontSize: 10 },
         labelBgStyle: { fill: "#111827" },

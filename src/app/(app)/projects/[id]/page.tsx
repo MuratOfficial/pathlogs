@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
-import type { TaskDTO, LinkDTO, MemberDTO } from "@/lib/types";
+import type { TaskDTO, LinkDTO, MemberDTO, ColumnDTO } from "@/lib/types";
+import { ensureDefaultColumns } from "@/lib/board";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { TaskGraph } from "@/components/TaskGraph";
 import { TaskListView } from "@/components/TaskListView";
@@ -28,6 +29,8 @@ export default async function ProjectPage({
   const { view: rawView } = await searchParams;
   const view = VIEWS.some((v) => v.id === rawView) ? rawView! : "board";
 
+  await ensureDefaultColumns(id);
+
   const project = await prisma.project.findUnique({
     where: { id },
     include: {
@@ -40,6 +43,7 @@ export default async function ProjectPage({
         orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       },
       members: { include: { user: { select: { id: true, name: true } } } },
+      columns: { orderBy: { order: "asc" } },
     },
   });
   if (!project) notFound();
@@ -56,6 +60,8 @@ export default async function ProjectPage({
     type: t.type,
     priority: t.priority,
     parentId: t.parentId,
+    columnId: t.columnId,
+    color: t.color,
     dueDate: t.dueDate?.toISOString() ?? null,
     estimateHours: t.estimateHours,
     spentHours: t.timeEntries.reduce((s, e) => s + e.hours, 0),
@@ -70,6 +76,14 @@ export default async function ProjectPage({
     fromId: l.fromId,
     toId: l.toId,
     type: l.type,
+  }));
+
+  const columns: ColumnDTO[] = project.columns.map((c) => ({
+    id: c.id,
+    name: c.name,
+    color: c.color,
+    order: c.order,
+    status: c.status,
   }));
 
   const members: MemberDTO[] = project.members.map((m) => m.user);
@@ -136,7 +150,14 @@ export default async function ProjectPage({
       </div>
 
       <div className="min-h-0 flex-1">
-        {view === "board" && <KanbanBoard tasks={tasks} projectKey={project.key} />}
+        {view === "board" && (
+          <KanbanBoard
+            tasks={tasks}
+            columns={columns}
+            projectId={project.id}
+            projectKey={project.key}
+          />
+        )}
         {view === "graph" && (
           <TaskGraph
             tasks={tasks}

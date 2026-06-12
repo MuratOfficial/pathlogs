@@ -63,6 +63,20 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 export const KANBAN_COLUMNS: TaskStatus[] = ["TODO", "IN_PROGRESS", "REVIEW", "DONE"];
 
+/** Палитра для перекраски карточек и колонок. */
+export const BOARD_PALETTE = [
+  "#94a3b8",
+  "#60a5fa",
+  "#6366f1",
+  "#c084fc",
+  "#ec4899",
+  "#ef4444",
+  "#f59e0b",
+  "#84cc16",
+  "#4ade80",
+  "#14b8a6",
+] as const;
+
 export function initials(name: string): string {
   return name
     .split(/\s+/)

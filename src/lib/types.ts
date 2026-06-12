@@ -9,6 +9,8 @@ export interface TaskDTO {
   type: TaskType;
   priority: Priority;
   parentId: string | null;
+  columnId: string | null;
+  color: string | null;
   dueDate: string | null;
   estimateHours: number | null;
   spentHours: number;
@@ -16,6 +18,15 @@ export interface TaskDTO {
   assignees: { id: string; name: string }[];
   patchLogCount: number;
   childrenCount: number;
+}
+
+/** Колонка канбан-доски. status задан у стандартных колонок, null — у кастомных. */
+export interface ColumnDTO {
+  id: string;
+  name: string;
+  color: string;
+  order: number;
+  status: TaskStatus | null;
 }
 
 export interface LinkDTO {
