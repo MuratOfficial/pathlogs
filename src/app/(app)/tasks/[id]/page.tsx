@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
 import {
@@ -18,7 +19,10 @@ import { TimeEntryForm } from "@/components/task/TimeEntryForm";
 import { FileUpload } from "@/components/task/FileUpload";
 import { AddLinkForm } from "@/components/task/AddLinkForm";
 import { ConfirmActionButton } from "@/components/task/ConfirmActionButton";
+import { Checklist } from "@/components/task/Checklist";
+import { Markdown } from "@/components/Markdown";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
+import { googleCalendarUrl } from "@/lib/calendar";
 import {
   deletePatchLogAction,
   deleteTimeEntryAction,
@@ -68,6 +72,7 @@ export default async function TaskPage({
         include: { uploadedBy: { select: { id: true, name: true } } },
         orderBy: { createdAt: "desc" },
       },
+      checklist: { orderBy: { order: "asc" } },
       linksFrom: { include: { to: { select: { id: true, number: true, title: true } } } },
       linksTo: { include: { from: { select: { id: true, number: true, title: true } } } },
     },
@@ -89,6 +94,17 @@ export default async function TaskPage({
     : [task.project.owner, ...memberUsers];
 
   const spent = task.timeEntries.reduce((s, e) => s + e.hours, 0);
+
+  // Ссылка «в Google Calendar» — только если у задачи есть даты
+  const h = await headers();
+  const origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
+  const gcalUrl = googleCalendarUrl({
+    title: `${task.project.key}-${task.number}: ${task.title}`,
+    details: task.description ?? "",
+    start: task.startDate,
+    due: task.dueDate,
+    url: `${origin}/tasks/${task.id}`,
+  });
 
   // Право удаления: автор задачи, владелец проекта, менеджер или админ
   const canDeleteTask =
@@ -150,12 +166,25 @@ export default async function TaskPage({
               <EditableText
                 value={task.description ?? ""}
                 multiline
-                placeholder="Добавьте описание…"
+                markdown
+                placeholder="Добавьте описание… (поддерживается markdown)"
                 onSave={updateTaskFieldsAction.bind(null, task.id)}
                 field="description"
               />
             </div>
           </div>
+
+          {/* Чек-лист */}
+          <section className="rounded-2xl border border-edge bg-surface p-6">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
+              Чек-лист (
+              {task.checklist.filter((i) => i.done).length}/{task.checklist.length})
+            </h2>
+            <Checklist
+              taskId={task.id}
+              items={task.checklist.map((i) => ({ id: i.id, text: i.text, done: i.done }))}
+            />
+          </section>
 
           {/* Подзадачи */}
           <section className="rounded-2xl border border-edge bg-surface p-6">
@@ -233,7 +262,7 @@ export default async function TaskPage({
                       />
                     )}
                   </div>
-                  <p className="whitespace-pre-wrap text-sm text-foreground/85">{log.content}</p>
+                  <Markdown text={log.content} />
                   <p className="mt-2 text-xs text-muted">— {log.author.name}</p>
                 </article>
               ))}
@@ -342,6 +371,37 @@ export default async function TaskPage({
               ))}
             </ul>
           </section>
+
+          {/* Календарь */}
+          {gcalUrl && (
+            <section className="rounded-2xl border border-edge bg-surface p-5">
+              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+                Календарь
+              </h2>
+              <div className="flex flex-col gap-2">
+                <a
+                  href={gcalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-lg border border-edge px-3 py-2 text-sm font-medium transition hover:border-accent/50 hover:bg-surface-2"
+                >
+                  <svg className="h-4 w-4 shrink-0 text-accent-hover" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" />
+                  </svg>
+                  В Google Calendar
+                </a>
+                <a
+                  href={`/api/tasks/${task.id}/ics`}
+                  className="flex items-center gap-2 rounded-lg border border-edge px-3 py-2 text-sm font-medium transition hover:border-accent/50 hover:bg-surface-2"
+                >
+                  <svg className="h-4 w-4 shrink-0 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  Скачать .ics (Outlook / Apple)
+                </a>
+              </div>
+            </section>
+          )}
 
           {/* Связи */}
           <section className="rounded-2xl border border-edge bg-surface p-5">

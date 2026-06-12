@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Markdown } from "@/components/Markdown";
 
 export function EditableText({
   value,
@@ -8,6 +9,7 @@ export function EditableText({
   onSave,
   big = false,
   multiline = false,
+  markdown = false,
   placeholder = "—",
 }: {
   value: string;
@@ -15,6 +17,8 @@ export function EditableText({
   onSave: (fields: Record<string, string>) => Promise<void>;
   big?: boolean;
   multiline?: boolean;
+  /** Рендерить значение как ограниченный Markdown (режим просмотра). */
+  markdown?: boolean;
   placeholder?: string;
 }) {
   const [editing, setEditing] = useState(false);
@@ -60,11 +64,11 @@ export function EditableText({
       title="Нажмите, чтобы редактировать"
       className={`cursor-text rounded-lg px-1 -mx-1 transition hover:bg-surface-2/60 ${
         pending ? "opacity-50" : ""
-      } ${big ? "text-xl font-bold tracking-tight" : "whitespace-pre-wrap text-sm text-foreground/85"} ${
+      } ${big ? "text-xl font-bold tracking-tight" : markdown ? "text-sm" : "whitespace-pre-wrap text-sm text-foreground/85"} ${
         !value ? "text-muted/60" : ""
       }`}
     >
-      {value || placeholder}
+      {value ? (markdown && multiline ? <Markdown text={value} /> : value) : placeholder}
     </div>
   );
 }

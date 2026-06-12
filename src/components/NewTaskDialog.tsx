@@ -58,8 +58,22 @@ export function NewTaskDialog({
             </label>
 
             <label className="mb-4 block">
-              <span className="mb-1.5 block text-sm text-muted">Описание</span>
+              <span className="mb-1.5 block text-sm text-muted">
+                Описание <span className="text-xs">· поддерживается markdown</span>
+              </span>
               <textarea name="description" rows={3} placeholder="Детали, контекст, критерии приёмки…" className={`${inputCls} resize-none`} />
+            </label>
+
+            <label className="mb-4 block">
+              <span className="mb-1.5 block text-sm text-muted">
+                Чек-лист <span className="text-xs">· по пункту на строку</span>
+              </span>
+              <textarea
+                name="checklist"
+                rows={3}
+                placeholder={"Написать тесты\nОбновить документацию\nПроверить на staging"}
+                className={`${inputCls} resize-none`}
+              />
             </label>
 
             <div className="mb-4 grid grid-cols-2 gap-3">

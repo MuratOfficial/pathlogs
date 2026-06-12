@@ -23,7 +23,18 @@ const taskSchema = z.object({
   startDate: z.string().optional(),
   dueDate: z.string().optional(),
   assigneeIds: z.array(z.string()).optional(),
+  checklist: z.string().optional(),
 });
+
+/** «Пункт на строку» → массив непустых пунктов (маркеры -/* и [ ] отбрасываются). */
+function parseChecklistLines(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(/\r?\n/)
+    .map((l) => l.replace(/^\s*[-*]?\s*(\[[ xX]?\]\s*)?/, "").trim())
+    .filter(Boolean)
+    .slice(0, 100);
+}
 
 function revalidateTask(projectId: string, taskId?: string) {
   revalidatePath(`/projects/${projectId}`);
@@ -45,6 +56,7 @@ export async function createTaskAction(
     startDate: formData.get("startDate") || undefined,
     dueDate: formData.get("dueDate") || undefined,
     assigneeIds: formData.getAll("assigneeIds").map(String),
+    checklist: formData.get("checklist") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
@@ -79,6 +91,12 @@ export async function createTaskAction(
       assignees: assigneeIds.length
         ? { connect: assigneeIds.map((id) => ({ id })) }
         : undefined,
+      checklist: {
+        create: parseChecklistLines(d.checklist).map((text, i) => ({
+          text,
+          order: (i + 1) * 10,
+        })),
+      },
     },
   });
 
@@ -260,6 +278,56 @@ export async function deleteTimeEntryAction(id: string) {
   }
   await prisma.timeEntry.delete({ where: { id } });
   revalidateTask(entry.task.projectId, entry.taskId);
+}
+
+// ===== Чек-лист =====
+
+/** Доступ к пункту чек-листа через членство в проекте его задачи. */
+async function requireChecklistItem(id: string) {
+  const item = await prisma.checklistItem.findUniqueOrThrow({
+    where: { id },
+    include: { task: { select: { id: true, projectId: true } } },
+  });
+  await requireProjectMember(item.task.projectId);
+  return item;
+}
+
+export async function addChecklistItemAction(taskId: string, text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  const { task } = await requireTaskMember(taskId);
+  const last = await prisma.checklistItem.findFirst({
+    where: { taskId },
+    orderBy: { order: "desc" },
+    select: { order: true },
+  });
+  await prisma.checklistItem.create({
+    data: { taskId, text: trimmed.slice(0, 500), order: (last?.order ?? 0) + 10 },
+  });
+  revalidateTask(task.projectId, taskId);
+}
+
+export async function toggleChecklistItemAction(id: string, done: boolean) {
+  const item = await requireChecklistItem(id);
+  await prisma.checklistItem.update({ where: { id }, data: { done } });
+  revalidateTask(item.task.projectId, item.taskId);
+}
+
+export async function updateChecklistItemAction(id: string, text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  const item = await requireChecklistItem(id);
+  await prisma.checklistItem.update({
+    where: { id },
+    data: { text: trimmed.slice(0, 500) },
+  });
+  revalidateTask(item.task.projectId, item.taskId);
+}
+
+export async function deleteChecklistItemAction(id: string) {
+  const item = await requireChecklistItem(id);
+  await prisma.checklistItem.delete({ where: { id } });
+  revalidateTask(item.task.projectId, item.taskId);
 }
 
 export async function deleteAttachmentAction(id: string) {

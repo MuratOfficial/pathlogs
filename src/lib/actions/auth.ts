@@ -71,6 +71,13 @@ export async function loginAction(
   }
 }
 
+/** Вход через Google OAuth (кнопка видна только при настроенных AUTH_GOOGLE_*). */
+export async function googleLoginAction(formData: FormData) {
+  await signIn("google", {
+    redirectTo: String(formData.get("callbackUrl") || "/dashboard"),
+  });
+}
+
 export async function logoutAction() {
   await signOut({ redirect: false });
   redirect("/login");

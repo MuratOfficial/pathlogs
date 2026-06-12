@@ -61,7 +61,8 @@ model User {
   id            String          @id @default(cuid())
   email         String          @unique
   name          String
-  passwordHash  String
+  /// null — пользователь создан через OAuth и входит без пароля
+  passwordHash  String?
   role          Role            @default(DEVELOPER)
   active        Boolean         @default(true)
   createdAt     DateTime        @default(now())
@@ -145,11 +146,25 @@ model Task {
   patchLogs     PatchLog[]
   timeEntries   TimeEntry[]
   attachments   Attachment[]
+  checklist     ChecklistItem[]
   linksFrom     TaskLink[]   @relation("LinkFrom")
   linksTo       TaskLink[]   @relation("LinkTo")
 
   @@index([projectId, status])
   @@index([parentId])
+}
+
+/// Пункт чек-листа задачи.
+model ChecklistItem {
+  id        String   @id @default(cuid())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  text      String
+  done      Boolean  @default(false)
+  order     Float    @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
 }
 
 model TaskLink {

@@ -21,6 +21,9 @@ import {
   updateTaskStatusAction,
   updateTaskFieldsAction,
   addTaskLinkAction,
+  addChecklistItemAction,
+  toggleChecklistItemAction,
+  deleteChecklistItemAction,
 } from "@/lib/actions/tasks";
 import {
   createBoardColumnAction,
@@ -92,6 +95,59 @@ describe("createTaskAction", () => {
       include: { assignees: true },
     });
     expect(created.assignees.map((a) => a.id)).toEqual([fx.member.id]);
+  });
+});
+
+describe("чек-лист", () => {
+  it("создание задачи с чек-листом «пункт на строку»", async () => {
+    loginAs(fx.member);
+    const fd = taskForm(fx.project.id, {
+      checklist: "- [ ] Написать тесты\nОбновить доку\n\n* Проверить на staging",
+    });
+    await createTaskAction(undefined, fd);
+    const created = await prisma.task.findFirstOrThrow({
+      where: { title: "Новая задача" },
+      include: { checklist: { orderBy: { order: "asc" } } },
+    });
+    expect(created.checklist.map((i) => i.text)).toEqual([
+      "Написать тесты",
+      "Обновить доку",
+      "Проверить на staging",
+    ]);
+    expect(created.checklist.every((i) => !i.done)).toBe(true);
+  });
+
+  it("участник добавляет и отмечает пункт", async () => {
+    loginAs(fx.member);
+    await addChecklistItemAction(fx.task.id, "Проверить миграцию");
+    const item = await prisma.checklistItem.findFirstOrThrow({
+      where: { taskId: fx.task.id },
+    });
+    expect(item.done).toBe(false);
+
+    await toggleChecklistItemAction(item.id, true);
+    expect(
+      (await prisma.checklistItem.findUniqueOrThrow({ where: { id: item.id } })).done
+    ).toBe(true);
+  });
+
+  it("посторонний не трогает чек-лист", async () => {
+    loginAs(fx.member);
+    await addChecklistItemAction(fx.task.id, "Пункт");
+    const item = await prisma.checklistItem.findFirstOrThrow({
+      where: { taskId: fx.task.id },
+    });
+
+    loginAs(fx.outsider);
+    await expect(addChecklistItemAction(fx.task.id, "Взлом")).rejects.toThrow(
+      "Нет доступа к проекту"
+    );
+    await expect(toggleChecklistItemAction(item.id, true)).rejects.toThrow(
+      "Нет доступа к проекту"
+    );
+    await expect(deleteChecklistItemAction(item.id)).rejects.toThrow(
+      "Нет доступа к проекту"
+    );
   });
 });
 
