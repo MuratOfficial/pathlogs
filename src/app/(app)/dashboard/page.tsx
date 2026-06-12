@@ -10,12 +10,23 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ archived?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { archived } = await searchParams;
   const showArchived = archived === "1";
 
   const projects = await prisma.project.findMany({
-    where: { status: showArchived ? "ARCHIVED" : "ACTIVE" },
+    where: {
+      status: showArchived ? "ARCHIVED" : "ACTIVE",
+      // Не-админ видит только проекты, где он владелец или участник
+      ...(user.role !== "ADMIN"
+        ? {
+            OR: [
+              { ownerId: user.id },
+              { members: { some: { userId: user.id } } },
+            ],
+          }
+        : {}),
+    },
     include: {
       owner: true,
       members: { include: { user: true } },
@@ -65,6 +76,10 @@ export default async function DashboardPage({
             const done = p.tasks.length;
             const total = p._count.tasks;
             const pct = total ? Math.round((done / total) * 100) : 0;
+            const canManage =
+              user.role === "ADMIN" ||
+              p.ownerId === user.id ||
+              (user.role === "MANAGER" && p.members.some((m) => m.userId === user.id));
             return (
               <div
                 key={p.id}
@@ -76,12 +91,14 @@ export default async function DashboardPage({
                     <span className="rounded-md bg-accent/15 px-2 py-1 font-mono text-xs font-bold text-accent-hover">
                       {p.key}
                     </span>
-                    <span className="pointer-events-auto">
-                      <ArchiveProjectButton
-                        projectId={p.id}
-                        archived={p.status === "ARCHIVED"}
-                      />
-                    </span>
+                    {canManage && (
+                      <span className="pointer-events-auto">
+                        <ArchiveProjectButton
+                          projectId={p.id}
+                          archived={p.status === "ARCHIVED"}
+                        />
+                      </span>
+                    )}
                   </div>
                   <h3 className="text-base font-semibold group-hover:text-accent-hover">
                     {p.name}

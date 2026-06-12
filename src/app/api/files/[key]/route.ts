@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { canAccessProject } from "@/lib/access";
 import { localFilePath } from "@/lib/storage";
 import { readFile } from "fs/promises";
 
@@ -18,9 +19,18 @@ export async function GET(
 
   const attachment = await prisma.attachment.findFirst({
     where: { key: decodedKey, storage: "LOCAL" },
+    include: { task: { select: { projectId: true } } },
   });
   if (!attachment) {
     return NextResponse.json({ error: "Файл не найден" }, { status: 404 });
+  }
+
+  // Файл задачи доступен только участникам её проекта
+  if (
+    attachment.task &&
+    !(await canAccessProject(attachment.task.projectId, session.user))
+  ) {
+    return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
   }
 
   try {

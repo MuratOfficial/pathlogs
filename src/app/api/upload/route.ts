@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { canAccessProject } from "@/lib/access";
 import { storeFile } from "@/lib/storage";
 
 const MAX_SIZE = 25 * 1024 * 1024; // 25 MB
@@ -20,6 +21,16 @@ export async function POST(req: NextRequest) {
   }
   if (file.size > MAX_SIZE) {
     return NextResponse.json({ error: "Файл больше 25 МБ" }, { status: 413 });
+  }
+
+  if (typeof taskId === "string" && taskId) {
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { projectId: true },
+    });
+    if (!task || !(await canAccessProject(task.projectId, session.user))) {
+      return NextResponse.json({ error: "Нет доступа к задаче" }, { status: 403 });
+    }
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());

@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
+import { requireProjectManager } from "@/lib/access";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -49,7 +50,7 @@ export async function createProjectAction(
 }
 
 export async function toggleProjectArchiveAction(projectId: string) {
-  await requireUser();
+  await requireProjectManager(projectId);
   const project = await prisma.project.findUniqueOrThrow({ where: { id: projectId } });
   await prisma.project.update({
     where: { id: projectId },
@@ -60,7 +61,12 @@ export async function toggleProjectArchiveAction(projectId: string) {
 }
 
 export async function addProjectMemberAction(projectId: string, userId: string) {
-  await requireUser();
+  await requireProjectManager(projectId);
+  const target = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { active: true },
+  });
+  if (!target.active) throw new Error("Пользователь деактивирован");
   await prisma.projectMember.upsert({
     where: { projectId_userId: { projectId, userId } },
     update: {},
@@ -70,7 +76,14 @@ export async function addProjectMemberAction(projectId: string, userId: string) 
 }
 
 export async function removeProjectMemberAction(projectId: string, userId: string) {
-  await requireUser();
+  await requireProjectManager(projectId);
+  const project = await prisma.project.findUniqueOrThrow({
+    where: { id: projectId },
+    select: { ownerId: true },
+  });
+  if (project.ownerId === userId) {
+    throw new Error("Владельца проекта исключить нельзя");
+  }
   await prisma.projectMember.deleteMany({ where: { projectId, userId } });
   revalidatePath(`/projects/${projectId}`);
 }

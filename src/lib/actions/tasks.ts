@@ -2,6 +2,12 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
+import {
+  filterProjectMembers,
+  isManager,
+  requireProjectMember,
+  requireTaskMember,
+} from "@/lib/access";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { Priority, TaskStatus, TaskType } from "@prisma/client";
@@ -28,7 +34,6 @@ export async function createTaskAction(
   _prev: { error?: string } | undefined,
   formData: FormData
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
   const parsed = taskSchema.safeParse({
     title: formData.get("title"),
     description: formData.get("description") || undefined,
@@ -45,6 +50,19 @@ export async function createTaskAction(
     return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
   }
   const d = parsed.data;
+  const user = await requireProjectMember(d.projectId);
+
+  if (d.parentId) {
+    const parent = await prisma.task.findUnique({
+      where: { id: d.parentId },
+      select: { projectId: true },
+    });
+    if (parent?.projectId !== d.projectId) {
+      return { error: "Родительская задача из другого проекта" };
+    }
+  }
+
+  const assigneeIds = await filterProjectMembers(d.projectId, d.assigneeIds ?? []);
 
   const task = await prisma.task.create({
     data: {
@@ -58,8 +76,8 @@ export async function createTaskAction(
       startDate: d.startDate ? new Date(d.startDate) : null,
       dueDate: d.dueDate ? new Date(d.dueDate) : null,
       creatorId: user.id,
-      assignees: d.assigneeIds?.length
-        ? { connect: d.assigneeIds.map((id) => ({ id })) }
+      assignees: assigneeIds.length
+        ? { connect: assigneeIds.map((id) => ({ id })) }
         : undefined,
     },
   });
@@ -69,11 +87,7 @@ export async function createTaskAction(
 }
 
 export async function updateTaskStatusAction(taskId: string, status: TaskStatus) {
-  await requireUser();
-  const current = await prisma.task.findUniqueOrThrow({
-    where: { id: taskId },
-    select: { projectId: true },
-  });
+  const { task: current } = await requireTaskMember(taskId);
   // Смена статуса переносит карточку в колонку этого статуса (если она есть)
   const statusColumn = await prisma.boardColumn.findFirst({
     where: { projectId: current.projectId, status },
@@ -103,7 +117,11 @@ export async function updateTaskFieldsAction(
     assigneeIds?: string[];
   }
 ) {
-  await requireUser();
+  const { task: current } = await requireTaskMember(taskId);
+  const assigneeIds =
+    fields.assigneeIds !== undefined
+      ? await filterProjectMembers(current.projectId, fields.assigneeIds)
+      : undefined;
   const task = await prisma.task.update({
     where: { id: taskId },
     data: {
@@ -118,8 +136,8 @@ export async function updateTaskFieldsAction(
       ...(fields.dueDate !== undefined
         ? { dueDate: fields.dueDate ? new Date(fields.dueDate) : null }
         : {}),
-      ...(fields.assigneeIds !== undefined
-        ? { assignees: { set: fields.assigneeIds.map((id) => ({ id })) } }
+      ...(assigneeIds !== undefined
+        ? { assignees: { set: assigneeIds.map((id) => ({ id })) } }
         : {}),
     },
   });
@@ -127,15 +145,30 @@ export async function updateTaskFieldsAction(
 }
 
 export async function deleteTaskAction(taskId: string) {
-  await requireUser();
-  const task = await prisma.task.delete({ where: { id: taskId } });
+  const { user, task } = await requireTaskMember(taskId);
+  const project = await prisma.project.findUniqueOrThrow({
+    where: { id: task.projectId },
+    select: { ownerId: true },
+  });
+  const allowed =
+    task.creatorId === user.id || project.ownerId === user.id || isManager(user);
+  if (!allowed) {
+    throw new Error("Удалять задачу может её автор, менеджер или владелец проекта");
+  }
+  await prisma.task.delete({ where: { id: taskId } });
   revalidateTask(task.projectId);
 }
 
 export async function addTaskLinkAction(fromId: string, toId: string, type: "BLOCKS" | "RELATES" | "DUPLICATES") {
-  await requireUser();
   if (fromId === toId) return;
-  const from = await prisma.task.findUniqueOrThrow({ where: { id: fromId } });
+  const { task: from } = await requireTaskMember(fromId);
+  const to = await prisma.task.findUniqueOrThrow({
+    where: { id: toId },
+    select: { projectId: true },
+  });
+  if (to.projectId !== from.projectId) {
+    throw new Error("Связывать можно только задачи одного проекта");
+  }
   await prisma.taskLink.upsert({
     where: { fromId_toId_type: { fromId, toId, type } },
     update: {},
@@ -146,7 +179,11 @@ export async function addTaskLinkAction(fromId: string, toId: string, type: "BLO
 }
 
 export async function removeTaskLinkAction(linkId: string) {
-  await requireUser();
+  const existing = await prisma.taskLink.findUniqueOrThrow({
+    where: { id: linkId },
+    select: { fromId: true },
+  });
+  await requireTaskMember(existing.fromId);
   const link = await prisma.taskLink.delete({
     where: { id: linkId },
     include: { from: true },
@@ -159,14 +196,13 @@ export async function addPatchLogAction(
   _prev: { error?: string } | undefined,
   formData: FormData
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
   const taskId = String(formData.get("taskId") ?? "");
   const title = String(formData.get("title") ?? "").trim();
   const content = String(formData.get("content") ?? "").trim();
   if (!taskId || title.length < 2) return { error: "Заголовок — минимум 2 символа" };
   if (!content) return { error: "Описание реализации обязательно" };
 
-  const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId } });
+  const { user, task } = await requireTaskMember(taskId);
   await prisma.patchLog.create({
     data: { taskId, authorId: user.id, title, content },
   });
@@ -191,7 +227,6 @@ export async function addTimeEntryAction(
   _prev: { error?: string } | undefined,
   formData: FormData
 ): Promise<{ error?: string }> {
-  const user = await requireUser();
   const taskId = String(formData.get("taskId") ?? "");
   const hours = Number(formData.get("hours"));
   const note = String(formData.get("note") ?? "").trim() || null;
@@ -200,7 +235,7 @@ export async function addTimeEntryAction(
     return { error: "Укажите время больше нуля" };
   }
 
-  const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId } });
+  const { user, task } = await requireTaskMember(taskId);
   await prisma.timeEntry.create({
     data: {
       taskId,

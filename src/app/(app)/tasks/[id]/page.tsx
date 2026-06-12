@@ -27,6 +27,7 @@ import {
   deleteTaskAction,
   updateTaskFieldsAction,
 } from "@/lib/actions/tasks";
+import { canAccessProject } from "@/lib/access";
 
 export default async function TaskPage({
   params,
@@ -39,7 +40,15 @@ export default async function TaskPage({
   const task = await prisma.task.findUnique({
     where: { id },
     include: {
-      project: { select: { id: true, key: true, name: true } },
+      project: {
+        select: {
+          id: true,
+          key: true,
+          name: true,
+          owner: { select: { id: true, name: true } },
+          members: { select: { user: { select: { id: true, name: true } } } },
+        },
+      },
       parent: { select: { id: true, number: true, title: true } },
       children: {
         include: { assignees: { select: { id: true, name: true } } },
@@ -65,18 +74,28 @@ export default async function TaskPage({
   });
   if (!task) notFound();
 
+  // Чужая задача неотличима от несуществующей
+  if (!(await canAccessProject(task.projectId, user))) notFound();
+
   const projectTasks = await prisma.task.findMany({
     where: { projectId: task.projectId, id: { not: task.id } },
     select: { id: true, number: true, title: true },
     orderBy: { number: "asc" },
   });
-  const allUsers = await prisma.user.findMany({
-    where: { active: true },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
+  // Исполнители выбираются из участников проекта
+  const memberUsers = task.project.members.map((m) => m.user);
+  const projectMembers = memberUsers.some((u) => u.id === task.project.owner.id)
+    ? memberUsers
+    : [task.project.owner, ...memberUsers];
 
   const spent = task.timeEntries.reduce((s, e) => s + e.hours, 0);
+
+  // Право удаления: автор задачи, владелец проекта, менеджер или админ
+  const canDeleteTask =
+    task.creatorId === user.id ||
+    task.project.owner.id === user.id ||
+    user.role === "ADMIN" ||
+    user.role === "MANAGER";
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -147,7 +166,7 @@ export default async function TaskPage({
               <NewTaskDialog
                 projectId={task.projectId}
                 tasks={[{ id: task.id, number: task.number, title: task.title }, ...projectTasks]}
-                members={allUsers}
+                members={projectMembers}
                 defaultParentId={task.id}
                 triggerLabel="+ Подзадача"
                 triggerClassName="rounded-lg border border-edge px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
@@ -280,7 +299,7 @@ export default async function TaskPage({
               dueDate: task.dueDate?.toISOString().slice(0, 10) ?? null,
               assigneeIds: task.assignees.map((a) => a.id),
             }}
-            users={allUsers}
+            users={projectMembers}
           />
 
           {/* Трудозатраты */}
@@ -367,14 +386,16 @@ export default async function TaskPage({
             <p className="mb-1">Создана: {formatDateTime(task.createdAt)}</p>
             <p className="mb-1">Обновлена: {formatDateTime(task.updatedAt)}</p>
             {task.closedAt && <p>Закрыта: {formatDateTime(task.closedAt)}</p>}
-            <div className="mt-4 border-t border-edge pt-3">
-              <ConfirmActionButton
-                action={deleteTaskAction.bind(null, task.id)}
-                confirmText="Удалить задачу со всеми патч-логами и записями времени?"
-                label="Удалить задачу"
-                redirectTo={`/projects/${task.projectId}`}
-              />
-            </div>
+            {canDeleteTask && (
+              <div className="mt-4 border-t border-edge pt-3">
+                <ConfirmActionButton
+                  action={deleteTaskAction.bind(null, task.id)}
+                  confirmText="Удалить задачу со всеми патч-логами и записями времени?"
+                  label="Удалить задачу"
+                  redirectTo={`/projects/${task.projectId}`}
+                />
+              </div>
+            )}
           </section>
         </div>
       </div>

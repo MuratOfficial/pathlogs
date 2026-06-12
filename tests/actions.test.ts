@@ -1,0 +1,334 @@
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
+
+vi.mock("@/auth", async () => {
+  const { authState } = await import("./auth-state");
+  return {
+    requireUser: async () => {
+      if (!authState.user) throw new Error("Не авторизован");
+      return authState.user;
+    },
+  };
+});
+
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
+import { prisma } from "@/lib/prisma";
+import {
+  createTaskAction,
+  deleteTaskAction,
+  updateTaskStatusAction,
+  updateTaskFieldsAction,
+  addTaskLinkAction,
+} from "@/lib/actions/tasks";
+import {
+  createBoardColumnAction,
+  deleteBoardColumnAction,
+  moveTaskToColumnAction,
+  moveTaskAction,
+  reorderColumnsAction,
+} from "@/lib/actions/board";
+import {
+  removeProjectMemberAction,
+  toggleProjectArchiveAction,
+} from "@/lib/actions/projects";
+import { loginAs } from "./auth-state";
+import { createFixtures, resetDb, type Fixtures } from "./fixtures";
+
+let fx: Fixtures;
+
+beforeEach(async () => {
+  await resetDb();
+  fx = await createFixtures();
+});
+
+afterAll(async () => {
+  await prisma.$disconnect();
+});
+
+function taskForm(projectId: string, extra: Record<string, string> = {}) {
+  const fd = new FormData();
+  fd.set("title", "Новая задача");
+  fd.set("projectId", projectId);
+  fd.set("type", "FEATURE");
+  fd.set("priority", "MEDIUM");
+  for (const [k, v] of Object.entries(extra)) fd.set(k, v);
+  return fd;
+}
+
+describe("createTaskAction", () => {
+  it("участник создаёт задачу", async () => {
+    loginAs(fx.member);
+    await expect(createTaskAction(undefined, taskForm(fx.project.id))).resolves.toEqual({});
+    const count = await prisma.task.count({ where: { projectId: fx.project.id } });
+    expect(count).toBe(2);
+  });
+
+  it("посторонний — отказ", async () => {
+    loginAs(fx.outsider);
+    await expect(createTaskAction(undefined, taskForm(fx.project.id))).rejects.toThrow(
+      "Нет доступа к проекту"
+    );
+  });
+
+  it("родитель из другого проекта — отказ", async () => {
+    loginAs(fx.member);
+    const res = await createTaskAction(
+      undefined,
+      taskForm(fx.project.id, { parentId: fx.otherTask.id })
+    );
+    expect(res.error).toBe("Родительская задача из другого проекта");
+  });
+
+  it("исполнители не из проекта отбрасываются", async () => {
+    loginAs(fx.member);
+    const fd = taskForm(fx.project.id);
+    fd.append("assigneeIds", fx.member.id);
+    fd.append("assigneeIds", fx.outsider.id);
+    await createTaskAction(undefined, fd);
+    const created = await prisma.task.findFirstOrThrow({
+      where: { title: "Новая задача" },
+      include: { assignees: true },
+    });
+    expect(created.assignees.map((a) => a.id)).toEqual([fx.member.id]);
+  });
+});
+
+describe("deleteTaskAction", () => {
+  it("автор удаляет свою задачу", async () => {
+    loginAs(fx.member);
+    await deleteTaskAction(fx.task.id);
+    expect(await prisma.task.findUnique({ where: { id: fx.task.id } })).toBeNull();
+  });
+
+  it("менеджер проекта удаляет чужую задачу", async () => {
+    loginAs(fx.manager);
+    await deleteTaskAction(fx.task.id);
+    expect(await prisma.task.findUnique({ where: { id: fx.task.id } })).toBeNull();
+  });
+
+  it("участник-разработчик не может удалить чужую задачу", async () => {
+    const ownerTask = await prisma.task.create({
+      data: { title: "Задача владельца", projectId: fx.project.id, creatorId: fx.owner.id },
+    });
+    loginAs(fx.member);
+    await expect(deleteTaskAction(ownerTask.id)).rejects.toThrow(
+      "Удалять задачу может её автор, менеджер или владелец проекта"
+    );
+  });
+
+  it("посторонний — отказ ещё на членстве", async () => {
+    loginAs(fx.outsider);
+    await expect(deleteTaskAction(fx.task.id)).rejects.toThrow("Нет доступа к проекту");
+  });
+});
+
+describe("updateTaskStatusAction / updateTaskFieldsAction", () => {
+  it("посторонний не меняет статус", async () => {
+    loginAs(fx.outsider);
+    await expect(updateTaskStatusAction(fx.task.id, "DONE")).rejects.toThrow(
+      "Нет доступа к проекту"
+    );
+  });
+
+  it("смена статуса синхронизирует колонку", async () => {
+    loginAs(fx.member);
+    await updateTaskStatusAction(fx.task.id, "IN_PROGRESS");
+    const updated = await prisma.task.findUniqueOrThrow({ where: { id: fx.task.id } });
+    expect(updated.status).toBe("IN_PROGRESS");
+    expect(updated.columnId).toBe(fx.cols.inProgress.id);
+  });
+
+  it("исполнители фильтруются по участникам проекта", async () => {
+    loginAs(fx.member);
+    await updateTaskFieldsAction(fx.task.id, {
+      assigneeIds: [fx.manager.id, fx.outsider.id],
+    });
+    const updated = await prisma.task.findUniqueOrThrow({
+      where: { id: fx.task.id },
+      include: { assignees: true },
+    });
+    expect(updated.assignees.map((a) => a.id)).toEqual([fx.manager.id]);
+  });
+});
+
+describe("addTaskLinkAction", () => {
+  it("связь между проектами запрещена", async () => {
+    loginAs(fx.member);
+    await expect(
+      addTaskLinkAction(fx.task.id, fx.otherTask.id, "RELATES")
+    ).rejects.toThrow("Связывать можно только задачи одного проекта");
+  });
+});
+
+describe("board actions", () => {
+  it("участник создаёт колонку, посторонний — нет", async () => {
+    loginAs(fx.member);
+    const res = await createBoardColumnAction(fx.project.id, "Ревью кода", "#60a5fa");
+    expect(res.column?.name).toBe("Ревью кода");
+
+    loginAs(fx.outsider);
+    await expect(
+      createBoardColumnAction(fx.project.id, "Взлом", "#ef4444")
+    ).rejects.toThrow("Нет доступа к проекту");
+  });
+
+  it("перенос в колонку чужого проекта запрещён", async () => {
+    loginAs(fx.member);
+    await expect(
+      moveTaskToColumnAction(fx.task.id, fx.cols.otherTodo.id)
+    ).rejects.toThrow("Колонка принадлежит другому проекту");
+  });
+
+  it("кастомная колонка не меняет статус, статусная — меняет", async () => {
+    loginAs(fx.member);
+    await moveTaskToColumnAction(fx.task.id, fx.cols.custom.id);
+    let t = await prisma.task.findUniqueOrThrow({ where: { id: fx.task.id } });
+    expect(t.status).toBe("TODO");
+    expect(t.columnId).toBe(fx.cols.custom.id);
+
+    await moveTaskToColumnAction(fx.task.id, fx.cols.inProgress.id);
+    t = await prisma.task.findUniqueOrThrow({ where: { id: fx.task.id } });
+    expect(t.status).toBe("IN_PROGRESS");
+  });
+
+  it("удаление колонки: разработчику нельзя, менеджеру можно, статусную — никому", async () => {
+    loginAs(fx.member);
+    await expect(deleteBoardColumnAction(fx.cols.custom.id)).rejects.toThrow(
+      "Требуются права менеджера проекта"
+    );
+
+    loginAs(fx.manager);
+    await expect(deleteBoardColumnAction(fx.cols.todo.id)).rejects.toThrow(
+      "Стандартную колонку удалить нельзя"
+    );
+    await deleteBoardColumnAction(fx.cols.custom.id);
+    expect(
+      await prisma.boardColumn.findUnique({ where: { id: fx.cols.custom.id } })
+    ).toBeNull();
+  });
+});
+
+describe("moveTaskAction (перенос с позицией)", () => {
+  async function makeTasks(n: number) {
+    const ids: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const t = await prisma.task.create({
+        data: {
+          title: `Карточка ${i}`,
+          projectId: fx.project.id,
+          creatorId: fx.member.id,
+          columnId: fx.cols.todo.id,
+          status: "TODO",
+          order: i,
+        },
+      });
+      ids.push(t.id);
+    }
+    return ids;
+  }
+
+  it("переупорядочивает карточки внутри колонки по списку", async () => {
+    loginAs(fx.member);
+    const [a, b, c] = await makeTasks(3);
+    // Переносим c в начало: c, a, b
+    await moveTaskAction(c, fx.cols.todo.id, [c, a, b]);
+    const orders = Object.fromEntries(
+      (
+        await prisma.task.findMany({
+          where: { id: { in: [a, b, c] } },
+          select: { id: true, order: true },
+        })
+      ).map((t) => [t.id, t.order])
+    );
+    expect(orders[c]).toBeLessThan(orders[a]);
+    expect(orders[a]).toBeLessThan(orders[b]);
+  });
+
+  it("перенос в статусную колонку меняет статус и порядок", async () => {
+    loginAs(fx.member);
+    await moveTaskAction(fx.task.id, fx.cols.inProgress.id, [fx.task.id]);
+    const t = await prisma.task.findUniqueOrThrow({ where: { id: fx.task.id } });
+    expect(t.status).toBe("IN_PROGRESS");
+    expect(t.columnId).toBe(fx.cols.inProgress.id);
+    expect(t.order).toBe(0);
+  });
+
+  it("посторонний не может переносить", async () => {
+    loginAs(fx.outsider);
+    await expect(
+      moveTaskAction(fx.task.id, fx.cols.todo.id, [fx.task.id])
+    ).rejects.toThrow("Нет доступа к проекту");
+  });
+
+  it("колонка чужого проекта запрещена", async () => {
+    loginAs(fx.member);
+    await expect(
+      moveTaskAction(fx.task.id, fx.cols.otherTodo.id, [fx.task.id])
+    ).rejects.toThrow("Колонка принадлежит другому проекту");
+  });
+});
+
+describe("reorderColumnsAction", () => {
+  it("участник переставляет колонки", async () => {
+    loginAs(fx.member);
+    const reversed = [fx.cols.custom.id, fx.cols.inProgress.id, fx.cols.todo.id];
+    await reorderColumnsAction(fx.project.id, reversed);
+    const cols = await prisma.boardColumn.findMany({
+      where: { projectId: fx.project.id },
+      orderBy: { order: "asc" },
+      select: { id: true },
+    });
+    expect(cols.map((c) => c.id)).toEqual(reversed);
+  });
+
+  it("посторонний — отказ", async () => {
+    loginAs(fx.outsider);
+    await expect(
+      reorderColumnsAction(fx.project.id, [fx.cols.todo.id])
+    ).rejects.toThrow("Нет доступа к проекту");
+  });
+
+  it("колонка чужого проекта в списке — отказ", async () => {
+    loginAs(fx.member);
+    await expect(
+      reorderColumnsAction(fx.project.id, [fx.cols.todo.id, fx.cols.otherTodo.id])
+    ).rejects.toThrow("Колонка из другого проекта");
+  });
+});
+
+describe("project actions", () => {
+  it("владельца исключить нельзя", async () => {
+    loginAs(fx.manager);
+    await expect(
+      removeProjectMemberAction(fx.project.id, fx.owner.id)
+    ).rejects.toThrow("Владельца проекта исключить нельзя");
+  });
+
+  it("разработчик не управляет составом, менеджер — управляет", async () => {
+    loginAs(fx.member);
+    await expect(
+      removeProjectMemberAction(fx.project.id, fx.manager.id)
+    ).rejects.toThrow("Требуются права менеджера проекта");
+
+    loginAs(fx.manager);
+    await removeProjectMemberAction(fx.project.id, fx.member.id);
+    const left = await prisma.projectMember.findFirst({
+      where: { projectId: fx.project.id, userId: fx.member.id },
+    });
+    expect(left).toBeNull();
+  });
+
+  it("архивирование — только менеджер+", async () => {
+    loginAs(fx.member);
+    await expect(toggleProjectArchiveAction(fx.project.id)).rejects.toThrow(
+      "Требуются права менеджера проекта"
+    );
+
+    loginAs(fx.owner); // владелец с ролью разработчика — можно
+    await toggleProjectArchiveAction(fx.project.id);
+    const p = await prisma.project.findUniqueOrThrow({ where: { id: fx.project.id } });
+    expect(p.status).toBe("ARCHIVED");
+  });
+});

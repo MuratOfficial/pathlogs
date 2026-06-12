@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
 import type { TaskDTO, LinkDTO, MemberDTO, ColumnDTO } from "@/lib/types";
 import { ensureDefaultColumns } from "@/lib/board";
+import { canAccessProject, canManageProject } from "@/lib/access";
+import { ProjectMembersDialog } from "@/components/ProjectMembersDialog";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { TaskGraph } from "@/components/TaskGraph";
 import { TaskListView } from "@/components/TaskListView";
@@ -24,10 +26,13 @@ export default async function ProjectPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ view?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { id } = await params;
   const { view: rawView } = await searchParams;
   const view = VIEWS.some((v) => v.id === rawView) ? rawView! : "board";
+
+  // Чужой проект неотличим от несуществующего
+  if (!(await canAccessProject(id, user))) notFound();
 
   await ensureDefaultColumns(id);
 
@@ -43,6 +48,7 @@ export default async function ProjectPage({
         orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       },
       members: { include: { user: { select: { id: true, name: true } } } },
+      owner: { select: { id: true, name: true } },
       columns: { orderBy: { order: "asc" } },
     },
   });
@@ -86,12 +92,18 @@ export default async function ProjectPage({
     status: c.status,
   }));
 
-  const members: MemberDTO[] = project.members.map((m) => m.user);
-  const allUsers = await prisma.user.findMany({
-    where: { active: true },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
+  const members: MemberDTO[] = project.members.some((m) => m.user.id === project.ownerId)
+    ? project.members.map((m) => m.user)
+    : [project.owner, ...project.members.map((m) => m.user)];
+  const canManage = await canManageProject(id, user);
+  // Кандидаты на добавление — только для тех, кто может управлять составом
+  const candidates: MemberDTO[] = canManage
+    ? await prisma.user.findMany({
+        where: { active: true, id: { notIn: members.map((m) => m.id) } },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
 
   const totalSpent = tasks.reduce((s, t) => s + t.spentHours, 0);
   const open = tasks.filter(
@@ -116,7 +128,9 @@ export default async function ProjectPage({
               В архиве
             </span>
           )}
-          <ArchiveProjectButton projectId={project.id} archived={project.status === "ARCHIVED"} />
+          {canManage && (
+            <ArchiveProjectButton projectId={project.id} archived={project.status === "ARCHIVED"} />
+          )}
         </div>
 
         <div className="flex items-center gap-4">
@@ -125,10 +139,17 @@ export default async function ProjectPage({
             <span>Всего: <b className="text-foreground">{tasks.length}</b></span>
             <span>Затрачено: <b className="text-foreground">{formatHours(totalSpent)}</b></span>
           </div>
+          <ProjectMembersDialog
+            projectId={project.id}
+            ownerId={project.ownerId}
+            members={members}
+            candidates={candidates}
+            canManage={canManage}
+          />
           <NewTaskDialog
             projectId={project.id}
             tasks={tasks}
-            members={allUsers}
+            members={members}
           />
         </div>
       </div>
@@ -156,6 +177,7 @@ export default async function ProjectPage({
             columns={columns}
             projectId={project.id}
             projectKey={project.key}
+            canManageBoard={canManage}
           />
         )}
         {view === "graph" && (

@@ -7,7 +7,8 @@ import {
   createBoardColumnAction,
   updateBoardColumnAction,
   deleteBoardColumnAction,
-  moveTaskToColumnAction,
+  moveTaskAction,
+  reorderColumnsAction,
   updateTaskColorAction,
 } from "@/lib/actions/board";
 import { BOARD_PALETTE, formatDate, formatHours } from "@/lib/labels";
@@ -133,22 +134,89 @@ function AddColumn({
   );
 }
 
+/** Заголовок колонки с инлайн-переименованием по двойному клику. */
+function ColumnTitle({
+  name,
+  onRename,
+}: {
+  name: string;
+  onRename: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name);
+
+  if (!editing) {
+    return (
+      <h3
+        className="cursor-text text-sm font-semibold"
+        title="Двойной клик — переименовать"
+        onDoubleClick={() => {
+          setValue(name);
+          setEditing(true);
+        }}
+      >
+        {name}
+      </h3>
+    );
+  }
+
+  function commit() {
+    const trimmed = value.trim();
+    setEditing(false);
+    if (trimmed && trimmed !== name) onRename(trimmed);
+  }
+
+  return (
+    <input
+      autoFocus
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") commit();
+        if (e.key === "Escape") setEditing(false);
+      }}
+      className="w-full rounded border border-accent bg-surface-2 px-1.5 py-0.5 text-sm font-semibold outline-none"
+    />
+  );
+}
+
 export function KanbanBoard({
   tasks: initialTasks,
   columns: initialColumns,
   projectId,
   projectKey,
+  canManageBoard,
 }: {
   tasks: TaskDTO[];
   columns: ColumnDTO[];
   projectId: string;
   projectKey: string;
+  /** Право удалять колонки (менеджер проекта, владелец или админ). */
+  canManageBoard: boolean;
 }) {
   const router = useRouter();
   const [tasks, setTasks] = useState(initialTasks);
   const [columns, setColumns] = useState(initialColumns);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [overCol, setOverCol] = useState<string | null>(null);
+
+  // После ревалидации сервер присылает свежие props — сбрасываем локальное
+  // (оптимистичное) состояние на серверную правду прямо во время рендера.
+  const [prevTasks, setPrevTasks] = useState(initialTasks);
+  if (initialTasks !== prevTasks) {
+    setPrevTasks(initialTasks);
+    setTasks(initialTasks);
+  }
+  const [prevColumns, setPrevColumns] = useState(initialColumns);
+  if (initialColumns !== prevColumns) {
+    setPrevColumns(initialColumns);
+    setColumns(initialColumns);
+  }
+
+  const [dragId, setDragId] = useState<string | null>(null); // перетаскиваемая карточка
+  const [overTaskId, setOverTaskId] = useState<string | null>(null); // карточка-цель (вставить перед ней)
+  const [overCol, setOverCol] = useState<string | null>(null); // колонка-цель для карточки
+  const [dragColId, setDragColId] = useState<string | null>(null); // перетаскиваемая колонка
+  const [overColDrag, setOverColDrag] = useState<string | null>(null); // колонка-цель при переносе колонки
   const [paletteFor, setPaletteFor] = useState<string | null>(null); // id колонки или задачи
   const [, startTransition] = useTransition();
 
@@ -160,19 +228,58 @@ export function KanbanBoard({
     return columns.find((c) => c.status === t.status)?.id ?? null;
   }
 
-  function onDrop(col: ColumnDTO) {
-    if (!dragId) return;
+  function tasksOf(colId: string): TaskDTO[] {
+    return tasks
+      .filter((t) => columnOf(t) === colId)
+      .sort((a, b) => a.order - b.order);
+  }
+
+  // ── Перенос карточки ──────────────────────────────────────────────
+  function dropCard(col: ColumnDTO) {
     const id = dragId;
+    if (!id) return;
+    const list = tasksOf(col.id).filter((t) => t.id !== id);
+    let insertIndex = list.length;
+    if (overTaskId && overTaskId !== id) {
+      const idx = list.findIndex((t) => t.id === overTaskId);
+      if (idx >= 0) insertIndex = idx;
+    }
+    const newIds = list.map((t) => t.id);
+    newIds.splice(insertIndex, 0, id);
+
     setDragId(null);
+    setOverTaskId(null);
     setOverCol(null);
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, columnId: col.id, status: col.status ?? t.status }
-          : t
-      )
+      prev.map((t) => {
+        const oi = newIds.indexOf(t.id);
+        if (t.id === id) {
+          return {
+            ...t,
+            columnId: col.id,
+            status: col.status ?? t.status,
+            order: oi >= 0 ? oi : t.order,
+          };
+        }
+        return oi >= 0 ? { ...t, order: oi } : t;
+      })
     );
-    startTransition(() => moveTaskToColumnAction(id, col.id));
+    startTransition(() => moveTaskAction(id, col.id, newIds));
+  }
+
+  // ── Перестановка колонок ──────────────────────────────────────────
+  function dropColumn(targetColId: string) {
+    const id = dragColId;
+    setDragColId(null);
+    setOverColDrag(null);
+    if (!id || id === targetColId) return;
+    const order = sorted.map((c) => c.id).filter((cid) => cid !== id);
+    const targetIdx = order.indexOf(targetColId);
+    order.splice(targetIdx, 0, id);
+    setColumns((prev) =>
+      prev.map((c) => ({ ...c, order: (order.indexOf(c.id) + 1) * 10 }))
+    );
+    startTransition(() => reorderColumnsAction(projectId, order));
   }
 
   function createColumn(name: string, color: string) {
@@ -186,6 +293,11 @@ export function KanbanBoard({
     if (!color) return;
     setColumns((prev) => prev.map((c) => (c.id === colId ? { ...c, color } : c)));
     startTransition(() => updateBoardColumnAction(colId, { color }));
+  }
+
+  function renameColumn(colId: string, name: string) {
+    setColumns((prev) => prev.map((c) => (c.id === colId ? { ...c, name } : c)));
+    startTransition(() => updateBoardColumnAction(colId, { name }));
   }
 
   function removeColumn(colId: string) {
@@ -204,22 +316,55 @@ export function KanbanBoard({
   return (
     <div className="flex h-full gap-4 overflow-x-auto pb-4">
       {sorted.map((col) => {
-        const colTasks = tasks.filter((t) => columnOf(t) === col.id);
+        const colTasks = tasksOf(col.id);
+        const isColDropTarget = dragColId && overColDrag === col.id && dragColId !== col.id;
         return (
           <div
             key={col.id}
             onDragOver={(e) => {
               e.preventDefault();
-              setOverCol(col.id);
+              if (dragColId) setOverColDrag(col.id);
+              else {
+                setOverCol(col.id);
+                setOverTaskId(null); // над пустым местом колонки — в конец
+              }
             }}
-            onDragLeave={() => setOverCol((c) => (c === col.id ? null : c))}
-            onDrop={() => onDrop(col)}
+            onDragLeave={() => {
+              setOverCol((c) => (c === col.id ? null : c));
+              setOverColDrag((c) => (c === col.id ? null : c));
+            }}
+            onDrop={() => (dragColId ? dropColumn(col.id) : dropCard(col))}
             className={`flex w-80 shrink-0 flex-col rounded-2xl border bg-surface/60 transition ${
-              overCol === col.id ? "border-accent/60 bg-accent/5" : "border-edge"
+              overCol === col.id && !dragColId
+                ? "border-accent/60 bg-accent/5"
+                : isColDropTarget
+                  ? "border-accent border-dashed"
+                  : "border-edge"
             }`}
-            style={overCol === col.id ? undefined : { borderTopColor: col.color + "99", borderTopWidth: 2 }}
+            style={
+              overCol === col.id && !dragColId
+                ? undefined
+                : { borderTopColor: col.color + "99", borderTopWidth: 2 }
+            }
           >
             <div className="flex items-center gap-2 px-4 py-3">
+              <span
+                draggable
+                onDragStart={(e) => {
+                  setDragColId(col.id);
+                  e.stopPropagation();
+                }}
+                onDragEnd={() => {
+                  setDragColId(null);
+                  setOverColDrag(null);
+                }}
+                title="Перетащите, чтобы переставить колонку"
+                className="cursor-grab text-muted/60 transition hover:text-foreground active:cursor-grabbing"
+              >
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M7 4a1 1 0 110 2 1 1 0 010-2zM7 9a1 1 0 110 2 1 1 0 010-2zM7 14a1 1 0 110 2 1 1 0 010-2zM13 4a1 1 0 110 2 1 1 0 010-2zM13 9a1 1 0 110 2 1 1 0 010-2zM13 14a1 1 0 110 2 1 1 0 010-2z" />
+                </svg>
+              </span>
               <span className="relative">
                 <button
                   type="button"
@@ -235,11 +380,13 @@ export function KanbanBoard({
                   />
                 )}
               </span>
-              <h3 className="text-sm font-semibold">{col.name}</h3>
-              <span className="ml-auto rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">
+              <div className="min-w-0 flex-1">
+                <ColumnTitle name={col.name} onRename={(n) => renameColumn(col.id, n)} />
+              </div>
+              <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">
                 {colTasks.length}
               </span>
-              {!col.status && (
+              {!col.status && canManageBoard && (
                 <button
                   type="button"
                   title="Удалить колонку (задачи вернутся в колонки статусов)"
@@ -259,10 +406,25 @@ export function KanbanBoard({
                   key={t.id}
                   draggable
                   onDragStart={() => setDragId(t.id)}
-                  onDragEnd={() => setDragId(null)}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setOverTaskId(null);
+                    setOverCol(null);
+                  }}
+                  onDragOver={(e) => {
+                    if (!dragId) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setOverCol(col.id);
+                    setOverTaskId(t.id);
+                  }}
                   onClick={() => router.push(`/tasks/${t.id}`)}
                   className={`group cursor-pointer rounded-xl border border-edge bg-surface p-3.5 transition hover:border-accent/50 ${
                     dragId === t.id ? "opacity-40" : ""
+                  } ${
+                    overTaskId === t.id && dragId && dragId !== t.id
+                      ? "border-t-2 border-t-accent"
+                      : ""
                   }`}
                   style={
                     t.color

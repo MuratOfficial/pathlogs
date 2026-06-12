@@ -30,6 +30,12 @@ node prisma/seed.mjs
 npm run dev
 ```
 
+**Тесты** (права доступа и server actions; используют отдельную БД `pathlogs_test` в том же Postgres):
+
+```bash
+npm test
+```
+
 Открыть http://localhost:3000
 
 **Демо-аккаунты** (после seed, пароль у всех `demo1234`):
@@ -54,6 +60,7 @@ npm run dev
 - **Несколько исполнителей** на задачу, связи между задачами
 - **Файлы** к задачам: загрузка в S3/R2, при недоступности — локально в `./uploads`
 - **Админка**: пользователи, роли (админ / менеджер / аналитик / разработчик), деактивация, статистика
+- **Права доступа**: проекты видны только участникам (админ видит всё); управление участниками, колонками и архивом — у владельца проекта, менеджеров и админа; удаление задачи — у её автора, менеджера или владельца; файлы задач доступны только участникам проекта
 - **Список задач** с поиском и фильтрами по статусу, типу, исполнителю
 
 ## Хранилище файлов
@@ -67,7 +74,8 @@ prisma/schema.prisma        — модели: User, Project, Task (self-relation
                               BoardColumn, TaskLink, PatchLog, TimeEntry, Attachment
 src/auth.ts                 — Auth.js: credentials + JWT + роли
 src/proxy.ts                — защита маршрутов
-src/lib/actions/            — server actions (auth, projects, tasks, admin)
+src/lib/access.ts           — проверки доступа: членство в проекте, роли
+src/lib/actions/            — server actions (auth, projects, tasks, board, admin)
 src/lib/storage.ts          — S3 + локальный fallback
 src/app/(app)/dashboard     — проекты
 src/app/(app)/projects/[id] — канбан / граф веток / список
