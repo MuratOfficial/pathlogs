@@ -20,11 +20,13 @@ import { FileUpload } from "@/components/task/FileUpload";
 import { AddLinkForm } from "@/components/task/AddLinkForm";
 import { ConfirmActionButton } from "@/components/task/ConfirmActionButton";
 import { Checklist } from "@/components/task/Checklist";
+import { CommentForm } from "@/components/task/CommentForm";
 import { Markdown } from "@/components/Markdown";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { googleCalendarUrl } from "@/lib/calendar";
 import {
   deletePatchLogAction,
+  deleteCommentAction,
   deleteTimeEntryAction,
   deleteAttachmentAction,
   removeTaskLinkAction,
@@ -73,6 +75,10 @@ export default async function TaskPage({
         orderBy: { createdAt: "desc" },
       },
       checklist: { orderBy: { order: "asc" } },
+      comments: {
+        include: { author: { select: { id: true, name: true } } },
+        orderBy: { createdAt: "asc" },
+      },
       linksFrom: { include: { to: { select: { id: true, number: true, title: true } } } },
       linksTo: { include: { from: { select: { id: true, number: true, title: true } } } },
     },
@@ -272,6 +278,45 @@ export default async function TaskPage({
                 </p>
               )}
             </div>
+          </section>
+
+          {/* Обсуждение */}
+          <section className="rounded-2xl border border-edge bg-surface p-6">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
+              Обсуждение ({task.comments.length})
+            </h2>
+            <div className="mb-4 space-y-3">
+              {task.comments.map((c) => (
+                <article
+                  key={c.id}
+                  className="rounded-xl border border-edge bg-surface-2/50 p-4"
+                >
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/25 text-[9px] font-bold text-accent-hover">
+                      {initials(c.author.name)}
+                    </span>
+                    <span className="text-sm font-semibold">{c.author.name}</span>
+                    <span className="ml-auto text-xs text-muted">
+                      {formatDateTime(c.createdAt)}
+                    </span>
+                    {(c.authorId === user.id || user.role === "ADMIN") && (
+                      <ConfirmActionButton
+                        action={deleteCommentAction.bind(null, c.id)}
+                        confirmText="Удалить комментарий?"
+                        small
+                      />
+                    )}
+                  </div>
+                  <Markdown text={c.content} />
+                </article>
+              ))}
+              {task.comments.length === 0 && (
+                <p className="text-sm text-muted">
+                  Комментариев нет — начните обсуждение.
+                </p>
+              )}
+            </div>
+            <CommentForm taskId={task.id} />
           </section>
 
           {/* Файлы */}

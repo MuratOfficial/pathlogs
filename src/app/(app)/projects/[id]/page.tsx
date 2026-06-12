@@ -11,12 +11,27 @@ import { TaskGraph } from "@/components/TaskGraph";
 import { TaskListView } from "@/components/TaskListView";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { ArchiveProjectButton } from "@/components/ArchiveProjectButton";
+import { ProjectStats } from "@/components/ProjectStats";
 import { formatHours } from "@/lib/labels";
+
+/** Суммарные часы по сотрудникам для вкладки «Аналитика». */
+async function getHoursByUser(projectId: string) {
+  const entries = await prisma.timeEntry.findMany({
+    where: { task: { projectId } },
+    select: { hours: true, user: { select: { name: true } } },
+  });
+  const map = new Map<string, number>();
+  for (const e of entries) map.set(e.user.name, (map.get(e.user.name) ?? 0) + e.hours);
+  return [...map.entries()]
+    .map(([name, hours]) => ({ name, hours }))
+    .sort((a, b) => b.hours - a.hours);
+}
 
 const VIEWS = [
   { id: "board", label: "Канбан" },
   { id: "graph", label: "Граф веток" },
   { id: "list", label: "Список" },
+  { id: "stats", label: "Аналитика" },
 ] as const;
 
 export default async function ProjectPage({
@@ -206,6 +221,12 @@ export default async function ProjectPage({
         )}
         {view === "list" && (
           <TaskListView tasks={tasks} projectKey={project.key} members={members} />
+        )}
+        {view === "stats" && (
+          <ProjectStats
+            tasks={tasks}
+            hoursByUser={await getHoursByUser(project.id)}
+          />
         )}
       </div>
     </div>

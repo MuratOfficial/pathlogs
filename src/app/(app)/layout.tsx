@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import { logoutAction } from "@/lib/actions/auth";
 import { ROLE_LABELS, initials } from "@/lib/labels";
 
@@ -12,6 +13,10 @@ export default async function AppLayout({
   const session = await auth();
   if (!session?.user) redirect("/login");
   const user = session.user;
+
+  const unread = await prisma.notification.count({
+    where: { userId: user.id, read: false },
+  });
 
   return (
     <div className="flex min-h-screen">
@@ -33,6 +38,29 @@ export default async function AppLayout({
             </svg>
             Проекты
           </Link>
+          <Link
+            href="/my"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground/90 transition hover:bg-surface-2"
+          >
+            <svg className="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Мои задачи
+          </Link>
+          <Link
+            href="/notifications"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground/90 transition hover:bg-surface-2"
+          >
+            <svg className="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+            </svg>
+            Уведомления
+            {unread > 0 && (
+              <span className="ml-auto rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-white">
+                {unread > 99 ? "99+" : unread}
+              </span>
+            )}
+          </Link>
           {user.role === "ADMIN" && (
             <Link
               href="/admin"
@@ -48,13 +76,19 @@ export default async function AppLayout({
 
         <div className="border-t border-edge p-3">
           <div className="flex items-center gap-3 rounded-lg px-2 py-2">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/20 text-xs font-bold text-accent-hover">
-              {initials(user.name ?? "?")}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{user.name}</p>
-              <p className="truncate text-xs text-muted">{ROLE_LABELS[user.role]}</p>
-            </div>
+            <Link
+              href="/profile"
+              title="Профиль"
+              className="flex min-w-0 flex-1 items-center gap-3 transition hover:opacity-80"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/20 text-xs font-bold text-accent-hover">
+                {initials(user.name ?? "?")}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{user.name}</span>
+                <span className="block truncate text-xs text-muted">{ROLE_LABELS[user.role]}</span>
+              </span>
+            </Link>
             <form action={logoutAction}>
               <button
                 type="submit"

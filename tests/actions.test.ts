@@ -7,11 +7,18 @@ vi.mock("@/auth", async () => {
       if (!authState.user) throw new Error("Не авторизован");
       return authState.user;
     },
+    signIn: vi.fn(),
+    signOut: vi.fn(),
   };
 });
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
+}));
+
+// next-auth тянет next/server, недоступный в vitest — нужен только класс ошибки
+vi.mock("next-auth", () => ({
+  AuthError: class AuthError extends Error {},
 }));
 
 import { prisma } from "@/lib/prisma";
@@ -24,7 +31,11 @@ import {
   addChecklistItemAction,
   toggleChecklistItemAction,
   deleteChecklistItemAction,
+  addCommentAction,
+  deleteCommentAction,
 } from "@/lib/actions/tasks";
+import { changePasswordAction } from "@/lib/actions/auth";
+import bcrypt from "bcryptjs";
 import {
   createBoardColumnAction,
   deleteBoardColumnAction,
@@ -148,6 +159,139 @@ describe("чек-лист", () => {
     await expect(deleteChecklistItemAction(item.id)).rejects.toThrow(
       "Нет доступа к проекту"
     );
+  });
+});
+
+function commentForm(taskId: string, content: string) {
+  const fd = new FormData();
+  fd.set("taskId", taskId);
+  fd.set("content", content);
+  return fd;
+}
+
+describe("комментарии и уведомления", () => {
+  it("комментарий уведомляет автора задачи, но не комментатора", async () => {
+    loginAs(fx.manager);
+    await expect(
+      addCommentAction(undefined, commentForm(fx.task.id, "Согласовано, берём в спринт"))
+    ).resolves.toEqual({});
+
+    const comment = await prisma.comment.findFirstOrThrow({
+      where: { taskId: fx.task.id },
+    });
+    expect(comment.authorId).toBe(fx.manager.id);
+
+    // Автор задачи (member) получил уведомление, сам комментатор — нет
+    expect(
+      await prisma.notification.count({
+        where: { userId: fx.member.id, type: "COMMENT", taskId: fx.task.id },
+      })
+    ).toBe(1);
+    expect(
+      await prisma.notification.count({ where: { userId: fx.manager.id } })
+    ).toBe(0);
+  });
+
+  it("посторонний не комментирует", async () => {
+    loginAs(fx.outsider);
+    await expect(
+      addCommentAction(undefined, commentForm(fx.task.id, "Мнение со стороны"))
+    ).rejects.toThrow("Нет доступа к проекту");
+  });
+
+  it("удалять можно только свои комментарии (или админу)", async () => {
+    loginAs(fx.member);
+    await addCommentAction(undefined, commentForm(fx.task.id, "Мой комментарий"));
+    const comment = await prisma.comment.findFirstOrThrow({
+      where: { taskId: fx.task.id },
+    });
+
+    loginAs(fx.manager);
+    await expect(deleteCommentAction(comment.id)).rejects.toThrow(
+      "Можно удалять только свои комментарии"
+    );
+
+    loginAs(fx.admin);
+    await deleteCommentAction(comment.id);
+    expect(await prisma.comment.findUnique({ where: { id: comment.id } })).toBeNull();
+  });
+
+  it("назначение исполнителя уведомляет один раз, повтор состава — не дублирует", async () => {
+    loginAs(fx.member);
+    await updateTaskFieldsAction(fx.task.id, { assigneeIds: [fx.manager.id] });
+    expect(
+      await prisma.notification.count({
+        where: { userId: fx.manager.id, type: "ASSIGNED" },
+      })
+    ).toBe(1);
+
+    await updateTaskFieldsAction(fx.task.id, { assigneeIds: [fx.manager.id] });
+    expect(
+      await prisma.notification.count({
+        where: { userId: fx.manager.id, type: "ASSIGNED" },
+      })
+    ).toBe(1);
+  });
+
+  it("смена статуса уведомляет наблюдателей задачи, кроме инициатора", async () => {
+    loginAs(fx.member);
+    await updateTaskFieldsAction(fx.task.id, { assigneeIds: [fx.manager.id] });
+
+    loginAs(fx.manager);
+    await updateTaskStatusAction(fx.task.id, "IN_PROGRESS");
+    // Автор задачи (member) уведомлён, инициатор (manager, он же исполнитель) — нет
+    expect(
+      await prisma.notification.count({
+        where: { userId: fx.member.id, type: "STATUS" },
+      })
+    ).toBe(1);
+    expect(
+      await prisma.notification.count({
+        where: { userId: fx.manager.id, type: "STATUS" },
+      })
+    ).toBe(0);
+  });
+});
+
+describe("changePasswordAction", () => {
+  function passwordForm(current: string, next: string, confirm = next) {
+    const fd = new FormData();
+    fd.set("current", current);
+    fd.set("next", next);
+    fd.set("confirm", confirm);
+    return fd;
+  }
+
+  it("неверный текущий пароль — отказ, верный — смена", async () => {
+    await prisma.user.update({
+      where: { id: fx.member.id },
+      data: { passwordHash: await bcrypt.hash("oldpass123", 4) },
+    });
+    loginAs(fx.member);
+
+    const bad = await changePasswordAction(undefined, passwordForm("wrong", "newpass123"));
+    expect(bad.error).toBe("Текущий пароль неверен");
+
+    const mismatch = await changePasswordAction(
+      undefined,
+      passwordForm("oldpass123", "newpass123", "другой")
+    );
+    expect(mismatch.error).toBe("Пароли не совпадают");
+
+    const ok = await changePasswordAction(undefined, passwordForm("oldpass123", "newpass123"));
+    expect(ok.success).toBeTruthy();
+    const updated = await prisma.user.findUniqueOrThrow({ where: { id: fx.member.id } });
+    expect(await bcrypt.compare("newpass123", updated.passwordHash!)).toBe(true);
+  });
+
+  it("OAuth-аккаунт без пароля устанавливает пароль без текущего", async () => {
+    await prisma.user.update({
+      where: { id: fx.member.id },
+      data: { passwordHash: null },
+    });
+    loginAs(fx.member);
+    const res = await changePasswordAction(undefined, passwordForm("", "freshpass1"));
+    expect(res.success).toBeTruthy();
   });
 });
 

@@ -73,6 +73,8 @@ model User {
   patchLogs     PatchLog[]
   timeEntries   TimeEntry[]
   attachments   Attachment[]
+  comments      Comment[]
+  notifications Notification[]
 }
 
 model Project {
@@ -147,11 +149,48 @@ model Task {
   timeEntries   TimeEntry[]
   attachments   Attachment[]
   checklist     ChecklistItem[]
+  comments      Comment[]
+  notifications Notification[]
   linksFrom     TaskLink[]   @relation("LinkFrom")
   linksTo       TaskLink[]   @relation("LinkTo")
 
   @@index([projectId, status])
   @@index([parentId])
+}
+
+/// Комментарий — обсуждение задачи (в отличие от патч-лога — журнала реализации).
+model Comment {
+  id        String   @id @default(cuid())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+}
+
+enum NotificationType {
+  ASSIGNED
+  COMMENT
+  PATCHLOG
+  STATUS
+}
+
+/// Внутреннее уведомление пользователя (колокольчик).
+model Notification {
+  id        String           @id @default(cuid())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  task      Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String?
+  type      NotificationType
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
 }
 
 /// Пункт чек-листа задачи.

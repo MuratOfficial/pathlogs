@@ -8,6 +8,8 @@ import {
   requireProjectMember,
   requireTaskMember,
 } from "@/lib/access";
+import { notifyTaskWatchers, notifyUsers } from "@/lib/notify";
+import { STATUS_LABELS } from "@/lib/labels";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { Priority, TaskStatus, TaskType } from "@prisma/client";
@@ -98,14 +100,23 @@ export async function createTaskAction(
         })),
       },
     },
+    include: { project: { select: { key: true } } },
   });
+
+  await notifyUsers(
+    assigneeIds,
+    user.id,
+    task.id,
+    "ASSIGNED",
+    `${user.name} назначил(а) вас на ${task.project.key}-${task.number} «${task.title}»`
+  );
 
   revalidateTask(d.projectId, task.parentId ?? undefined);
   return {};
 }
 
 export async function updateTaskStatusAction(taskId: string, status: TaskStatus) {
-  const { task: current } = await requireTaskMember(taskId);
+  const { user, task: current } = await requireTaskMember(taskId);
   // Смена статуса переносит карточку в колонку этого статуса (если она есть)
   const statusColumn = await prisma.boardColumn.findFirst({
     where: { projectId: current.projectId, status },
@@ -118,7 +129,14 @@ export async function updateTaskStatusAction(taskId: string, status: TaskStatus)
       columnId: statusColumn?.id ?? null,
       closedAt: status === "CLOSED" || status === "DONE" ? new Date() : null,
     },
+    include: { project: { select: { key: true } } },
   });
+  await notifyTaskWatchers(
+    taskId,
+    user.id,
+    "STATUS",
+    `${user.name} перевёл(а) ${task.project.key}-${task.number} «${task.title}» в «${STATUS_LABELS[status]}»`
+  );
   revalidateTask(task.projectId, taskId);
 }
 
@@ -135,11 +153,21 @@ export async function updateTaskFieldsAction(
     assigneeIds?: string[];
   }
 ) {
-  const { task: current } = await requireTaskMember(taskId);
+  const { user, task: current } = await requireTaskMember(taskId);
   const assigneeIds =
     fields.assigneeIds !== undefined
       ? await filterProjectMembers(current.projectId, fields.assigneeIds)
       : undefined;
+  // Запоминаем текущих исполнителей, чтобы уведомить только новых
+  const prevAssignees =
+    assigneeIds !== undefined
+      ? (
+          await prisma.task.findUniqueOrThrow({
+            where: { id: taskId },
+            select: { assignees: { select: { id: true } } },
+          })
+        ).assignees.map((a) => a.id)
+      : [];
   const task = await prisma.task.update({
     where: { id: taskId },
     data: {
@@ -158,7 +186,18 @@ export async function updateTaskFieldsAction(
         ? { assignees: { set: assigneeIds.map((id) => ({ id })) } }
         : {}),
     },
+    include: { project: { select: { key: true } } },
   });
+  if (assigneeIds !== undefined) {
+    const added = assigneeIds.filter((id) => !prevAssignees.includes(id));
+    await notifyUsers(
+      added,
+      user.id,
+      taskId,
+      "ASSIGNED",
+      `${user.name} назначил(а) вас на ${task.project.key}-${task.number} «${task.title}»`
+    );
+  }
   revalidateTask(task.projectId, taskId);
 }
 
@@ -224,8 +263,59 @@ export async function addPatchLogAction(
   await prisma.patchLog.create({
     data: { taskId, authorId: user.id, title, content },
   });
+  const full = await prisma.task.findUniqueOrThrow({
+    where: { id: taskId },
+    select: { number: true, title: true, project: { select: { key: true } } },
+  });
+  await notifyTaskWatchers(
+    taskId,
+    user.id,
+    "PATCHLOG",
+    `${user.name} добавил(а) запись в патч-лог ${full.project.key}-${full.number}: «${title}»`
+  );
   revalidateTask(task.projectId, taskId);
   return {};
+}
+
+// ===== Комментарии =====
+
+export async function addCommentAction(
+  _prev: { error?: string } | undefined,
+  formData: FormData
+): Promise<{ error?: string }> {
+  const taskId = String(formData.get("taskId") ?? "");
+  const content = String(formData.get("content") ?? "").trim();
+  if (!taskId || !content) return { error: "Комментарий не может быть пустым" };
+
+  const { user, task } = await requireTaskMember(taskId);
+  await prisma.comment.create({
+    data: { taskId, authorId: user.id, content: content.slice(0, 5000) },
+  });
+  const full = await prisma.task.findUniqueOrThrow({
+    where: { id: taskId },
+    select: { number: true, project: { select: { key: true } } },
+  });
+  await notifyTaskWatchers(
+    taskId,
+    user.id,
+    "COMMENT",
+    `${user.name} прокомментировал(а) ${full.project.key}-${full.number}: «${content.slice(0, 80)}${content.length > 80 ? "…" : ""}»`
+  );
+  revalidateTask(task.projectId, taskId);
+  return {};
+}
+
+export async function deleteCommentAction(id: string) {
+  const user = await requireUser();
+  const comment = await prisma.comment.findUniqueOrThrow({
+    where: { id },
+    include: { task: true },
+  });
+  if (comment.authorId !== user.id && user.role !== "ADMIN") {
+    throw new Error("Можно удалять только свои комментарии");
+  }
+  await prisma.comment.delete({ where: { id } });
+  revalidateTask(comment.task.projectId, comment.taskId);
 }
 
 export async function deletePatchLogAction(id: string) {
