@@ -15,8 +15,16 @@ function toDto(c: {
   color: string;
   order: number;
   status: ColumnDTO["status"];
+  wipLimit: number | null;
 }): ColumnDTO {
-  return { id: c.id, name: c.name, color: c.color, order: c.order, status: c.status };
+  return {
+    id: c.id,
+    name: c.name,
+    color: c.color,
+    order: c.order,
+    status: c.status,
+    wipLimit: c.wipLimit,
+  };
 }
 
 export async function createBoardColumnAction(
@@ -46,18 +54,25 @@ export async function createBoardColumnAction(
 
 export async function updateBoardColumnAction(
   columnId: string,
-  fields: { name?: string; color?: string }
+  fields: { name?: string; color?: string; wipLimit?: number | null }
 ) {
   const existing = await prisma.boardColumn.findUniqueOrThrow({
     where: { id: columnId },
     select: { projectId: true },
   });
   await requireProjectMember(existing.projectId);
+  const wip =
+    fields.wipLimit === undefined
+      ? undefined
+      : fields.wipLimit && fields.wipLimit > 0
+        ? Math.floor(fields.wipLimit)
+        : null;
   const column = await prisma.boardColumn.update({
     where: { id: columnId },
     data: {
       ...(fields.name !== undefined ? { name: fields.name.trim() } : {}),
       ...(fields.color !== undefined ? { color: fields.color } : {}),
+      ...(wip !== undefined ? { wipLimit: wip } : {}),
     },
   });
   revalidatePath(`/projects/${column.projectId}`);

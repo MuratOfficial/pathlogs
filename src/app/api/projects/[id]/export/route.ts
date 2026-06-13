@@ -33,7 +33,7 @@ export async function GET(
           creator: { select: { name: true } },
           parent: { select: { number: true } },
           timeEntries: {
-            include: { user: { select: { name: true } } },
+            include: { user: { select: { name: true, hourlyRate: true } } },
             orderBy: { date: "asc" },
           },
           checklist: { orderBy: { order: "asc" } },
@@ -114,24 +114,29 @@ export async function GET(
     { header: "Название", key: "title", width: 42 },
     { header: "Сотрудник", key: "user", width: 22 },
     { header: "Часы", key: "hours", width: 8 },
+    { header: "Ставка/ч", key: "rate", width: 10 },
+    { header: "Стоимость", key: "cost", width: 12 },
     { header: "Дата", key: "date", width: 12 },
     { header: "Комментарий", key: "note", width: 50 },
   ];
   timeSheet.getRow(1).eachCell((c) => Object.assign(c, { style: headerStyle }));
   for (const t of project.tasks) {
     for (const e of t.timeEntries) {
+      const rate = e.user.hourlyRate;
       timeSheet.addRow({
         code: `${project.key}-${t.number}`,
         title: t.title,
         user: e.user.name,
         hours: e.hours,
+        rate: rate ?? "",
+        cost: rate != null ? Math.round(e.hours * rate) : "",
         date: e.date,
         note: e.note ?? "",
       });
     }
   }
   timeSheet.getColumn("date").numFmt = "dd.mm.yyyy";
-  timeSheet.autoFilter = { from: "A1", to: "F1" };
+  timeSheet.autoFilter = { from: "A1", to: "H1" };
 
   const buffer = await wb.xlsx.writeBuffer();
   const filename = `${project.key}-export-${new Date().toISOString().slice(0, 10)}.xlsx`;

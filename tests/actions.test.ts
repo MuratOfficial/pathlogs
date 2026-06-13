@@ -42,11 +42,16 @@ import {
   moveTaskToColumnAction,
   moveTaskAction,
   reorderColumnsAction,
+  updateBoardColumnAction,
 } from "@/lib/actions/board";
 import {
   removeProjectMemberAction,
   toggleProjectArchiveAction,
 } from "@/lib/actions/projects";
+import { createTemplateAction, deleteTemplateAction } from "@/lib/actions/templates";
+import { saveFilterAction, deleteFilterAction } from "@/lib/actions/filters";
+import { createApiTokenAction, revokeApiTokenAction } from "@/lib/actions/tokens";
+import { authenticateToken } from "@/lib/tokens";
 import { loginAs } from "./auth-state";
 import { createFixtures, resetDb, type Fixtures } from "./fixtures";
 
@@ -162,10 +167,11 @@ describe("чек-лист", () => {
   });
 });
 
-function commentForm(taskId: string, content: string) {
+function commentForm(taskId: string, content: string, mentions?: string[]) {
   const fd = new FormData();
   fd.set("taskId", taskId);
   fd.set("content", content);
+  if (mentions) fd.set("mentions", mentions.join(","));
   return fd;
 }
 
@@ -189,6 +195,45 @@ describe("комментарии и уведомления", () => {
     ).toBe(1);
     expect(
       await prisma.notification.count({ where: { userId: fx.manager.id } })
+    ).toBe(0);
+  });
+
+  it("@упоминание шлёт MENTION упомянутому и не дублирует COMMENT", async () => {
+    // owner — автор не задачи, добавим его в наблюдатели через назначение
+    loginAs(fx.member);
+    await updateTaskFieldsAction(fx.task.id, { assigneeIds: [fx.owner.id] });
+    // member комментирует и упоминает manager
+    await addCommentAction(
+      undefined,
+      commentForm(fx.task.id, "Глянь, @Менеджер", [fx.manager.id])
+    );
+    // Упомянутый менеджер получил MENTION (и не получил COMMENT)
+    expect(
+      await prisma.notification.count({
+        where: { userId: fx.manager.id, type: "MENTION" },
+      })
+    ).toBe(1);
+    expect(
+      await prisma.notification.count({
+        where: { userId: fx.manager.id, type: "COMMENT" },
+      })
+    ).toBe(0);
+    // Наблюдатель owner получил обычный COMMENT
+    expect(
+      await prisma.notification.count({
+        where: { userId: fx.owner.id, type: "COMMENT" },
+      })
+    ).toBe(1);
+  });
+
+  it("упоминание постороннего (не участника) игнорируется", async () => {
+    loginAs(fx.member);
+    await addCommentAction(
+      undefined,
+      commentForm(fx.task.id, "@Посторонний привет", [fx.outsider.id])
+    );
+    expect(
+      await prisma.notification.count({ where: { userId: fx.outsider.id } })
     ).toBe(0);
   });
 
@@ -495,6 +540,116 @@ describe("reorderColumnsAction", () => {
     await expect(
       reorderColumnsAction(fx.project.id, [fx.cols.todo.id, fx.cols.otherTodo.id])
     ).rejects.toThrow("Колонка из другого проекта");
+  });
+});
+
+describe("WIP-лимиты колонок", () => {
+  it("участник задаёт и снимает лимит", async () => {
+    loginAs(fx.member);
+    await updateBoardColumnAction(fx.cols.inProgress.id, { wipLimit: 3 });
+    expect(
+      (await prisma.boardColumn.findUniqueOrThrow({ where: { id: fx.cols.inProgress.id } })).wipLimit
+    ).toBe(3);
+    // 0 или отрицательное снимает лимит
+    await updateBoardColumnAction(fx.cols.inProgress.id, { wipLimit: 0 });
+    expect(
+      (await prisma.boardColumn.findUniqueOrThrow({ where: { id: fx.cols.inProgress.id } })).wipLimit
+    ).toBeNull();
+  });
+});
+
+describe("шаблоны задач", () => {
+  function tplForm(projectId: string, extra: Record<string, string> = {}) {
+    const fd = new FormData();
+    fd.set("projectId", projectId);
+    fd.set("name", "Релиз");
+    fd.set("type", "MANAGEMENT");
+    fd.set("priority", "HIGH");
+    for (const [k, v] of Object.entries(extra)) fd.set(k, v);
+    return fd;
+  }
+
+  it("менеджер создаёт шаблон, посторонний — нет", async () => {
+    loginAs(fx.manager);
+    await expect(
+      createTemplateAction(undefined, tplForm(fx.project.id, { checklist: "a\nb" }))
+    ).resolves.toEqual({});
+    const tpl = await prisma.taskTemplate.findFirstOrThrow({ where: { projectId: fx.project.id } });
+    expect(tpl.name).toBe("Релиз");
+
+    loginAs(fx.outsider);
+    await expect(createTemplateAction(undefined, tplForm(fx.project.id))).rejects.toThrow(
+      "Требуются права менеджера проекта"
+    );
+  });
+
+  it("разработчик-участник не создаёт и не удаляет шаблон", async () => {
+    loginAs(fx.manager);
+    await createTemplateAction(undefined, tplForm(fx.project.id));
+    const tpl = await prisma.taskTemplate.findFirstOrThrow({ where: { projectId: fx.project.id } });
+
+    loginAs(fx.member);
+    await expect(createTemplateAction(undefined, tplForm(fx.project.id))).rejects.toThrow(
+      "Требуются права менеджера проекта"
+    );
+    await expect(deleteTemplateAction(tpl.id)).rejects.toThrow(
+      "Требуются права менеджера проекта"
+    );
+  });
+});
+
+describe("сохранённые фильтры", () => {
+  it("создаются на пользователя и удаляются только владельцем", async () => {
+    loginAs(fx.member);
+    await saveFilterAction(fx.project.id, "Мои баги", "status=TODO&type=BUG");
+    const f = await prisma.savedFilter.findFirstOrThrow({ where: { userId: fx.member.id } });
+    expect(f.query).toBe("status=TODO&type=BUG");
+
+    loginAs(fx.manager);
+    await expect(deleteFilterAction(f.id)).rejects.toThrow(
+      "Можно удалять только свои фильтры"
+    );
+
+    loginAs(fx.member);
+    await deleteFilterAction(f.id);
+    expect(await prisma.savedFilter.findUnique({ where: { id: f.id } })).toBeNull();
+  });
+
+  it("посторонний не сохраняет фильтр в чужом проекте", async () => {
+    loginAs(fx.outsider);
+    await expect(
+      saveFilterAction(fx.project.id, "Взлом", "status=DONE")
+    ).rejects.toThrow("Нет доступа к проекту");
+  });
+});
+
+describe("API-токены", () => {
+  it("создаётся, авторизует Bearer, отзывается", async () => {
+    loginAs(fx.member);
+    const fd = new FormData();
+    fd.set("name", "CI деплой");
+    const res = await createApiTokenAction(undefined, fd);
+    expect(res.token).toMatch(/^pl_/);
+
+    const authed = await authenticateToken(`Bearer ${res.token}`);
+    expect(authed?.id).toBe(fx.member.id);
+
+    // Неверный токен — null
+    expect(await authenticateToken("Bearer pl_wrong")).toBeNull();
+    expect(await authenticateToken(null)).toBeNull();
+
+    const tok = await prisma.apiToken.findFirstOrThrow({ where: { userId: fx.member.id } });
+    await revokeApiTokenAction(tok.id);
+    expect(await authenticateToken(`Bearer ${res.token}`)).toBeNull();
+  });
+
+  it("деактивированный пользователь не авторизуется токеном", async () => {
+    loginAs(fx.member);
+    const fd = new FormData();
+    fd.set("name", "ноут");
+    const { token } = await createApiTokenAction(undefined, fd);
+    await prisma.user.update({ where: { id: fx.member.id }, data: { active: false } });
+    expect(await authenticateToken(`Bearer ${token}`)).toBeNull();
   });
 });
 

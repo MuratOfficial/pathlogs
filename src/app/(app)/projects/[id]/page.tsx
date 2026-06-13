@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
-import type { TaskDTO, LinkDTO, MemberDTO, ColumnDTO } from "@/lib/types";
+import type { TaskDTO, LinkDTO, MemberDTO, ColumnDTO, TaskTemplateDTO } from "@/lib/types";
 import { ensureDefaultColumns } from "@/lib/board";
 import { canAccessProject, canManageProject } from "@/lib/access";
 import { ProjectMembersDialog } from "@/components/ProjectMembersDialog";
@@ -12,25 +12,74 @@ import { TaskListView } from "@/components/TaskListView";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { ArchiveProjectButton } from "@/components/ArchiveProjectButton";
 import { ProjectStats } from "@/components/ProjectStats";
+import { TemplatesDialog } from "@/components/TemplatesDialog";
+import { GanttChart } from "@/components/GanttChart";
+import { WebhooksDialog } from "@/components/WebhooksDialog";
 import { formatHours } from "@/lib/labels";
 
-/** Суммарные часы по сотрудникам для вкладки «Аналитика». */
+/** Суммарные часы и стоимость по сотрудникам для вкладки «Аналитика». */
 async function getHoursByUser(projectId: string) {
   const entries = await prisma.timeEntry.findMany({
     where: { task: { projectId } },
-    select: { hours: true, user: { select: { name: true } } },
+    select: { hours: true, user: { select: { name: true, hourlyRate: true } } },
   });
-  const map = new Map<string, number>();
-  for (const e of entries) map.set(e.user.name, (map.get(e.user.name) ?? 0) + e.hours);
+  const map = new Map<string, { hours: number; rate: number | null }>();
+  for (const e of entries) {
+    const cur = map.get(e.user.name) ?? { hours: 0, rate: e.user.hourlyRate };
+    cur.hours += e.hours;
+    map.set(e.user.name, cur);
+  }
   return [...map.entries()]
-    .map(([name, hours]) => ({ name, hours }))
+    .map(([name, v]) => ({
+      name,
+      hours: v.hours,
+      cost: v.rate != null ? v.hours * v.rate : null,
+    }))
     .sort((a, b) => b.hours - a.hours);
+}
+
+/** Создано vs закрыто по неделям (последние 10 недель) для графика динамики. */
+async function getCompletionSeries(projectId: string) {
+  const tasks = await prisma.task.findMany({
+    where: { projectId },
+    select: { createdAt: true, closedAt: true },
+  });
+  const WEEK = 7 * 86400000;
+  const now = new Date();
+  // Начало текущей недели (понедельник)
+  const monday = new Date(now);
+  const dow = (monday.getDay() + 6) % 7;
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(monday.getDate() - dow);
+
+  const weeks = 10;
+  const buckets = Array.from({ length: weeks }, (_, i) => {
+    const start = new Date(monday.getTime() - (weeks - 1 - i) * WEEK);
+    return { start, created: 0, closed: 0 };
+  });
+  const firstStart = buckets[0]!.start.getTime();
+
+  for (const t of tasks) {
+    const ci = Math.floor((t.createdAt.getTime() - firstStart) / WEEK);
+    if (ci >= 0 && ci < weeks) buckets[ci]!.created++;
+    if (t.closedAt) {
+      const xi = Math.floor((t.closedAt.getTime() - firstStart) / WEEK);
+      if (xi >= 0 && xi < weeks) buckets[xi]!.closed++;
+    }
+  }
+
+  return buckets.map((b) => ({
+    label: b.start.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" }),
+    created: b.created,
+    closed: b.closed,
+  }));
 }
 
 const VIEWS = [
   { id: "board", label: "Канбан" },
   { id: "graph", label: "Граф веток" },
   { id: "list", label: "Список" },
+  { id: "gantt", label: "Гант" },
   { id: "stats", label: "Аналитика" },
 ] as const;
 
@@ -65,12 +114,31 @@ export default async function ProjectPage({
       members: { include: { user: { select: { id: true, name: true } } } },
       owner: { select: { id: true, name: true } },
       columns: { orderBy: { order: "asc" } },
+      templates: { orderBy: { createdAt: "asc" } },
+      webhooks: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!project) notFound();
 
+  const templates: TaskTemplateDTO[] = project.templates.map((t) => ({
+    id: t.id,
+    name: t.name,
+    type: t.type,
+    priority: t.priority,
+    titlePrefix: t.titlePrefix,
+    description: t.description,
+    estimateHours: t.estimateHours,
+    checklist: t.checklist,
+  }));
+
   const links = await prisma.taskLink.findMany({
     where: { from: { projectId: id } },
+  });
+
+  const savedFilters = await prisma.savedFilter.findMany({
+    where: { projectId: id, userId: user.id },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, query: true },
   });
 
   const tasks: TaskDTO[] = project.tasks.map((t) => ({
@@ -83,6 +151,7 @@ export default async function ProjectPage({
     parentId: t.parentId,
     columnId: t.columnId,
     color: t.color,
+    startDate: t.startDate?.toISOString() ?? null,
     dueDate: t.dueDate?.toISOString() ?? null,
     estimateHours: t.estimateHours,
     spentHours: t.timeEntries.reduce((s, e) => s + e.hours, 0),
@@ -105,6 +174,7 @@ export default async function ProjectPage({
     color: c.color,
     order: c.order,
     status: c.status,
+    wipLimit: c.wipLimit,
   }));
 
   const members: MemberDTO[] = project.members.some((m) => m.user.id === project.ownerId)
@@ -169,7 +239,30 @@ export default async function ProjectPage({
             >
               PDF-отчёт
             </Link>
+            <a
+              href={`/api/projects/${project.id}/ics`}
+              title="Календарь задач проекта (.ics для Google / Outlook / Apple)"
+              className="rounded-lg border border-edge px-3 py-2 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
+            >
+              .ics
+            </a>
           </div>
+          <TemplatesDialog
+            projectId={project.id}
+            templates={templates}
+            canManage={canManage}
+          />
+          <WebhooksDialog
+            projectId={project.id}
+            webhooks={project.webhooks.map((w) => ({
+              id: w.id,
+              kind: w.kind,
+              url: w.url,
+              target: w.target,
+              active: w.active,
+            }))}
+            canManage={canManage}
+          />
           <ProjectMembersDialog
             projectId={project.id}
             ownerId={project.ownerId}
@@ -181,6 +274,7 @@ export default async function ProjectPage({
             projectId={project.id}
             tasks={tasks}
             members={members}
+            templates={templates}
           />
         </div>
       </div>
@@ -220,12 +314,20 @@ export default async function ProjectPage({
           />
         )}
         {view === "list" && (
-          <TaskListView tasks={tasks} projectKey={project.key} members={members} />
+          <TaskListView
+            tasks={tasks}
+            projectKey={project.key}
+            members={members}
+            projectId={project.id}
+            savedFilters={savedFilters}
+          />
         )}
+        {view === "gantt" && <GanttChart tasks={tasks} projectKey={project.key} />}
         {view === "stats" && (
           <ProjectStats
             tasks={tasks}
             hoursByUser={await getHoursByUser(project.id)}
+            completion={await getCompletionSeries(project.id)}
           />
         )}
       </div>

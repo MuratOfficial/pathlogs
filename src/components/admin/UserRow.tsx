@@ -1,8 +1,12 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import type { Role } from "@prisma/client";
-import { setUserRoleAction, toggleUserActiveAction } from "@/lib/actions/admin";
+import {
+  setUserRoleAction,
+  setUserRateAction,
+  toggleUserActiveAction,
+} from "@/lib/actions/admin";
 import { ROLE_LABELS } from "@/lib/labels";
 
 export function UserRow({
@@ -19,10 +23,19 @@ export function UserRow({
     createdAt: string;
     taskCount: number;
     patchLogCount: number;
+    hourlyRate: number | null;
   };
   isSelf: boolean;
 }) {
   const [pending, startTransition] = useTransition();
+  const [rate, setRate] = useState(user.hourlyRate != null ? String(user.hourlyRate) : "");
+
+  function commitRate() {
+    const n = parseFloat(rate.replace(",", "."));
+    const value = Number.isFinite(n) && n > 0 ? n : null;
+    if (value === user.hourlyRate) return;
+    startTransition(() => setUserRateAction(user.id, value));
+  }
 
   return (
     <tr className={`border-t border-edge/60 ${pending ? "opacity-50" : ""} ${!user.active ? "opacity-60" : ""}`}>
@@ -53,6 +66,21 @@ export function UserRow({
             <option key={r} value={r}>{ROLE_LABELS[r]}</option>
           ))}
         </select>
+      </td>
+      <td className="px-5 py-3">
+        <input
+          type="number"
+          min={0}
+          step="100"
+          value={rate}
+          placeholder="—"
+          disabled={pending}
+          onChange={(e) => setRate(e.target.value)}
+          onBlur={commitRate}
+          onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+          title="Ставка в час для расчёта стоимости"
+          className="w-24 rounded-lg border border-edge bg-surface-2 px-2 py-1.5 text-xs outline-none focus:border-accent disabled:opacity-50"
+        />
       </td>
       <td className="px-5 py-3 text-muted">{user.taskCount}</td>
       <td className="px-5 py-3 text-muted">{user.patchLogCount}</td>

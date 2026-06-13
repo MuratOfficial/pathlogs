@@ -9,6 +9,7 @@ const TYPE_META: Record<NotificationType, { label: string; color: string }> = {
   COMMENT: { label: "Комментарий", color: "#06b6d4" },
   PATCHLOG: { label: "Патч-лог", color: "#84cc16" },
   STATUS: { label: "Статус", color: "#c084fc" },
+  MENTION: { label: "Упоминание", color: "#f59e0b" },
 };
 
 export default async function NotificationsPage() {

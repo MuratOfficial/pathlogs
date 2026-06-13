@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
-import { ROLE_LABELS, formatDate, formatHours, initials } from "@/lib/labels";
+import { ROLE_LABELS, formatDate, formatDateTime, formatHours, initials } from "@/lib/labels";
 import { ProfileNameForm, PasswordForm } from "@/components/ProfileForms";
+import { ApiTokens } from "@/components/ApiTokens";
 
 export default async function ProfilePage() {
   const sessionUser = await requireUser();
@@ -15,6 +16,10 @@ export default async function ProfilePage() {
     where: { userId: user.id },
     _sum: { hours: true },
   });
+  const tokens = await prisma.apiToken.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "asc" },
+  });
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -26,6 +31,7 @@ export default async function ProfilePage() {
           <h1 className="text-xl font-bold tracking-tight">{user.name}</h1>
           <p className="text-sm text-muted">
             {user.email} · {ROLE_LABELS[user.role]} · с {formatDate(user.createdAt)}
+            {user.hourlyRate != null && ` · ставка ${user.hourlyRate}/ч`}
           </p>
         </div>
       </div>
@@ -56,6 +62,25 @@ export default async function ProfilePage() {
           {user.passwordHash ? "Смена пароля" : "Установка пароля"}
         </h2>
         <PasswordForm hasPassword={Boolean(user.passwordHash)} />
+      </section>
+
+      <section className="rounded-2xl border border-edge bg-surface p-6">
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
+          API-токены
+        </h2>
+        <p className="mb-4 text-xs text-muted">
+          Для git-вебхука и интеграций. Передавайте в заголовке{" "}
+          <code className="rounded bg-surface-2 px-1">Authorization: Bearer …</code>
+        </p>
+        <ApiTokens
+          tokens={tokens.map((t) => ({
+            id: t.id,
+            name: t.name,
+            prefix: t.prefix,
+            lastUsedAt: t.lastUsedAt ? formatDateTime(t.lastUsedAt) : null,
+            createdAt: formatDate(t.createdAt),
+          }))}
+        />
       </section>
     </div>
   );

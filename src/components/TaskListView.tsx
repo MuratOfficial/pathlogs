@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { TaskStatus, TaskType } from "@prisma/client";
 import type { TaskDTO, MemberDTO } from "@/lib/types";
@@ -11,21 +11,54 @@ import {
   formatDate,
   formatHours,
 } from "@/lib/labels";
+import { saveFilterAction, deleteFilterAction } from "@/lib/actions/filters";
 import { AssigneeAvatars, PriorityDot, TypeBadge } from "./TaskBadges";
+
+export interface SavedFilterDTO {
+  id: string;
+  name: string;
+  query: string;
+}
 
 export function TaskListView({
   tasks,
   projectKey,
   members,
+  projectId,
+  savedFilters = [],
 }: {
   tasks: TaskDTO[];
   projectKey: string;
   members: MemberDTO[];
+  projectId: string;
+  savedFilters?: SavedFilterDTO[];
 }) {
   const [status, setStatus] = useState<TaskStatus | "ALL">("ALL");
   const [type, setType] = useState<TaskType | "ALL">("ALL");
   const [assignee, setAssignee] = useState<string>("ALL");
   const [q, setQ] = useState("");
+  const [, startTransition] = useTransition();
+
+  function applyFilter(query: string) {
+    const p = new URLSearchParams(query);
+    setStatus((p.get("status") as TaskStatus) || "ALL");
+    setType((p.get("type") as TaskType) || "ALL");
+    setAssignee(p.get("assignee") || "ALL");
+    setQ(p.get("q") || "");
+  }
+
+  function saveCurrent() {
+    const name = window.prompt("Название фильтра:");
+    if (!name) return;
+    const params = new URLSearchParams();
+    if (status !== "ALL") params.set("status", status);
+    if (type !== "ALL") params.set("type", type);
+    if (assignee !== "ALL") params.set("assignee", assignee);
+    if (q) params.set("q", q);
+    startTransition(() => saveFilterAction(projectId, name, params.toString()));
+  }
+
+  const active = status !== "ALL" || type !== "ALL" || assignee !== "ALL" || q !== "";
 
   const filtered = useMemo(
     () =>
@@ -69,8 +102,45 @@ export function TaskListView({
             <option key={m.id} value={m.id}>{m.name}</option>
           ))}
         </select>
+        <button
+          type="button"
+          onClick={saveCurrent}
+          disabled={!active}
+          title={active ? "Сохранить текущие фильтры" : "Задайте фильтры, чтобы сохранить"}
+          className="rounded-lg border border-edge px-3 py-1.5 text-sm text-muted transition hover:bg-surface-2 hover:text-foreground disabled:opacity-40"
+        >
+          ★ Сохранить фильтр
+        </button>
         <span className="ml-auto text-xs text-muted">{filtered.length} задач</span>
       </div>
+
+      {savedFilters.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-edge px-4 py-2">
+          <span className="text-xs text-muted">Сохранённые:</span>
+          {savedFilters.map((f) => (
+            <span
+              key={f.id}
+              className="group flex items-center gap-1 rounded-full border border-edge bg-surface-2 px-2.5 py-1 text-xs"
+            >
+              <button
+                type="button"
+                onClick={() => applyFilter(f.query)}
+                className="transition hover:text-accent-hover"
+              >
+                {f.name}
+              </button>
+              <button
+                type="button"
+                title="Удалить фильтр"
+                onClick={() => startTransition(() => deleteFilterAction(f.id))}
+                className="text-muted/60 transition hover:text-red-400"
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full text-sm">

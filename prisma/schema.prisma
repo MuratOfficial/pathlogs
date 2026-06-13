@@ -65,6 +65,8 @@ model User {
   passwordHash  String?
   role          Role            @default(DEVELOPER)
   active        Boolean         @default(true)
+  /// Ставка в час для расчёта стоимости трудозатрат (задаёт админ)
+  hourlyRate    Float?
   createdAt     DateTime        @default(now())
   ownedProjects Project[]       @relation("ProjectOwner")
   memberships   ProjectMember[]
@@ -75,6 +77,8 @@ model User {
   attachments   Attachment[]
   comments      Comment[]
   notifications Notification[]
+  apiTokens     ApiToken[]
+  savedFilters  SavedFilter[]
 }
 
 model Project {
@@ -88,6 +92,9 @@ model Project {
   members     ProjectMember[]
   tasks       Task[]
   columns     BoardColumn[]
+  templates   TaskTemplate[]
+  webhooks    WebhookEndpoint[]
+  savedFilters SavedFilter[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 }
@@ -102,6 +109,8 @@ model BoardColumn {
   color     String      @default("#94a3b8")
   order     Float       @default(0)
   status    TaskStatus?
+  /// WIP-лимит: при превышении числа задач колонка подсвечивается. null — без лимита
+  wipLimit  Int?
   tasks     Task[]
   createdAt DateTime    @default(now())
 
@@ -176,6 +185,7 @@ enum NotificationType {
   COMMENT
   PATCHLOG
   STATUS
+  MENTION
 }
 
 /// Внутреннее уведомление пользователя (колокольчик).
@@ -257,4 +267,84 @@ model Attachment {
   uploadedBy   User        @relation(fields: [uploadedById], references: [id])
   uploadedById String
   createdAt    DateTime    @default(now())
+}
+
+/// Шаблон задачи: предзаполняет форму создания (тип, приоритет, описание, чек-лист).
+model TaskTemplate {
+  id            String   @id @default(cuid())
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId     String
+  name          String
+  type          TaskType @default(FEATURE)
+  priority      Priority @default(MEDIUM)
+  titlePrefix   String?
+  description   String?
+  estimateHours Float?
+  /// Пункты чек-листа, по одному на строку
+  checklist     String?
+  createdAt     DateTime @default(now())
+
+  @@index([projectId])
+}
+
+/// Сохранённый набор фильтров списка задач (на пользователя и проект).
+model SavedFilter {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  name      String
+  /// query-строка фильтров (search, status, type, assignee)
+  query     String
+  createdAt DateTime @default(now())
+
+  @@index([userId, projectId])
+}
+
+/// Персональный API-токен (хранится только хэш). Для интеграций и git-вебхука.
+model ApiToken {
+  id         String    @id @default(cuid())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  name       String
+  /// SHA-256 хэш токена; сам токен показывается один раз при создании
+  tokenHash  String    @unique
+  /// первые символы для отображения (pl_abcd…)
+  prefix     String
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+enum WebhookKind {
+  SLACK
+  TELEGRAM
+  GENERIC
+}
+
+/// Исходящий вебхук проекта: доставляет события в Slack/Telegram/произвольный URL.
+model WebhookEndpoint {
+  id        String      @id @default(cuid())
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  kind      WebhookKind @default(GENERIC)
+  url       String
+  /// Для Telegram — chat_id; для прочих не используется
+  target    String?
+  active    Boolean     @default(true)
+  createdAt DateTime    @default(now())
+
+  @@index([projectId])
+}
+
+/// Зафиксированное упоминание задачи в git-коммите (защита от дублей патч-логов).
+model GitCommitRef {
+  id        String   @id @default(cuid())
+  taskId    String
+  sha       String
+  createdAt DateTime @default(now())
+
+  @@unique([taskId, sha])
 }

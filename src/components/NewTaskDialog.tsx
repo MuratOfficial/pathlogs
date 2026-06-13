@@ -3,13 +3,14 @@
 import { useActionState, useState } from "react";
 import { createTaskAction } from "@/lib/actions/tasks";
 import { PRIORITY_LABELS, TYPE_LABELS } from "@/lib/labels";
-import type { TaskDTO, MemberDTO } from "@/lib/types";
+import type { TaskDTO, MemberDTO, TaskTemplateDTO } from "@/lib/types";
 import type { Priority, TaskType } from "@prisma/client";
 
 export function NewTaskDialog({
   projectId,
   tasks,
   members,
+  templates = [],
   defaultParentId,
   triggerLabel = "+ Новая задача",
   triggerClassName = "rounded-lg bg-accent px-4 py-2 text-sm font-semibold transition hover:bg-accent-hover",
@@ -17,15 +18,20 @@ export function NewTaskDialog({
   projectId: string;
   tasks: Pick<TaskDTO, "id" | "number" | "title">[];
   members: MemberDTO[];
+  templates?: TaskTemplateDTO[];
   defaultParentId?: string;
   triggerLabel?: string;
   triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [tpl, setTpl] = useState<TaskTemplateDTO | null>(null);
   const [state, formAction, pending] = useActionState(
     async (prev: { error?: string } | undefined, formData: FormData) => {
       const res = await createTaskAction(prev, formData);
-      if (!res.error) setOpen(false);
+      if (!res.error) {
+        setOpen(false);
+        setTpl(null);
+      }
       return res;
     },
     undefined
@@ -43,25 +49,60 @@ export function NewTaskDialog({
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && setOpen(false)}
+          onClick={(e) => e.target === e.currentTarget && (setOpen(false), setTpl(null))}
         >
           <form
+            // remount при смене шаблона — чтобы defaultValue полей применились заново
+            key={tpl?.id ?? "blank"}
             action={formAction}
             className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-edge bg-surface p-6 shadow-2xl"
           >
             <h2 className="mb-5 text-lg font-semibold">Новая задача</h2>
             <input type="hidden" name="projectId" value={projectId} />
 
+            {templates.length > 0 && (
+              <label className="mb-4 block">
+                <span className="mb-1.5 block text-sm text-muted">Шаблон</span>
+                <select
+                  value={tpl?.id ?? ""}
+                  onChange={(e) =>
+                    setTpl(templates.find((t) => t.id === e.target.value) ?? null)
+                  }
+                  className={inputCls}
+                >
+                  <option value="">— Без шаблона —</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
             <label className="mb-4 block">
               <span className="mb-1.5 block text-sm text-muted">Название *</span>
-              <input name="title" required minLength={2} placeholder="Что нужно сделать" className={inputCls} />
+              <input
+                name="title"
+                required
+                minLength={2}
+                defaultValue={tpl?.titlePrefix ?? ""}
+                placeholder="Что нужно сделать"
+                className={inputCls}
+              />
             </label>
 
             <label className="mb-4 block">
               <span className="mb-1.5 block text-sm text-muted">
                 Описание <span className="text-xs">· поддерживается markdown</span>
               </span>
-              <textarea name="description" rows={3} placeholder="Детали, контекст, критерии приёмки…" className={`${inputCls} resize-none`} />
+              <textarea
+                name="description"
+                rows={3}
+                defaultValue={tpl?.description ?? ""}
+                placeholder="Детали, контекст, критерии приёмки…"
+                className={`${inputCls} resize-none`}
+              />
             </label>
 
             <label className="mb-4 block">
@@ -71,6 +112,7 @@ export function NewTaskDialog({
               <textarea
                 name="checklist"
                 rows={3}
+                defaultValue={tpl?.checklist ?? ""}
                 placeholder={"Написать тесты\nОбновить документацию\nПроверить на staging"}
                 className={`${inputCls} resize-none`}
               />
@@ -79,7 +121,7 @@ export function NewTaskDialog({
             <div className="mb-4 grid grid-cols-2 gap-3">
               <label className="block">
                 <span className="mb-1.5 block text-sm text-muted">Тип</span>
-                <select name="type" defaultValue="FEATURE" className={inputCls}>
+                <select name="type" defaultValue={tpl?.type ?? "FEATURE"} className={inputCls}>
                   {(Object.keys(TYPE_LABELS) as TaskType[]).map((t) => (
                     <option key={t} value={t}>{TYPE_LABELS[t]}</option>
                   ))}
@@ -87,7 +129,7 @@ export function NewTaskDialog({
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-sm text-muted">Приоритет</span>
-                <select name="priority" defaultValue="MEDIUM" className={inputCls}>
+                <select name="priority" defaultValue={tpl?.priority ?? "MEDIUM"} className={inputCls}>
                   {(Object.keys(PRIORITY_LABELS) as Priority[]).map((p) => (
                     <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>
                   ))}
@@ -112,7 +154,15 @@ export function NewTaskDialog({
             <div className="mb-4 grid grid-cols-3 gap-3">
               <label className="block">
                 <span className="mb-1.5 block text-sm text-muted">Оценка, ч</span>
-                <input name="estimateHours" type="number" step="0.5" min="0.5" placeholder="8" className={inputCls} />
+                <input
+                  name="estimateHours"
+                  type="number"
+                  step="0.5"
+                  min="0.5"
+                  defaultValue={tpl?.estimateHours ?? ""}
+                  placeholder="8"
+                  className={inputCls}
+                />
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-sm text-muted">Начало</span>
@@ -148,7 +198,10 @@ export function NewTaskDialog({
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false);
+                  setTpl(null);
+                }}
                 className="rounded-lg border border-edge px-4 py-2 text-sm text-muted transition hover:bg-surface-2"
               >
                 Отмена

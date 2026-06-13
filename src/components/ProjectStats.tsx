@@ -34,7 +34,7 @@ function BarList({
               style={{ width: `${(r.value / max) * 100}%`, backgroundColor: r.color }}
             />
           </div>
-          <span className="w-20 shrink-0 text-right text-xs font-medium">
+          <span className="w-28 shrink-0 text-right text-xs font-medium">
             {r.hint ?? r.value}
           </span>
         </div>
@@ -54,13 +54,63 @@ function Card({ label, value, accent }: { label: string; value: string; accent?:
   );
 }
 
+/** Столбчатый график «создано vs закрыто» по неделям. */
+function CompletionChart({
+  data,
+}: {
+  data: { label: string; created: number; closed: number }[];
+}) {
+  const max = Math.max(...data.flatMap((d) => [d.created, d.closed]), 1);
+  return (
+    <div>
+      <div className="flex h-40 items-end gap-2">
+        {data.map((d, i) => (
+          <div key={i} className="flex flex-1 flex-col items-center gap-1">
+            <div className="flex h-32 w-full items-end justify-center gap-0.5">
+              <div
+                className="w-1/2 rounded-t bg-indigo-500/70"
+                style={{ height: `${(d.created / max) * 100}%` }}
+                title={`Создано: ${d.created}`}
+              />
+              <div
+                className="w-1/2 rounded-t bg-emerald-500/70"
+                style={{ height: `${(d.closed / max) * 100}%` }}
+                title={`Закрыто: ${d.closed}`}
+              />
+            </div>
+            <span className="text-[10px] text-muted">{d.label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex justify-center gap-4 text-xs text-muted">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm bg-indigo-500/70" /> создано
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500/70" /> закрыто
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Денежный формат стоимости. */
+function formatCost(n: number): string {
+  return new Intl.NumberFormat("ru-RU", {
+    maximumFractionDigits: 0,
+  }).format(Math.round(n));
+}
+
 export function ProjectStats({
   tasks,
   hoursByUser,
+  completion,
 }: {
   tasks: TaskDTO[];
-  hoursByUser: { name: string; hours: number }[];
+  hoursByUser: { name: string; hours: number; cost: number | null }[];
+  completion: { label: string; created: number; closed: number }[];
 }) {
+  const totalCost = hoursByUser.reduce((s, u) => s + (u.cost ?? 0), 0);
   const done = tasks.filter((t) => t.status === "DONE" || t.status === "CLOSED");
   const open = tasks.filter(
     (t) => t.status !== "DONE" && t.status !== "CLOSED" && t.status !== "ARCHIVED"
@@ -91,7 +141,10 @@ export function ProjectStats({
           value={String(overdue.length)}
           accent={overdue.length ? "#ef4444" : undefined}
         />
-        <Card label="Потрачено" value={formatHours(spent)} />
+        <Card
+          label={totalCost > 0 ? "Стоимость" : "Потрачено"}
+          value={totalCost > 0 ? formatCost(totalCost) : formatHours(spent)}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -141,6 +194,13 @@ export function ProjectStats({
         </section>
       </div>
 
+      <section className="rounded-2xl border border-edge bg-surface p-5">
+        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
+          Динамика по неделям
+        </h2>
+        <CompletionChart data={completion} />
+      </section>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section className="rounded-2xl border border-edge bg-surface p-5">
           <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -183,7 +243,7 @@ export function ProjectStats({
 
         <section className="rounded-2xl border border-edge bg-surface p-5">
           <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
-            Часы по сотрудникам
+            {totalCost > 0 ? "Часы и стоимость по сотрудникам" : "Часы по сотрудникам"}
           </h2>
           {hoursByUser.length === 0 ? (
             <p className="text-sm text-muted">Время ещё не списывалось.</p>
@@ -193,9 +253,17 @@ export function ProjectStats({
                 label: u.name,
                 value: u.hours,
                 color: "#6366f1",
-                hint: formatHours(u.hours),
+                hint:
+                  u.cost != null
+                    ? `${formatHours(u.hours)} · ${formatCost(u.cost)}`
+                    : formatHours(u.hours),
               }))}
             />
+          )}
+          {totalCost > 0 && (
+            <p className="mt-3 border-t border-edge pt-2 text-right text-xs text-muted">
+              Итого: <b className="text-foreground">{formatCost(totalCost)}</b>
+            </p>
           )}
         </section>
       </div>

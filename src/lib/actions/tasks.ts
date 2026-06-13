@@ -285,6 +285,10 @@ export async function addCommentAction(
 ): Promise<{ error?: string }> {
   const taskId = String(formData.get("taskId") ?? "");
   const content = String(formData.get("content") ?? "").trim();
+  const mentionIds = String(formData.get("mentions") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (!taskId || !content) return { error: "Комментарий не может быть пустым" };
 
   const { user, task } = await requireTaskMember(taskId);
@@ -295,11 +299,30 @@ export async function addCommentAction(
     where: { id: taskId },
     select: { number: true, project: { select: { key: true } } },
   });
+  const code = `${full.project.key}-${full.number}`;
+  const preview = `${content.slice(0, 80)}${content.length > 80 ? "…" : ""}`;
+
+  // Упомянутых уведомляем персонально (только участников проекта)
+  const mentioned = mentionIds.length
+    ? await filterProjectMembers(task.projectId, mentionIds)
+    : [];
+  if (mentioned.length) {
+    await notifyUsers(
+      mentioned,
+      user.id,
+      taskId,
+      "MENTION",
+      `${user.name} упомянул(а) вас в ${code}: «${preview}»`
+    );
+  }
+  // Остальным наблюдателям — обычное уведомление о комментарии (без повтора упомянутым)
   await notifyTaskWatchers(
     taskId,
     user.id,
     "COMMENT",
-    `${user.name} прокомментировал(а) ${full.project.key}-${full.number}: «${content.slice(0, 80)}${content.length > 80 ? "…" : ""}»`
+    `${user.name} прокомментировал(а) ${code}: «${preview}»`,
+    undefined,
+    mentioned
   );
   revalidateTask(task.projectId, taskId);
   return {};

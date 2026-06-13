@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logoutAction } from "@/lib/actions/auth";
 import { ROLE_LABELS, initials } from "@/lib/labels";
+import { Hotkeys } from "@/components/Hotkeys";
 
 export default async function AppLayout({
   children,
@@ -20,6 +21,7 @@ export default async function AppLayout({
 
   return (
     <div className="flex min-h-screen">
+      <Hotkeys />
       <aside className="fixed inset-y-0 left-0 z-20 flex w-60 flex-col border-r border-edge bg-surface">
         <Link href="/dashboard" className="flex items-center gap-2.5 px-5 py-5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-base font-bold">

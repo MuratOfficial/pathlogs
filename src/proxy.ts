@@ -9,7 +9,10 @@ export async function proxy(req: NextRequest) {
 
   const isPublic =
     PUBLIC_PATHS.some((p) => pathname.startsWith(p)) ||
-    pathname.startsWith("/api/auth");
+    pathname.startsWith("/api/auth") ||
+    // Эндпоинты с авторизацией по API-токену (Bearer) сами проверяют доступ
+    pathname.startsWith("/api/git") ||
+    pathname.startsWith("/api/cron");
 
   const token = await getToken({
     req,

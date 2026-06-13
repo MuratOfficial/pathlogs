@@ -3,7 +3,7 @@ import type { Role } from "@prisma/client";
 
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE "User","Project","ProjectMember","BoardColumn","Task","TaskLink","PatchLog","TimeEntry","Attachment","ChecklistItem","Comment","Notification" RESTART IDENTITY CASCADE'
+    'TRUNCATE "User","Project","ProjectMember","BoardColumn","Task","TaskLink","PatchLog","TimeEntry","Attachment","ChecklistItem","Comment","Notification","TaskTemplate","SavedFilter","ApiToken","WebhookEndpoint","GitCommitRef" RESTART IDENTITY CASCADE'
   );
 }
 

@@ -61,9 +61,37 @@ function renderInline(text: string, keyBase = 0): ReactNode[] {
   return out;
 }
 
+/** Разбивает текст по @упоминаниям известных имён, остальное — обычная инлайн-разметка. */
+function renderWithMentions(text: string, mentions: string[]): ReactNode[] {
+  const escaped = mentions
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+    .map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (escaped.length === 0) return renderInline(text);
+  const re = new RegExp(`@(?:${escaped.join("|")})`, "g");
+  const out: ReactNode[] = [];
+  let last = 0;
+  let k = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push(...renderInline(text.slice(last, m.index), k++ * 1000));
+    out.push(
+      <span
+        key={`mention-${k++}`}
+        className="rounded bg-accent/15 px-1 font-medium text-accent-hover"
+      >
+        {m[0]}
+      </span>
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push(...renderInline(text.slice(last), k++ * 1000));
+  return out;
+}
+
 /** Только инлайн-разметка (для пунктов чек-листа, заголовков и т.п.). */
-export function MarkdownInline({ text }: { text: string }) {
-  return <>{renderInline(text)}</>;
+export function MarkdownInline({ text, mentions }: { text: string; mentions?: string[] }) {
+  return <>{mentions?.length ? renderWithMentions(text, mentions) : renderInline(text)}</>;
 }
 
 type Block =
@@ -152,8 +180,17 @@ const HEADING_CLS: Record<number, string> = {
   3: "text-sm font-semibold",
 };
 
-/** Блочный Markdown для описаний задач и патч-логов. */
-export function Markdown({ text, className = "" }: { text: string; className?: string }) {
+/** Блочный Markdown для описаний задач, патч-логов и комментариев. */
+export function Markdown({
+  text,
+  className = "",
+  mentions,
+}: {
+  text: string;
+  className?: string;
+  /** Имена для подсветки @упоминаний (участники проекта). */
+  mentions?: string[];
+}) {
   const blocks = parseBlocks(text);
   return (
     <div className={`space-y-2 text-sm text-foreground/85 ${className}`}>
@@ -162,7 +199,7 @@ export function Markdown({ text, className = "" }: { text: string; className?: s
           case "h":
             return (
               <p key={idx} className={`${HEADING_CLS[b.level]} text-foreground`}>
-                <MarkdownInline text={b.text} />
+                <MarkdownInline text={b.text} mentions={mentions} />
               </p>
             );
           case "hr":
@@ -181,7 +218,7 @@ export function Markdown({ text, className = "" }: { text: string; className?: s
               <ul key={idx} className="list-disc space-y-1 pl-5">
                 {b.items.map((it, j) => (
                   <li key={j}>
-                    <MarkdownInline text={it} />
+                    <MarkdownInline text={it} mentions={mentions} />
                   </li>
                 ))}
               </ul>
@@ -191,7 +228,7 @@ export function Markdown({ text, className = "" }: { text: string; className?: s
               <ol key={idx} className="list-decimal space-y-1 pl-5">
                 {b.items.map((it, j) => (
                   <li key={j}>
-                    <MarkdownInline text={it} />
+                    <MarkdownInline text={it} mentions={mentions} />
                   </li>
                 ))}
               </ol>
@@ -204,7 +241,7 @@ export function Markdown({ text, className = "" }: { text: string; className?: s
               >
                 {b.lines.map((l, j) => (
                   <p key={j}>
-                    <MarkdownInline text={l} />
+                    <MarkdownInline text={l} mentions={mentions} />
                   </p>
                 ))}
               </blockquote>
@@ -215,7 +252,7 @@ export function Markdown({ text, className = "" }: { text: string; className?: s
                 {b.lines.map((l, j) => (
                   <span key={j}>
                     {j > 0 && "\n"}
-                    <MarkdownInline text={l} />
+                    <MarkdownInline text={l} mentions={mentions} />
                   </span>
                 ))}
               </p>

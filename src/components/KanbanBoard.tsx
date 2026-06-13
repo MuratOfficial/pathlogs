@@ -134,6 +134,68 @@ function AddColumn({
   );
 }
 
+/** Бейдж количества карточек с WIP-лимитом. Клик (для управляющих) — задать лимит. */
+function WipBadge({
+  count,
+  limit,
+  canEdit,
+  onSetLimit,
+}: {
+  count: number;
+  limit: number | null;
+  canEdit: boolean;
+  onSetLimit: (limit: number | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(limit ? String(limit) : "");
+  const over = limit != null && count > limit;
+
+  if (editing) {
+    function commit() {
+      setEditing(false);
+      const n = parseInt(value, 10);
+      onSetLimit(Number.isFinite(n) && n > 0 ? n : null);
+    }
+    return (
+      <input
+        autoFocus
+        type="number"
+        min={1}
+        value={value}
+        placeholder="∞"
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") setEditing(false);
+        }}
+        className="w-14 rounded-full border border-accent bg-surface-2 px-2 py-0.5 text-center text-xs outline-none"
+        title="WIP-лимит колонки (пусто — без лимита)"
+      />
+    );
+  }
+
+  return (
+    <span
+      onClick={canEdit ? () => { setValue(limit ? String(limit) : ""); setEditing(true); } : undefined}
+      title={
+        canEdit
+          ? "Нажмите, чтобы задать WIP-лимит"
+          : limit != null
+            ? `WIP-лимит: ${limit}`
+            : undefined
+      }
+      className={`rounded-full px-2 py-0.5 text-xs ${canEdit ? "cursor-pointer" : ""} ${
+        over
+          ? "bg-red-500/20 font-semibold text-red-400"
+          : "bg-surface-2 text-muted"
+      }`}
+    >
+      {limit != null ? `${count}/${limit}` : count}
+    </span>
+  );
+}
+
 /** Заголовок колонки с инлайн-переименованием по двойному клику. */
 function ColumnTitle({
   name,
@@ -300,6 +362,11 @@ export function KanbanBoard({
     startTransition(() => updateBoardColumnAction(colId, { name }));
   }
 
+  function setColumnWip(colId: string, wipLimit: number | null) {
+    setColumns((prev) => prev.map((c) => (c.id === colId ? { ...c, wipLimit } : c)));
+    startTransition(() => updateBoardColumnAction(colId, { wipLimit }));
+  }
+
   function removeColumn(colId: string) {
     setColumns((prev) => prev.filter((c) => c.id !== colId));
     setTasks((prev) =>
@@ -317,6 +384,7 @@ export function KanbanBoard({
     <div className="flex h-full gap-4 overflow-x-auto pb-4">
       {sorted.map((col) => {
         const colTasks = tasksOf(col.id);
+        const wipOver = col.wipLimit != null && colTasks.length > col.wipLimit;
         const isColDropTarget = dragColId && overColDrag === col.id && dragColId !== col.id;
         return (
           <div
@@ -339,12 +407,17 @@ export function KanbanBoard({
                 ? "border-accent/60 bg-accent/5"
                 : isColDropTarget
                   ? "border-accent border-dashed"
-                  : "border-edge"
+                  : wipOver
+                    ? "border-red-500/50 bg-red-500/[0.04]"
+                    : "border-edge"
             }`}
             style={
               overCol === col.id && !dragColId
                 ? undefined
-                : { borderTopColor: col.color + "99", borderTopWidth: 2 }
+                : {
+                    borderTopColor: (wipOver ? "#ef4444" : col.color) + "99",
+                    borderTopWidth: 2,
+                  }
             }
           >
             <div className="flex items-center gap-2 px-4 py-3">
@@ -383,9 +456,12 @@ export function KanbanBoard({
               <div className="min-w-0 flex-1">
                 <ColumnTitle name={col.name} onRename={(n) => renameColumn(col.id, n)} />
               </div>
-              <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">
-                {colTasks.length}
-              </span>
+              <WipBadge
+                count={colTasks.length}
+                limit={col.wipLimit}
+                canEdit={canManageBoard}
+                onSetLimit={(l) => setColumnWip(col.id, l)}
+              />
               {!col.status && canManageBoard && (
                 <button
                   type="button"

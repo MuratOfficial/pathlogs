@@ -11,6 +11,7 @@ export interface TaskDTO {
   parentId: string | null;
   columnId: string | null;
   color: string | null;
+  startDate: string | null;
   dueDate: string | null;
   estimateHours: number | null;
   spentHours: number;
@@ -27,6 +28,8 @@ export interface ColumnDTO {
   color: string;
   order: number;
   status: TaskStatus | null;
+  /** WIP-лимит: при превышении колонка подсвечивается. null — без лимита. */
+  wipLimit: number | null;
 }
 
 export interface LinkDTO {
@@ -39,4 +42,16 @@ export interface LinkDTO {
 export interface MemberDTO {
   id: string;
   name: string;
+}
+
+/** Шаблон задачи для предзаполнения формы создания. */
+export interface TaskTemplateDTO {
+  id: string;
+  name: string;
+  type: TaskType;
+  priority: Priority;
+  titlePrefix: string | null;
+  description: string | null;
+  estimateHours: number | null;
+  checklist: string | null;
 }

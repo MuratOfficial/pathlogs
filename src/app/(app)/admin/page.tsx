@@ -56,6 +56,7 @@ export default async function AdminPage() {
             <tr>
               <th className="px-5 py-3 font-medium">Пользователь</th>
               <th className="px-5 py-3 font-medium">Роль</th>
+              <th className="px-5 py-3 font-medium">Ставка/ч</th>
               <th className="px-5 py-3 font-medium">Задач</th>
               <th className="px-5 py-3 font-medium">Патч-логов</th>
               <th className="px-5 py-3 font-medium">Регистрация</th>
@@ -76,6 +77,7 @@ export default async function AdminPage() {
                   createdAt: formatDate(u.createdAt),
                   taskCount: u._count.assignedTasks,
                   patchLogCount: u._count.patchLogs,
+                  hourlyRate: u.hourlyRate,
                 }}
                 isSelf={u.id === session.user.id}
               />

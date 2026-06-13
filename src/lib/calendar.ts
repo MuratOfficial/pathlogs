@@ -54,15 +54,10 @@ function icsEscape(s: string): string {
     .replace(/\r?\n/g, "\\n");
 }
 
-/** Файл iCalendar с одним событием на весь день. */
-export function buildIcs(e: TaskEvent, uid: string): string | null {
+function vevent(e: TaskEvent, uid: string, stamp: string): string[] | null {
   const range = eventRange(e);
   if (!range) return null;
-  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const lines = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//PathLogs//RU",
+  return [
     "BEGIN:VEVENT",
     `UID:${uid}@pathlogs`,
     `DTSTAMP:${stamp}`,
@@ -72,7 +67,31 @@ export function buildIcs(e: TaskEvent, uid: string): string | null {
     `DESCRIPTION:${icsEscape(e.url ? `${e.details}\n\n${e.url}`.trim() : e.details)}`,
     ...(e.url ? [`URL:${e.url}`] : []),
     "END:VEVENT",
-    "END:VCALENDAR",
   ];
-  return lines.join("\r\n");
+}
+
+function wrap(events: string[][]): string {
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//PathLogs//RU",
+    ...events.flat(),
+    "END:VCALENDAR",
+  ].join("\r\n");
+}
+
+/** Файл iCalendar с одним событием на весь день. */
+export function buildIcs(e: TaskEvent, uid: string): string | null {
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const ev = vevent(e, uid, stamp);
+  return ev ? wrap([ev]) : null;
+}
+
+/** Файл iCalendar с несколькими событиями (задачи проекта с датами). */
+export function buildIcsCalendar(items: { event: TaskEvent; uid: string }[]): string | null {
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const events = items
+    .map((it) => vevent(it.event, it.uid, stamp))
+    .filter((x): x is string[] => x !== null);
+  return events.length ? wrap(events) : null;
 }

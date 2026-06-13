@@ -2,8 +2,16 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { addCommentAction } from "@/lib/actions/tasks";
+import { MentionTextarea } from "./MentionTextarea";
+import type { MemberDTO } from "@/lib/types";
 
-export function CommentForm({ taskId }: { taskId: string }) {
+export function CommentForm({
+  taskId,
+  members,
+}: {
+  taskId: string;
+  members: MemberDTO[];
+}) {
   const [state, formAction, pending] = useActionState(addCommentAction, undefined);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -14,11 +22,11 @@ export function CommentForm({ taskId }: { taskId: string }) {
   return (
     <form ref={formRef} action={formAction} className="flex flex-col gap-2">
       <input type="hidden" name="taskId" value={taskId} />
-      <textarea
+      <MentionTextarea
         name="content"
-        required
+        members={members}
         rows={2}
-        placeholder="Написать комментарий… (поддерживается markdown)"
+        placeholder="Написать комментарий… (markdown, @ — упомянуть участника)"
         className="w-full resize-y rounded-lg border border-edge bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
       />
       {state?.error && <p className="text-sm text-red-400">{state.error}</p>}

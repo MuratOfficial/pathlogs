@@ -13,6 +13,13 @@ export async function setUserRoleAction(userId: string, role: Role) {
   revalidatePath("/admin");
 }
 
+export async function setUserRateAction(userId: string, rate: number | null) {
+  await requireAdmin();
+  const value = rate != null && rate > 0 ? rate : null;
+  await prisma.user.update({ where: { id: userId }, data: { hourlyRate: value } });
+  revalidatePath("/admin");
+}
+
 export async function toggleUserActiveAction(userId: string) {
   const admin = await requireAdmin();
   if (admin.id === userId) throw new Error("Нельзя деактивировать самого себя");

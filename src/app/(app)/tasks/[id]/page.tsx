@@ -307,7 +307,7 @@ export default async function TaskPage({
                       />
                     )}
                   </div>
-                  <Markdown text={c.content} />
+                  <Markdown text={c.content} mentions={projectMembers.map((m) => m.name)} />
                 </article>
               ))}
               {task.comments.length === 0 && (
@@ -316,7 +316,7 @@ export default async function TaskPage({
                 </p>
               )}
             </div>
-            <CommentForm taskId={task.id} />
+            <CommentForm taskId={task.id} members={projectMembers} />
           </section>
 
           {/* Файлы */}
