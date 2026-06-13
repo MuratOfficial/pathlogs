@@ -72,7 +72,7 @@ export default async function DashboardPage({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {projects.map((p) => {
+          {projects.map((p, i) => {
             const done = p.tasks.length;
             const total = p._count.tasks;
             const pct = total ? Math.round((done / total) * 100) : 0;
@@ -83,7 +83,8 @@ export default async function DashboardPage({
             return (
               <div
                 key={p.id}
-                className="group relative rounded-2xl border border-edge bg-surface p-5 transition hover:border-accent/50"
+                style={{ animationDelay: `${Math.min(i, 9) * 0.05}s` }}
+                className="hover-lift animate-fade-up group relative rounded-2xl border border-edge bg-surface p-5 hover:border-accent/50"
               >
                 <Link href={`/projects/${p.id}`} className="absolute inset-0 z-0" />
                 <div className="relative z-10 pointer-events-none">

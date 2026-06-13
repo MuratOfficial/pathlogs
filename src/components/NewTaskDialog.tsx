@@ -48,14 +48,14 @@ export function NewTaskDialog({
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           onClick={(e) => e.target === e.currentTarget && (setOpen(false), setTpl(null))}
         >
           <form
             // remount при смене шаблона — чтобы defaultValue полей применились заново
             key={tpl?.id ?? "blank"}
             action={formAction}
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-edge bg-surface p-6 shadow-2xl"
+            className="animate-pop-in max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-edge bg-surface p-6 shadow-2xl"
           >
             <h2 className="mb-5 text-lg font-semibold">Новая задача</h2>
             <input type="hidden" name="projectId" value={projectId} />

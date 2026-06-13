@@ -15,6 +15,7 @@ import { ProjectStats } from "@/components/ProjectStats";
 import { TemplatesDialog } from "@/components/TemplatesDialog";
 import { GanttChart } from "@/components/GanttChart";
 import { WebhooksDialog } from "@/components/WebhooksDialog";
+import { ExportMenu } from "@/components/ExportMenu";
 import { formatHours } from "@/lib/labels";
 
 /** Суммарные часы и стоимость по сотрудникам для вкладки «Аналитика». */
@@ -196,7 +197,7 @@ export default async function ProjectPage({
   ).length;
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-3rem)] max-w-[1600px] flex-col">
+    <div className="mx-auto flex h-[calc(100vh-3rem)] min-w-0 max-w-[1600px] flex-col">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link href="/dashboard" className="text-muted transition hover:text-foreground">
@@ -218,35 +219,13 @@ export default async function ProjectPage({
           )}
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="hidden items-center gap-4 text-xs text-muted md:flex">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="mr-1 hidden items-center gap-4 text-xs text-muted md:flex">
             <span>Открыто: <b className="text-foreground">{open}</b></span>
             <span>Всего: <b className="text-foreground">{tasks.length}</b></span>
             <span>Затрачено: <b className="text-foreground">{formatHours(totalSpent)}</b></span>
           </div>
-          <div className="flex items-center gap-1">
-            <a
-              href={`/api/projects/${project.id}/export`}
-              title="Выгрузить задачи и трудозатраты в Excel"
-              className="rounded-lg border border-edge px-3 py-2 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
-            >
-              XLSX
-            </a>
-            <Link
-              href={`/projects/${project.id}/report`}
-              title="Печатный отчёт — сохраните как PDF"
-              className="rounded-lg border border-edge px-3 py-2 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
-            >
-              PDF-отчёт
-            </Link>
-            <a
-              href={`/api/projects/${project.id}/ics`}
-              title="Календарь задач проекта (.ics для Google / Outlook / Apple)"
-              className="rounded-lg border border-edge px-3 py-2 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
-            >
-              .ics
-            </a>
-          </div>
+          <ExportMenu projectId={project.id} />
           <TemplatesDialog
             projectId={project.id}
             templates={templates}
@@ -279,7 +258,7 @@ export default async function ProjectPage({
         </div>
       </div>
 
-      <div className="mb-4 flex gap-1 rounded-xl border border-edge bg-surface p-1 w-fit">
+      <div className="mb-4 flex w-fit max-w-full flex-wrap gap-1 rounded-xl border border-edge bg-surface p-1">
         {VIEWS.map((v) => (
           <Link
             key={v.id}
@@ -295,7 +274,7 @@ export default async function ProjectPage({
         ))}
       </div>
 
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 min-w-0 flex-1">
         {view === "board" && (
           <KanbanBoard
             tasks={tasks}

@@ -9,6 +9,26 @@
   --muted: #8a94ab;
   --accent: #6366f1;
   --accent-hover: #818cf8;
+  /* Дополнительные акценты для ярких градиентов */
+  --accent-2: #a855f7;
+  --accent-3: #22d3ee;
+  --accent-pink: #ec4899;
+}
+
+/* Светлая тема — включается атрибутом data-theme="light" на <html>.
+   @theme inline ниже ссылается на var(), поэтому переопределения каскадируются. */
+[data-theme="light"] {
+  --background: #f5f7fb;
+  --surface: #ffffff;
+  --surface-2: #eef1f7;
+  --border: #dde3ee;
+  --foreground: #1b2233;
+  --muted: #5c6478;
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-2: #9333ea;
+  --accent-3: #0891b2;
+  --accent-pink: #db2777;
 }
 
 @theme inline {
@@ -20,6 +40,8 @@
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  --color-accent-2: var(--accent-2);
+  --color-accent-3: var(--accent-3);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -46,11 +68,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2b3650;
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
   border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a4769;
+  background: color-mix(in srgb, var(--muted) 70%, transparent);
 }
 
 /* React Flow под тёмную тему */
@@ -72,4 +94,133 @@ body {
 
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.7);
+}
+
+/* ───────────────────────── Анимации ─────────────────────────
+   Только transform/opacity (GPU-дружелюбно). Все отключаются
+   при prefers-reduced-motion. */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+@keyframes aurora-drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(40px, -30px) scale(1.18); }
+}
+@keyframes gradient-pan {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+@keyframes float-soft {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+.animate-fade-up { animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-fade-in { animation: fade-in 0.4s ease both; }
+.animate-pop-in  { animation: pop-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-shake   { animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+.animate-float   { animation: float-soft 5s ease-in-out infinite; }
+
+/* Ступенчатая задержка для появления групп элементов */
+.delay-1 { animation-delay: 0.06s; }
+.delay-2 { animation-delay: 0.12s; }
+.delay-3 { animation-delay: 0.18s; }
+.delay-4 { animation-delay: 0.24s; }
+.delay-5 { animation-delay: 0.30s; }
+.delay-6 { animation-delay: 0.36s; }
+
+/* Подъём карточки при наведении */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  will-change: transform;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 34px -16px rgba(99, 102, 241, 0.55);
+}
+
+/* Анимированный градиентный текст */
+.gradient-text {
+  background: linear-gradient(110deg, var(--accent-3), var(--accent-hover), var(--accent-2), var(--accent-pink));
+  background-size: 280% 280%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-pan 8s ease infinite;
+}
+
+/* Яркая градиентная кнопка */
+.btn-gradient {
+  background: linear-gradient(110deg, var(--accent), var(--accent-2) 55%, var(--accent-pink));
+  background-size: 200% 200%;
+  background-position: 0% 50%;
+  color: #fff;
+  transition: background-position 0.5s ease, transform 0.12s ease, box-shadow 0.25s ease, opacity 0.2s ease;
+  box-shadow: 0 8px 24px -10px rgba(168, 85, 247, 0.6);
+}
+.btn-gradient:hover:not(:disabled) { background-position: 100% 50%; box-shadow: 0 12px 30px -8px rgba(168, 85, 247, 0.7); }
+.btn-gradient:active:not(:disabled) { transform: scale(0.98); }
+
+/* Адаптивный сайдбар: на десктопе всегда виден (перекрывает инлайн-transform),
+   на узких экранах — выезжающий drawer с плавным переходом. */
+.app-sidebar { transition: transform 0.3s ease; }
+@media (min-width: 1024px) {
+  .app-sidebar { transform: translateX(0) !important; }
+}
+
+/* ── Экраны авторизации ── */
+.auth-aurora { position: absolute; inset: 0; overflow: hidden; background: var(--background); }
+.aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  opacity: 0.55;
+  will-change: transform;
+  animation: aurora-drift 16s ease-in-out infinite alternate;
+}
+
+/* Поля ввода на экранах авторизации: мягкое стекло + свечение в фокусе */
+.auth-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.25s ease, background 0.2s ease;
+}
+.auth-input::placeholder { color: var(--muted); }
+.auth-input:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .aurora-blob { animation: none !important; }
 }

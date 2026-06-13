@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { logoutAction } from "@/lib/actions/auth";
 import { ROLE_LABELS, initials } from "@/lib/labels";
 import { Hotkeys } from "@/components/Hotkeys";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { AppShell } from "@/components/AppShell";
 
 export default async function AppLayout({
   children,
@@ -19,18 +21,16 @@ export default async function AppLayout({
     where: { userId: user.id, read: false },
   });
 
-  return (
-    <div className="flex min-h-screen">
-      <Hotkeys />
-      <aside className="fixed inset-y-0 left-0 z-20 flex w-60 flex-col border-r border-edge bg-surface">
-        <Link href="/dashboard" className="flex items-center gap-2.5 px-5 py-5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-base font-bold">
-            P
-          </span>
-          <span className="text-base font-bold tracking-tight">PathLogs</span>
-        </Link>
+  const sidebar = (
+    <>
+      <Link href="/dashboard" className="flex items-center gap-2.5 px-5 py-5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-accent via-accent-2 to-accent-pink text-base font-bold text-white">
+          P
+        </span>
+        <span className="text-base font-bold tracking-tight">PathLogs</span>
+      </Link>
 
-        <nav className="flex-1 space-y-1 px-3">
+      <nav className="flex-1 space-y-1 px-3">
           <Link
             href="/dashboard"
             className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground/90 transition hover:bg-surface-2"
@@ -74,6 +74,7 @@ export default async function AppLayout({
               Админка
             </Link>
           )}
+          <ThemeToggle />
         </nav>
 
         <div className="border-t border-edge p-3">
@@ -104,9 +105,13 @@ export default async function AppLayout({
             </form>
           </div>
         </div>
-      </aside>
+    </>
+  );
 
-      <main className="ml-60 flex-1 px-8 py-6">{children}</main>
-    </div>
+  return (
+    <>
+      <Hotkeys />
+      <AppShell sidebar={sidebar}>{children}</AppShell>
+    </>
   );
 }

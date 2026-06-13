@@ -80,10 +80,10 @@ export function Hotkeys() {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="animate-fade-in fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       onClick={(e) => e.target === e.currentTarget && setHelpOpen(false)}
     >
-      <div className="w-full max-w-sm rounded-2xl border border-edge bg-surface p-6 shadow-2xl">
+      <div className="animate-pop-in w-full max-w-sm rounded-2xl border border-edge bg-surface p-6 shadow-2xl">
         <h2 className="mb-4 text-lg font-semibold">Горячие клавиши</h2>
         <ul className="space-y-2">
           {SHORTCUTS.map((s) => (
