@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { TaskDTO, ColumnDTO } from "@/lib/types";
 import {
@@ -14,19 +15,40 @@ import {
 import { BOARD_PALETTE, formatDate, formatHours } from "@/lib/labels";
 import { AssigneeAvatars, PriorityDot, TypeBadge } from "./TaskBadges";
 
+// Размеры popover для расчёта позиции (ширина w-44 + переворот при нехватке места)
+const PALETTE_W = 176;
+const PALETTE_H = 124;
+
 function ColorPalette({
+  anchorRect,
   onPick,
   onClose,
   allowReset,
 }: {
+  anchorRect: DOMRect;
   onPick: (color: string | null) => void;
   onClose: () => void;
   allowReset?: boolean;
 }) {
-  return (
+  // Позиционируем относительно кнопки-триггера через fixed — popover выходит
+  // за пределы overflow-контейнера колонки и не обрезается.
+  const gap = 6;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const left = Math.min(Math.max(8, anchorRect.left), vw - PALETTE_W - 8);
+  let top = anchorRect.bottom + gap;
+  if (top + PALETTE_H > vh - 8) {
+    const above = anchorRect.top - gap - PALETTE_H;
+    top = above >= 8 ? above : Math.max(8, vh - PALETTE_H - 8);
+  }
+
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-20" onClick={onClose} />
-      <div className="absolute left-0 top-full z-30 mt-1 flex w-40 flex-wrap gap-1.5 rounded-xl border border-edge bg-surface-2 p-2.5 shadow-xl">
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div
+        style={{ position: "fixed", top, left, width: PALETTE_W }}
+        className="z-50 flex flex-wrap gap-1.5 rounded-xl border border-edge bg-surface-2 p-2.5 shadow-2xl"
+      >
         {BOARD_PALETTE.map((c) => (
           <button
             key={c}
@@ -54,7 +76,8 @@ function ColorPalette({
           </button>
         )}
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 
@@ -280,7 +303,18 @@ export function KanbanBoard({
   const [dragColId, setDragColId] = useState<string | null>(null); // перетаскиваемая колонка
   const [overColDrag, setOverColDrag] = useState<string | null>(null); // колонка-цель при переносе колонки
   const [paletteFor, setPaletteFor] = useState<string | null>(null); // id колонки или задачи
+  const [paletteRect, setPaletteRect] = useState<DOMRect | null>(null); // якорь палитры
   const [, startTransition] = useTransition();
+
+  // Открыть/закрыть палитру, запомнив позицию кнопки-триггера
+  function togglePalette(id: string, e: React.MouseEvent<HTMLButtonElement>) {
+    if (paletteFor === id) {
+      setPaletteFor(null);
+    } else {
+      setPaletteRect(e.currentTarget.getBoundingClientRect());
+      setPaletteFor(id);
+    }
+  }
 
   const sorted = [...columns].sort((a, b) => a.order - b.order);
 
@@ -442,12 +476,13 @@ export function KanbanBoard({
                 <button
                   type="button"
                   title="Цвет колонки"
-                  onClick={() => setPaletteFor(paletteFor === col.id ? null : col.id)}
+                  onClick={(e) => togglePalette(col.id, e)}
                   className="block h-2.5 w-2.5 rounded-full transition hover:scale-125"
                   style={{ backgroundColor: col.color }}
                 />
-                {paletteFor === col.id && (
+                {paletteFor === col.id && paletteRect && (
                   <ColorPalette
+                    anchorRect={paletteRect}
                     onPick={(c) => recolorColumn(col.id, c)}
                     onClose={() => setPaletteFor(null)}
                   />
@@ -520,7 +555,7 @@ export function KanbanBoard({
                       <button
                         type="button"
                         title="Цвет карточки"
-                        onClick={() => setPaletteFor(paletteFor === t.id ? null : t.id)}
+                        onClick={(e) => togglePalette(t.id, e)}
                         className="h-3.5 w-3.5 rounded-full border border-edge opacity-0 transition group-hover:opacity-100"
                         style={{ backgroundColor: t.color ?? "transparent" }}
                       >
@@ -530,9 +565,10 @@ export function KanbanBoard({
                           </svg>
                         )}
                       </button>
-                      {paletteFor === t.id && (
+                      {paletteFor === t.id && paletteRect && (
                         <ColorPalette
                           allowReset
+                          anchorRect={paletteRect}
                           onPick={(c) => recolorTask(t.id, c)}
                           onClose={() => setPaletteFor(null)}
                         />

@@ -1,0 +1,70 @@
+<svg width="1200" height="340" viewBox="0 0 1200 340" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="PathLogs">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="340" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0b0f1a"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="logo" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#6366f1"/>
+      <stop offset="0.55" stop-color="#a855f7"/>
+      <stop offset="1" stop-color="#ec4899"/>
+    </linearGradient>
+    <linearGradient id="title" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#22d3ee"/>
+      <stop offset="0.4" stop-color="#818cf8"/>
+      <stop offset="0.75" stop-color="#a855f7"/>
+      <stop offset="1" stop-color="#ec4899"/>
+    </linearGradient>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="60"/>
+    </filter>
+    <style>
+      text { font-family: 'Segoe UI', 'Helvetica Neue', system-ui, sans-serif; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="340" rx="24" fill="url(#bg)"/>
+
+  <!-- aurora blobs -->
+  <g filter="url(#blur)" opacity="0.5">
+    <circle cx="180" cy="80" r="150" fill="#6366f1"/>
+    <circle cx="980" cy="280" r="160" fill="#a855f7"/>
+    <circle cx="1080" cy="40" r="120" fill="#22d3ee"/>
+    <circle cx="520" cy="300" r="120" fill="#ec4899" opacity="0.6"/>
+  </g>
+  <rect width="1200" height="340" rx="24" fill="#0b0f1a" opacity="0.45"/>
+
+  <!-- logo tile -->
+  <g transform="translate(96,120)">
+    <rect width="92" height="92" rx="22" fill="url(#logo)"/>
+    <text x="46" y="62" font-size="52" font-weight="800" fill="#ffffff" text-anchor="middle">P</text>
+  </g>
+
+  <!-- wordmark -->
+  <text x="212" y="158" font-size="68" font-weight="800" fill="url(#title)" letter-spacing="-1">PathLogs</text>
+  <text x="214" y="206" font-size="26" font-weight="500" fill="#e5e9f2">Управление проектами с ветвлением задач, канбаном и патч-логами</text>
+
+  <!-- chips -->
+  <g font-size="17" font-weight="600" fill="#cbd5f5">
+    <g transform="translate(214,236)">
+      <rect width="150" height="38" rx="19" fill="#6366f1" opacity="0.16"/>
+      <rect width="150" height="38" rx="19" fill="none" stroke="#6366f1" stroke-opacity="0.4"/>
+      <text x="75" y="25" text-anchor="middle">Git-ветвление</text>
+    </g>
+    <g transform="translate(376,236)">
+      <rect width="130" height="38" rx="19" fill="#a855f7" opacity="0.16"/>
+      <rect width="130" height="38" rx="19" fill="none" stroke="#a855f7" stroke-opacity="0.4"/>
+      <text x="65" y="25" text-anchor="middle">Канбан</text>
+    </g>
+    <g transform="translate(518,236)">
+      <rect width="120" height="38" rx="19" fill="#22d3ee" opacity="0.16"/>
+      <rect width="120" height="38" rx="19" fill="none" stroke="#22d3ee" stroke-opacity="0.4"/>
+      <text x="60" y="25" text-anchor="middle">Гант</text>
+    </g>
+    <g transform="translate(650,236)">
+      <rect width="160" height="38" rx="19" fill="#ec4899" opacity="0.16"/>
+      <rect width="160" height="38" rx="19" fill="none" stroke="#ec4899" stroke-opacity="0.4"/>
+      <text x="80" y="25" text-anchor="middle">Аналитика</text>
+    </g>
+  </g>
+</svg>

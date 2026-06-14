@@ -1,0 +1,144 @@
+<svg width="1200" height="640" viewBox="0 0 1200 640" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Канбан-доска PathLogs">
+  <defs>
+    <style>
+      text { font-family: 'Segoe UI', system-ui, sans-serif; }
+      .muted { fill: #8a94ab; }
+      .fg { fill: #e5e9f2; }
+    </style>
+  </defs>
+  <rect width="1200" height="640" fill="#0b0f1a"/>
+
+  <!-- sidebar -->
+  <rect x="0" y="0" width="220" height="640" fill="#111827"/>
+  <rect x="0" y="0" width="220" height="640" fill="none" stroke="#243049"/>
+  <rect x="24" y="26" width="34" height="34" rx="9" fill="#6366f1"/>
+  <text x="41" y="49" font-size="18" font-weight="800" fill="#fff" text-anchor="middle">P</text>
+  <text x="70" y="48" font-size="17" font-weight="700" class="fg">PathLogs</text>
+  <rect x="14" y="84" width="192" height="36" rx="9" fill="#1a2235"/>
+  <text x="30" y="107" font-size="14" class="fg">Проекты</text>
+  <text x="30" y="148" font-size="14" class="muted">Мои задачи</text>
+  <text x="30" y="184" font-size="14" class="muted">Уведомления</text>
+  <circle cx="196" cy="179" r="9" fill="#6366f1"/>
+  <text x="196" y="183" font-size="10" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+
+  <!-- header -->
+  <rect x="244" y="26" width="44" height="26" rx="6" fill="#1e2747"/>
+  <text x="266" y="44" font-size="13" font-weight="700" fill="#818cf8" text-anchor="middle">PAY</text>
+  <text x="300" y="46" font-size="22" font-weight="700" class="fg">Платёжный сервис</text>
+  <g transform="translate(980,28)">
+    <rect width="92" height="34" rx="9" fill="none" stroke="#243049"/>
+    <text x="46" y="22" font-size="13" class="muted" text-anchor="middle">Экспорт</text>
+    <rect x="100" y="0" width="92" height="34" rx="9" fill="#6366f1"/>
+    <text x="146" y="22" font-size="13" font-weight="600" fill="#fff" text-anchor="middle">+ Задача</text>
+  </g>
+
+  <!-- tabs -->
+  <g transform="translate(244,74)">
+    <rect width="360" height="38" rx="11" fill="#111827" stroke="#243049"/>
+    <rect x="6" y="6" width="78" height="26" rx="8" fill="#6366f1"/>
+    <text x="45" y="24" font-size="13" font-weight="600" fill="#fff" text-anchor="middle">Канбан</text>
+    <text x="120" y="24" font-size="13" class="muted">Граф</text>
+    <text x="186" y="24" font-size="13" class="muted">Список</text>
+    <text x="258" y="24" font-size="13" class="muted">Гант</text>
+    <text x="320" y="24" font-size="13" class="muted">Аналитика</text>
+  </g>
+
+  <!-- columns -->
+  <g transform="translate(244,134)">
+    <!-- col template via repeated groups -->
+    <!-- Col 1: К выполнению -->
+    <g transform="translate(0,0)">
+      <rect width="220" height="470" rx="16" fill="#111827" stroke="#243049"/>
+      <rect width="220" height="3" rx="2" fill="#94a3b8"/>
+      <text x="16" y="34" font-size="13" font-weight="600" class="fg">К выполнению</text>
+      <rect x="176" y="20" width="30" height="20" rx="10" fill="#1a2235"/>
+      <text x="191" y="34" font-size="11" class="muted" text-anchor="middle">3</text>
+      <!-- cards -->
+      <g transform="translate(12,52)">
+        <rect width="196" height="92" rx="12" fill="#0f1626" stroke="#243049"/>
+        <text x="14" y="24" font-size="11" font-weight="700" class="muted">PAY-7</text>
+        <rect x="58" y="13" width="56" height="16" rx="5" fill="#6366f1" opacity="0.2"/>
+        <text x="86" y="25" font-size="10" fill="#818cf8" text-anchor="middle">Фича</text>
+        <text x="14" y="50" font-size="13" class="fg">Сверка транзакций</text>
+        <circle cx="24" cy="72" r="10" fill="#312e81"/>
+        <text x="24" y="76" font-size="9" fill="#a5b4fc" text-anchor="middle">МТ</text>
+        <rect x="150" y="64" width="40" height="16" rx="5" fill="#1a2235"/>
+        <text x="170" y="76" font-size="9" class="muted" text-anchor="middle">2/5</text>
+      </g>
+      <g transform="translate(12,156)">
+        <rect width="196" height="82" rx="12" fill="#0f1626" stroke="#243049"/>
+        <text x="14" y="24" font-size="11" font-weight="700" class="muted">PAY-9</text>
+        <rect x="58" y="13" width="44" height="16" rx="5" fill="#ef4444" opacity="0.2"/>
+        <text x="80" y="25" font-size="10" fill="#f87171" text-anchor="middle">Баг</text>
+        <text x="14" y="50" font-size="13" class="fg">Двойное списание</text>
+        <circle cx="24" cy="68" r="10" fill="#3b1d3a"/>
+        <text x="24" y="72" font-size="9" fill="#f0abfc" text-anchor="middle">АА</text>
+      </g>
+    </g>
+    <!-- Col 2: В работе (WIP over) -->
+    <g transform="translate(236,0)">
+      <rect width="220" height="470" rx="16" fill="#1a0f12" stroke="#ef4444" stroke-opacity="0.5"/>
+      <rect width="220" height="3" rx="2" fill="#ef4444"/>
+      <text x="16" y="34" font-size="13" font-weight="600" class="fg">В работе</text>
+      <rect x="170" y="20" width="36" height="20" rx="10" fill="#ef4444" opacity="0.2"/>
+      <text x="188" y="34" font-size="11" font-weight="700" fill="#f87171" text-anchor="middle">3/2</text>
+      <g transform="translate(12,52)">
+        <rect width="196" height="92" rx="12" fill="#101a2e" stroke="#60a5fa" stroke-opacity="0.4"/>
+        <text x="14" y="24" font-size="11" font-weight="700" class="muted">PAY-3</text>
+        <rect x="58" y="13" width="56" height="16" rx="5" fill="#6366f1" opacity="0.2"/>
+        <text x="86" y="25" font-size="10" fill="#818cf8" text-anchor="middle">Фича</text>
+        <text x="14" y="50" font-size="13" class="fg">API эндпоинты оплаты</text>
+        <circle cx="24" cy="72" r="10" fill="#312e81"/>
+        <text x="24" y="76" font-size="9" fill="#a5b4fc" text-anchor="middle">ДР</text>
+        <rect x="150" y="64" width="40" height="16" rx="5" fill="#1a2235"/>
+        <text x="170" y="76" font-size="9" class="muted" text-anchor="middle">18ч</text>
+      </g>
+      <g transform="translate(12,156)">
+        <rect width="196" height="78" rx="12" fill="#101a2e" stroke="#243049"/>
+        <text x="14" y="24" font-size="11" font-weight="700" class="muted">PAY-5</text>
+        <text x="14" y="48" font-size="13" class="fg">Идемпотентность</text>
+        <circle cx="24" cy="64" r="10" fill="#312e81"/>
+        <text x="24" y="68" font-size="9" fill="#a5b4fc" text-anchor="middle">ДР</text>
+      </g>
+      <g transform="translate(12,246)">
+        <rect width="196" height="72" rx="12" fill="#101a2e" stroke="#243049"/>
+        <text x="14" y="24" font-size="11" font-weight="700" class="muted">PAY-4</text>
+        <text x="14" y="48" font-size="13" class="fg">Вебхуки провайдера</text>
+      </g>
+    </g>
+    <!-- Col 3: На проверке -->
+    <g transform="translate(472,0)">
+      <rect width="220" height="470" rx="16" fill="#111827" stroke="#243049"/>
+      <rect width="220" height="3" rx="2" fill="#c084fc"/>
+      <text x="16" y="34" font-size="13" font-weight="600" class="fg">На проверке</text>
+      <rect x="176" y="20" width="30" height="20" rx="10" fill="#1a2235"/>
+      <text x="191" y="34" font-size="11" class="muted" text-anchor="middle">1</text>
+      <g transform="translate(12,52)">
+        <rect width="196" height="92" rx="12" fill="#0f1626" stroke="#243049"/>
+        <text x="14" y="24" font-size="11" font-weight="700" class="muted">PAY-2</text>
+        <rect x="58" y="13" width="86" height="16" rx="5" fill="#06b6d4" opacity="0.2"/>
+        <text x="101" y="25" font-size="10" fill="#67e8f9" text-anchor="middle">Аналитика</text>
+        <text x="14" y="50" font-size="13" class="fg">Дашборд платежей</text>
+        <circle cx="24" cy="72" r="10" fill="#3b1d3a"/>
+        <text x="24" y="76" font-size="9" fill="#f0abfc" text-anchor="middle">АА</text>
+      </g>
+    </g>
+    <!-- Col 4: Готово -->
+    <g transform="translate(708,0)">
+      <rect width="220" height="470" rx="16" fill="#111827" stroke="#243049"/>
+      <rect width="220" height="3" rx="2" fill="#4ade80"/>
+      <text x="16" y="34" font-size="13" font-weight="600" class="fg">Готово</text>
+      <rect x="176" y="20" width="30" height="20" rx="10" fill="#1a2235"/>
+      <text x="191" y="34" font-size="11" class="muted" text-anchor="middle">1</text>
+      <g transform="translate(12,52)">
+        <rect width="196" height="82" rx="12" fill="#0f1626" stroke="#243049"/>
+        <text x="14" y="24" font-size="11" font-weight="700" class="muted">PAY-1</text>
+        <rect x="58" y="13" width="92" height="16" rx="5" fill="#ec4899" opacity="0.2"/>
+        <text x="104" y="25" font-size="10" fill="#f9a8d4" text-anchor="middle">Менеджмент</text>
+        <text x="14" y="50" font-size="13" class="fg">Интеграция шлюза</text>
+        <rect x="14" y="62" width="120" height="6" rx="3" fill="#1a2235"/>
+        <rect x="14" y="62" width="120" height="6" rx="3" fill="#4ade80"/>
+      </g>
+    </g>
+  </g>
+</svg>
