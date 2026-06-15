@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
 import { formatDate, initials } from "@/lib/labels";
 import { NewProjectDialog } from "@/components/NewProjectDialog";
+import { ImportTrelloDialog } from "@/components/ImportTrelloDialog";
 import { ArchiveProjectButton } from "@/components/ArchiveProjectButton";
 
 export default async function DashboardPage({
@@ -55,6 +56,7 @@ export default async function DashboardPage({
           >
             {showArchived ? "← Активные" : "Архив"}
           </Link>
+          <ImportTrelloDialog />
           <NewProjectDialog />
         </div>
       </div>
