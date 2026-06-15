@@ -21,7 +21,7 @@ export default function RegisterPage() {
             name="name"
             required
             minLength={2}
-            placeholder="Иван Петров"
+            placeholder="Маке Бакеулы"
             className="auth-input"
           />
         </label>
