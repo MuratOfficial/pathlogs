@@ -5,6 +5,7 @@ import {
   listTrelloBoardsAction,
   importTrelloBoardAction,
 } from "@/lib/actions/trello";
+import { buildTrelloAuthorizeUrl } from "@/lib/trello";
 
 const inputCls =
   "w-full rounded-lg border border-edge bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent";
@@ -14,10 +15,12 @@ function suggestKey(name: string): string {
   return (name.match(/[A-Za-z]/g) ?? []).join("").slice(0, 4).toUpperCase();
 }
 
-export function ImportTrelloDialog() {
+export function ImportTrelloDialog({ hasSaved = false }: { hasSaved?: boolean }) {
   const [open, setOpen] = useState(false);
   const [key, setKey] = useState("");
   const [token, setToken] = useState("");
+  const [remember, setRemember] = useState(true);
+  const [useManual, setUseManual] = useState(false);
   const [boards, setBoards] = useState<{ id: string; name: string }[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [credError, setCredError] = useState<string | null>(null);
@@ -30,22 +33,14 @@ export function ImportTrelloDialog() {
   );
 
   const selectedBoard = boards?.find((b) => b.id === selected) ?? null;
+  const usingSaved = hasSaved && !useManual;
 
-  function close() {
-    setOpen(false);
-  }
-
-  function resetBoards() {
-    setBoards(null);
-    setSelected("");
-    setProjKey("");
-    setCredError(null);
-  }
-
-  async function loadBoards() {
+  async function load(saved: boolean) {
     setLoading(true);
     setCredError(null);
-    const res = await listTrelloBoardsAction(key.trim(), token.trim());
+    const res = saved
+      ? await listTrelloBoardsAction()
+      : await listTrelloBoardsAction(key.trim(), token.trim(), remember);
     setLoading(false);
     if (res.error) {
       setCredError(res.error);
@@ -59,6 +54,30 @@ export function ImportTrelloDialog() {
     }
   }
 
+  function openDialog() {
+    setOpen(true);
+    // С сохранёнными данными сразу подгружаем доски, минуя ввод кред
+    if (usingSaved) void load(true);
+  }
+
+  function close() {
+    setOpen(false);
+  }
+
+  function resetBoards() {
+    setBoards(null);
+    setSelected("");
+    setProjKey("");
+    setCredError(null);
+    if (usingSaved) void load(true);
+  }
+
+  function switchToManual() {
+    setUseManual(true);
+    setBoards(null);
+    setCredError(null);
+  }
+
   function pickBoard(id: string) {
     setSelected(id);
     const b = boards?.find((x) => x.id === id);
@@ -69,7 +88,7 @@ export function ImportTrelloDialog() {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openDialog}
         className="flex items-center gap-2 rounded-lg border border-edge px-4 py-2 text-sm font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
       >
         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -95,21 +114,42 @@ export function ImportTrelloDialog() {
                 </svg>
               </button>
             </div>
-            <p className="mb-4 text-xs text-muted">
-              Ключ и токен возьмите на{" "}
-              <a
-                href="https://trello.com/app-key"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent-hover underline"
-              >
-                trello.com/app-key
-              </a>
-              . Они используются только для запроса и нигде не сохраняются.
-            </p>
 
-            {/* Шаг 1 — учётные данные */}
-            {!boards && (
+            {/* Подсказка только при ручном вводе */}
+            {!usingSaved && !boards && (
+              <p className="mb-4 text-xs text-muted">
+                Ключ и токен возьмите на{" "}
+                <a
+                  href="https://trello.com/power-ups/admin"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent-hover underline"
+                >
+                  trello.com/power-ups/admin
+                </a>
+                .
+              </p>
+            )}
+
+            {/* Загрузка по сохранённым данным */}
+            {usingSaved && !boards && (
+              <div className="space-y-3 py-2">
+                {loading && <p className="text-sm text-muted">Загружаем доски Trello…</p>}
+                {credError && (
+                  <p className="text-sm text-red-400">{credError}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={switchToManual}
+                  className="text-xs text-accent-hover underline"
+                >
+                  Ввести другие данные
+                </button>
+              </div>
+            )}
+
+            {/* Шаг 1 — ручной ввод учётных данных */}
+            {!usingSaved && !boards && (
               <div className="space-y-3">
                 <label className="block">
                   <span className="mb-1 block text-xs text-muted">API key *</span>
@@ -120,6 +160,20 @@ export function ImportTrelloDialog() {
                     className={`${inputCls} font-mono`}
                   />
                 </label>
+                <button
+                  type="button"
+                  disabled={key.trim().length < 8}
+                  onClick={() =>
+                    window.open(
+                      buildTrelloAuthorizeUrl(key),
+                      "_blank",
+                      "noopener,noreferrer"
+                    )
+                  }
+                  className="text-xs text-accent-hover underline disabled:cursor-not-allowed disabled:text-muted disabled:no-underline"
+                >
+                  Получить токен в Trello → скопируйте и вставьте ниже
+                </button>
                 <label className="block">
                   <span className="mb-1 block text-xs text-muted">Token *</span>
                   <input
@@ -128,6 +182,15 @@ export function ImportTrelloDialog() {
                     placeholder="ATTA…"
                     className={`${inputCls} font-mono`}
                   />
+                </label>
+                <label className="flex items-center gap-2 text-sm text-muted">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                    className="h-4 w-4 rounded border-edge accent-accent"
+                  />
+                  Запомнить эти данные (хранятся в зашифрованном виде)
                 </label>
                 {credError && <p className="text-sm text-red-400">{credError}</p>}
                 <div className="flex justify-end gap-2 pt-1">
@@ -140,7 +203,7 @@ export function ImportTrelloDialog() {
                   </button>
                   <button
                     type="button"
-                    onClick={loadBoards}
+                    onClick={() => load(false)}
                     disabled={loading || key.trim().length < 8 || token.trim().length < 8}
                     className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold transition hover:bg-accent-hover disabled:opacity-50"
                   >
@@ -153,15 +216,17 @@ export function ImportTrelloDialog() {
             {/* Шаг 2 — выбор доски и ключа проекта */}
             {boards && (
               <form action={formAction} className="space-y-3">
-                <input type="hidden" name="key" value={key.trim()} />
-                <input type="hidden" name="token" value={token.trim()} />
+                {!usingSaved && (
+                  <>
+                    <input type="hidden" name="key" value={key.trim()} />
+                    <input type="hidden" name="token" value={token.trim()} />
+                  </>
+                )}
                 <input type="hidden" name="boardId" value={selected} />
                 <input type="hidden" name="boardName" value={selectedBoard?.name ?? ""} />
 
                 {boards.length === 0 ? (
-                  <p className="text-sm text-muted">
-                    На аккаунте нет открытых досок.
-                  </p>
+                  <p className="text-sm text-muted">На аккаунте нет открытых досок.</p>
                 ) : (
                   <label className="block">
                     <span className="mb-1 block text-xs text-muted">Доска</span>

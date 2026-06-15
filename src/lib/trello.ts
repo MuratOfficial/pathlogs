@@ -6,6 +6,22 @@
 
 const API = "https://api.trello.com/1";
 
+/**
+ * URL страницы авторизации Trello с уже подставленным API key.
+ * Trello покажет токен (scope=read, бессрочный) для копирования — отдельную
+ * ссылку искать не нужно. Изоморфно: можно открыть из клиента через window.open.
+ */
+export function buildTrelloAuthorizeUrl(apiKey: string, appName = "PathLogs"): string {
+  const params = new URLSearchParams({
+    expiration: "never",
+    scope: "read",
+    response_type: "token",
+    name: appName,
+    key: apiKey.trim(),
+  });
+  return `https://trello.com/1/authorize?${params.toString()}`;
+}
+
 export type TrelloAuth = { key: string; token: string };
 
 export type TrelloBoard = { id: string; name: string; closed: boolean };

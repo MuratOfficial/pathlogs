@@ -8,6 +8,7 @@ import {
   fetchTrelloCards,
   type TrelloAuth,
 } from "@/lib/trello";
+import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import { BOARD_PALETTE } from "@/lib/labels";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -18,18 +19,106 @@ const authSchema = z.object({
   token: z.string().trim().min(8, "Укажите token Trello"),
 });
 
-/** Загружает список открытых досок пользователя для выбора в диалоге. */
-export async function listTrelloBoardsAction(
-  key: string,
-  token: string
-): Promise<{ boards?: { id: string; name: string }[]; error?: string }> {
-  await requireUser();
-  const parsed = authSchema.safeParse({ key, token });
+/** Возвращает сохранённые (расшифрованные) креды Trello пользователя либо null. */
+async function getSavedAuth(userId: string): Promise<TrelloAuth | null> {
+  const cred = await prisma.trelloCredential.findUnique({ where: { userId } });
+  if (!cred) return null;
+  try {
+    return { key: decryptSecret(cred.apiKey), token: decryptSecret(cred.token) };
+  } catch {
+    // Ключ шифрования сменился или запись повреждена — считаем, что кред нет
+    return null;
+  }
+}
+
+/**
+ * Сохраняет (с проверкой) учётные данные Trello пользователя в зашифрованном виде.
+ * Перед сохранением убеждаемся, что креды рабочие — запрашиваем доски.
+ */
+export async function saveTrelloCredentialsAction(
+  _prev: { error?: string; ok?: boolean } | undefined,
+  formData: FormData
+): Promise<{ error?: string; ok?: boolean }> {
+  const user = await requireUser();
+  const parsed = authSchema.safeParse({
+    key: formData.get("key"),
+    token: formData.get("token"),
+  });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
   }
   try {
-    const boards = await fetchTrelloBoards(parsed.data);
+    await fetchTrelloBoards(parsed.data); // проверка валидности
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Ошибка Trello" };
+  }
+  await prisma.trelloCredential.upsert({
+    where: { userId: user.id },
+    create: {
+      userId: user.id,
+      apiKey: encryptSecret(parsed.data.key),
+      token: encryptSecret(parsed.data.token),
+    },
+    update: {
+      apiKey: encryptSecret(parsed.data.key),
+      token: encryptSecret(parsed.data.token),
+    },
+  });
+  revalidatePath("/profile");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+/** Удаляет сохранённые креды Trello пользователя. */
+export async function deleteTrelloCredentialsAction() {
+  const user = await requireUser();
+  await prisma.trelloCredential.deleteMany({ where: { userId: user.id } });
+  revalidatePath("/profile");
+  revalidatePath("/dashboard");
+}
+
+/**
+ * Загружает доски пользователя. Если key/token не переданы — берёт сохранённые.
+ * remember=true сохраняет переданные креды при успехе.
+ */
+export async function listTrelloBoardsAction(
+  key?: string,
+  token?: string,
+  remember?: boolean
+): Promise<{ boards?: { id: string; name: string }[]; error?: string }> {
+  const user = await requireUser();
+
+  let auth: TrelloAuth;
+  if (key && token) {
+    const parsed = authSchema.safeParse({ key, token });
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
+    }
+    auth = parsed.data;
+  } else {
+    const saved = await getSavedAuth(user.id);
+    if (!saved) return { error: "Нет сохранённых данных Trello" };
+    auth = saved;
+  }
+
+  try {
+    const boards = await fetchTrelloBoards(auth);
+    if (key && token && remember) {
+      await prisma.trelloCredential.upsert({
+        where: { userId: user.id },
+        create: {
+          userId: user.id,
+          apiKey: encryptSecret(auth.key),
+          token: encryptSecret(auth.token),
+        },
+        update: {
+          apiKey: encryptSecret(auth.key),
+          token: encryptSecret(auth.token),
+        },
+      });
+      revalidatePath("/dashboard");
+      revalidatePath("/profile");
+    }
     return {
       boards: boards
         .filter((b) => !b.closed)
@@ -40,7 +129,10 @@ export async function listTrelloBoardsAction(
   }
 }
 
-const importSchema = authSchema.extend({
+const importSchema = z.object({
+  // key/token опциональны: при отсутствии используются сохранённые креды
+  key: z.string().trim().optional(),
+  token: z.string().trim().optional(),
   boardId: z.string().trim().min(8, "Выберите доску"),
   boardName: z.string().trim().min(1, "Выберите доску"),
   projectKey: z
@@ -62,8 +154,8 @@ export async function importTrelloBoardAction(
 ): Promise<{ error?: string }> {
   const user = await requireUser();
   const parsed = importSchema.safeParse({
-    key: formData.get("key"),
-    token: formData.get("token"),
+    key: formData.get("key") || undefined,
+    token: formData.get("token") || undefined,
     boardId: formData.get("boardId"),
     boardName: formData.get("boardName"),
     projectKey: formData.get("projectKey"),
@@ -73,11 +165,14 @@ export async function importTrelloBoardAction(
   }
   const { key, token, boardId, boardName, projectKey } = parsed.data;
 
+  const auth: TrelloAuth | null =
+    key && token ? { key, token } : await getSavedAuth(user.id);
+  if (!auth) return { error: "Нет данных Trello для импорта" };
+
   const projKey = projectKey.toUpperCase();
   const exists = await prisma.project.findUnique({ where: { key: projKey } });
   if (exists) return { error: `Ключ «${projKey}» уже занят` };
 
-  const auth: TrelloAuth = { key, token };
   let lists, cards;
   try {
     [lists, cards] = await Promise.all([

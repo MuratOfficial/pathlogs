@@ -15,6 +15,13 @@ export default async function DashboardPage({
   const { archived } = await searchParams;
   const showArchived = archived === "1";
 
+  const hasSavedTrello = Boolean(
+    await prisma.trelloCredential.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    })
+  );
+
   const projects = await prisma.project.findMany({
     where: {
       status: showArchived ? "ARCHIVED" : "ACTIVE",
@@ -56,7 +63,7 @@ export default async function DashboardPage({
           >
             {showArchived ? "← Активные" : "Архив"}
           </Link>
-          <ImportTrelloDialog />
+          <ImportTrelloDialog hasSaved={hasSavedTrello} />
           <NewProjectDialog />
         </div>
       </div>

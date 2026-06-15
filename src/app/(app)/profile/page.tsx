@@ -3,6 +3,7 @@ import { requireUser } from "@/auth";
 import { ROLE_LABELS, formatDate, formatDateTime, formatHours, initials } from "@/lib/labels";
 import { ProfileNameForm, PasswordForm } from "@/components/ProfileForms";
 import { ApiTokens } from "@/components/ApiTokens";
+import { TrelloConnection } from "@/components/TrelloConnection";
 
 export default async function ProfilePage() {
   const sessionUser = await requireUser();
@@ -20,6 +21,12 @@ export default async function ProfilePage() {
     where: { userId: user.id },
     orderBy: { createdAt: "asc" },
   });
+  const trelloConnected = Boolean(
+    await prisma.trelloCredential.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    })
+  );
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -81,6 +88,13 @@ export default async function ProfilePage() {
             createdAt: formatDate(t.createdAt),
           }))}
         />
+      </section>
+
+      <section className="rounded-2xl border border-edge bg-surface p-6">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
+          Интеграция с Trello
+        </h2>
+        <TrelloConnection connected={trelloConnected} />
       </section>
     </div>
   );

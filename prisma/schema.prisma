@@ -83,6 +83,7 @@ model User {
   notifications Notification[]
   apiTokens     ApiToken[]
   savedFilters  SavedFilter[]
+  trelloCredential TrelloCredential?
 }
 
 model Project {
@@ -341,6 +342,18 @@ model WebhookEndpoint {
   createdAt DateTime    @default(now())
 
   @@index([projectId])
+}
+
+/// Сохранённые учётные данные Trello пользователя для импорта досок.
+/// apiKey и token хранятся в зашифрованном виде (AES-256-GCM), см. src/lib/crypto.ts.
+model TrelloCredential {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @unique
+  apiKey    String
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 /// Зафиксированное упоминание задачи в git-коммите (защита от дублей патч-логов).
