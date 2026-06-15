@@ -26,6 +26,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://pathlogs:pathlogs@localhost:5433/pathlogs
+      DATABASE_URL_UNPOOLED: postgresql://pathlogs:pathlogs@localhost:5433/pathlogs
       AUTH_SECRET: ci-only-secret-not-for-production
       AUTH_TRUST_HOST: "true"
 

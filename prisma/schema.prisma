@@ -4,7 +4,11 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // Пул соединений (pgbouncer) — рантайм приложения. На Neon это URL с суффиксом -pooler.
+  url       = env("DATABASE_URL")
+  // Прямое (unpooled) соединение — для миграций и интроспекции.
+  // Локально совпадает с DATABASE_URL, на Neon — URL без -pooler.
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 enum Role {

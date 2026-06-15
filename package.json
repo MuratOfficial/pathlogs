@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "dotenv -e .env.production -- prisma migrate deploy",
+    "db:studio:prod": "dotenv -e .env.production -- prisma studio",
     "postinstall": "prisma generate"
   },
   "dependencies": {
@@ -31,6 +34,7 @@
     "@types/nodemailer": "^8.0.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv-cli": "^8.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "prisma": "^6.19.3",

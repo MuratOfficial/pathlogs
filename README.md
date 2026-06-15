@@ -144,7 +144,8 @@ npm run dev
 
 | Переменная | Назначение |
 |---|---|
-| `DATABASE_URL` | Строка подключения PostgreSQL |
+| `DATABASE_URL` | Строка подключения PostgreSQL (на Neon — пул, URL с `-pooler`) |
+| `DATABASE_URL_UNPOOLED` | Прямое соединение для миграций (на Neon — URL без `-pooler`; локально совпадает с `DATABASE_URL`) |
 | `AUTH_SECRET` | Секрет Auth.js |
 | `AUTH_TRUST_HOST` | `true` для прод-деплоя |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google OAuth (опционально) |
