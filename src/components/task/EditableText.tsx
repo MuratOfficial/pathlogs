@@ -61,7 +61,7 @@ export function EditableText({
         setDraft(value);
         setEditing(true);
       }}
-      title="Нажмите, чтобы редактировать"
+      data-tip="Нажмите, чтобы редактировать"
       className={`cursor-text rounded-lg px-1 -mx-1 transition hover:bg-surface-2/60 ${
         pending ? "opacity-50" : ""
       } ${big ? "text-xl font-bold tracking-tight" : markdown ? "text-sm" : "whitespace-pre-wrap text-sm text-foreground/85"} ${

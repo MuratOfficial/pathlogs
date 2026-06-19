@@ -106,7 +106,7 @@ export function TaskListView({
           type="button"
           onClick={saveCurrent}
           disabled={!active}
-          title={active ? "Сохранить текущие фильтры" : "Задайте фильтры, чтобы сохранить"}
+          data-tip={active ? "Сохранить текущие фильтры" : "Задайте фильтры, чтобы сохранить"}
           className="rounded-lg border border-edge px-3 py-1.5 text-sm text-muted transition hover:bg-surface-2 hover:text-foreground disabled:opacity-40"
         >
           ★ Сохранить фильтр
@@ -131,7 +131,7 @@ export function TaskListView({
               </button>
               <button
                 type="button"
-                title="Удалить фильтр"
+                data-tip="Удалить фильтр"
                 onClick={() => startTransition(() => deleteFilterAction(f.id))}
                 className="text-muted/60 transition hover:text-red-400"
               >

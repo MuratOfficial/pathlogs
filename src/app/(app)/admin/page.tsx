@@ -31,7 +31,7 @@ export default async function AdminPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Администрирование</h1>
-          <p className="mt-1 text-sm text-muted">Пользователи, роли и статистика системы</p>
+          <p className="page-hint">Пользователи, роли и статистика системы</p>
         </div>
         <CreateUserDialog />
       </div>

@@ -43,7 +43,7 @@ export function ConfirmActionButton({
     <button
       onClick={run}
       disabled={pending}
-      title={confirmText}
+      data-tip={confirmText}
       className={`shrink-0 rounded p-1 text-muted transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50 ${
         small ? "" : "p-1.5"
       }`}

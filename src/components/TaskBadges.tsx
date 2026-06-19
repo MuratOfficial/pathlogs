@@ -21,7 +21,7 @@ export function TypeBadge({ type }: { type: TaskType }) {
 export function PriorityDot({ priority }: { priority: Priority }) {
   return (
     <span
-      title={`Приоритет: ${PRIORITY_LABELS[priority]}`}
+      data-tip={`Приоритет: ${PRIORITY_LABELS[priority]}`}
       className="inline-block h-2 w-2 shrink-0 rounded-full"
       style={{ backgroundColor: PRIORITY_COLORS[priority] }}
     />
@@ -41,7 +41,7 @@ export function AssigneeAvatars({
       {assignees.slice(0, 3).map((a) => (
         <span
           key={a.id}
-          title={a.name}
+          data-tip={a.name}
           className={`flex h-${size} w-${size} items-center justify-center rounded-full border border-surface bg-accent/30 text-[9px] font-bold text-accent-hover`}
           style={{ width: size * 4, height: size * 4 }}
         >

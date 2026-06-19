@@ -175,7 +175,7 @@ export function GanttChart({
             <div
               className="pointer-events-none absolute top-0 bottom-0 z-0 w-px bg-accent/50"
               style={{ left: labelW + todayOffset * dayW + dayW / 2 }}
-              title="Сегодня"
+              data-tip="Сегодня"
             />
           )}
 
@@ -220,7 +220,7 @@ export function GanttChart({
                       outline: overdue ? "1.5px solid #ef4444" : undefined,
                       boxShadow: isDragging ? "0 0 0 2px var(--color-accent)" : undefined,
                     }}
-                    title={`${STATUS_LABELS[task.status]} · ${from.toLocaleDateString("ru-RU")} — ${to.toLocaleDateString("ru-RU")}`}
+                    data-tip={`${STATUS_LABELS[task.status]} · ${from.toLocaleDateString("ru-RU")} — ${to.toLocaleDateString("ru-RU")}`}
                   >
                     {/* левый край — двигает начало */}
                     <span

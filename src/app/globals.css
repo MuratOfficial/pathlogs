@@ -214,6 +214,47 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 24%, transparent);
 }
 
+/* Стилизованные тултипы (data-tip) рендерит компонент TooltipLayer
+   через портал в <body> с position: fixed — так они не обрезаются
+   контейнерами с overflow. CSS-стили самого бабла заданы там же. */
+
+/* Подсказка-субтитул под заголовком страницы: не обычный абзац,
+   а отдельный блок с акцентной полосой и иконкой. */
+.page-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.6rem;
+  padding: 0.3rem 0.7rem 0.3rem 0.6rem;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 75%, transparent);
+  border-radius: 0 0.45rem 0.45rem 0;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  font-size: 0.8rem;
+  line-height: 1.2;
+  color: var(--muted);
+}
+.page-hint::before {
+  content: "";
+  width: 0.95rem;
+  height: 0.95rem;
+  flex-shrink: 0;
+  background-color: var(--accent);
+  /* иконка info (Heroicons) через mask */
+  -webkit-mask: center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='currentColor'%3E%3Cpath fill-rule='evenodd' d='M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z' clip-rule='evenodd'/%3E%3C/svg%3E");
+  mask: center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='currentColor'%3E%3Cpath fill-rule='evenodd' d='M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z' clip-rule='evenodd'/%3E%3C/svg%3E");
+}
+
+/* Placeholder'ы полей: визуально отличаются от введённого текста,
+   читаются как подсказка, а не как обычный текст. */
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--muted) 78%, transparent);
+  font-style: italic;
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

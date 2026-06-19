@@ -34,7 +34,7 @@ export function TemplatesDialog({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title="Шаблоны задач"
+        data-tip="Шаблоны задач"
         className="rounded-lg border border-edge px-3 py-2 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
       >
         Шаблоны
@@ -79,7 +79,7 @@ export function TemplatesDialog({
                   {canManage && (
                     <button
                       type="button"
-                      title="Удалить шаблон"
+                      data-tip="Удалить шаблон"
                       onClick={() => deleteTemplateAction(t.id)}
                       className="shrink-0 rounded p-1 text-muted transition hover:text-red-400"
                     >

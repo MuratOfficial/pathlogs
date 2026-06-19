@@ -46,7 +46,7 @@ export function WebhooksDialog({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        title="Интеграции: Slack / Telegram / webhooks"
+        data-tip="Интеграции: Slack / Telegram / webhooks"
         className="rounded-lg border border-edge px-3 py-2 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
       >
         Интеграции
@@ -101,7 +101,7 @@ export function WebhooksDialog({
                   </button>
                   <button
                     type="button"
-                    title="Удалить"
+                    data-tip="Удалить"
                     onClick={() => deleteWebhookAction(w.id)}
                     className="shrink-0 text-muted transition hover:text-red-400"
                   >

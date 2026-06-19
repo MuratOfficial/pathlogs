@@ -12,6 +12,7 @@ import {
   reorderColumnsAction,
   updateTaskColorAction,
 } from "@/lib/actions/board";
+import { updateTaskStatusAction } from "@/lib/actions/tasks";
 import { BOARD_PALETTE, formatDate, formatHours } from "@/lib/labels";
 import { AssigneeAvatars, PriorityDot, TypeBadge } from "./TaskBadges";
 
@@ -59,7 +60,7 @@ function ColorPalette({
             }}
             className="h-6 w-6 rounded-full border border-edge transition hover:scale-110"
             style={{ backgroundColor: c }}
-            title={c}
+            data-tip={c}
           />
         ))}
         {allowReset && (
@@ -70,7 +71,7 @@ function ColorPalette({
               onClose();
             }}
             className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-edge text-[10px] text-muted transition hover:scale-110 hover:text-foreground"
-            title="Сбросить цвет"
+            data-tip="Сбросить цвет"
           >
             ✕
           </button>
@@ -193,7 +194,7 @@ function WipBadge({
           if (e.key === "Escape") setEditing(false);
         }}
         className="w-14 rounded-full border border-accent bg-surface-2 px-2 py-0.5 text-center text-xs outline-none"
-        title="WIP-лимит колонки (пусто — без лимита)"
+        data-tip="WIP-лимит колонки (пусто — без лимита)"
       />
     );
   }
@@ -201,7 +202,7 @@ function WipBadge({
   return (
     <span
       onClick={canEdit ? () => { setValue(limit ? String(limit) : ""); setEditing(true); } : undefined}
-      title={
+      data-tip={
         canEdit
           ? "Нажмите, чтобы задать WIP-лимит"
           : limit != null
@@ -234,7 +235,7 @@ function ColumnTitle({
     return (
       <h3
         className="cursor-text text-sm font-semibold"
-        title="Двойной клик — переименовать"
+        data-tip="Двойной клик — переименовать"
         onDoubleClick={() => {
           setValue(name);
           setEditing(true);
@@ -414,6 +415,22 @@ export function KanbanBoard({
     startTransition(() => updateTaskColorAction(taskId, color));
   }
 
+  // Быстрая отметка «Готово» по клику на галочку (как в Trello).
+  // Повторный клик снимает отметку и возвращает в «К выполнению».
+  function toggleTaskDone(t: TaskDTO) {
+    const isDone = t.status === "DONE" || t.status === "CLOSED";
+    const next = isDone ? "TODO" : "DONE";
+    const targetCol = columns.find((c) => c.status === next) ?? null;
+    setTasks((prev) =>
+      prev.map((x) =>
+        x.id === t.id
+          ? { ...x, status: next, columnId: targetCol?.id ?? x.columnId }
+          : x
+      )
+    );
+    startTransition(() => updateTaskStatusAction(t.id, next));
+  }
+
   return (
     <div className="flex h-full gap-4 overflow-x-auto pb-4">
       {sorted.map((col) => {
@@ -465,7 +482,7 @@ export function KanbanBoard({
                   setDragColId(null);
                   setOverColDrag(null);
                 }}
-                title="Перетащите, чтобы переставить колонку"
+                data-tip="Перетащите, чтобы переставить колонку"
                 className="cursor-grab text-muted/60 transition hover:text-foreground active:cursor-grabbing"
               >
                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
@@ -475,7 +492,7 @@ export function KanbanBoard({
               <span className="relative">
                 <button
                   type="button"
-                  title="Цвет колонки"
+                  data-tip="Цвет колонки"
                   onClick={(e) => togglePalette(col.id, e)}
                   className="block h-2.5 w-2.5 rounded-full transition hover:scale-125"
                   style={{ backgroundColor: col.color }}
@@ -500,7 +517,7 @@ export function KanbanBoard({
               {!col.status && canManageBoard && (
                 <button
                   type="button"
-                  title="Удалить колонку (задачи вернутся в колонки статусов)"
+                  data-tip="Удалить колонку (задачи вернутся в колонки статусов)"
                   onClick={() => removeColumn(col.id)}
                   className="text-muted transition hover:text-red-400"
                 >
@@ -544,6 +561,28 @@ export function KanbanBoard({
                   }
                 >
                   <div className="mb-2 flex items-center gap-2">
+                    {(() => {
+                      const isDone = t.status === "DONE" || t.status === "CLOSED";
+                      return (
+                        <button
+                          type="button"
+                          aria-label={isDone ? "Снять отметку «Готово»" : "Отметить выполненной"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleTaskDone(t);
+                          }}
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition ${
+                            isDone
+                              ? "border-green-500 bg-green-500 text-white"
+                              : "border-edge text-transparent opacity-0 hover:border-green-500 hover:text-green-500 group-hover:opacity-100 focus-visible:opacity-100"
+                          }`}
+                        >
+                          <svg className="h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 10.5l3.5 3.5L15 6.5" />
+                          </svg>
+                        </button>
+                      );
+                    })()}
                     <span className="font-mono text-[11px] font-semibold text-muted">
                       {projectKey}-{t.number}
                     </span>
@@ -554,7 +593,7 @@ export function KanbanBoard({
                     >
                       <button
                         type="button"
-                        title="Цвет карточки"
+                        data-tip="Цвет карточки"
                         onClick={(e) => togglePalette(t.id, e)}
                         className="h-3.5 w-3.5 rounded-full border border-edge opacity-0 transition group-hover:opacity-100"
                         style={{ backgroundColor: t.color ?? "transparent" }}
@@ -576,11 +615,19 @@ export function KanbanBoard({
                       <PriorityDot priority={t.priority} />
                     </span>
                   </div>
-                  <p className="mb-2.5 text-sm font-medium leading-snug">{t.title}</p>
+                  <p
+                    className={`mb-2.5 text-sm font-medium leading-snug ${
+                      t.status === "DONE" || t.status === "CLOSED"
+                        ? "text-muted line-through decoration-muted/60"
+                        : ""
+                    }`}
+                  >
+                    {t.title}
+                  </p>
                   <div className="flex items-center gap-2 text-[11px] text-muted">
                     <AssigneeAvatars assignees={t.assignees} />
                     {t.childrenCount > 0 && (
-                      <span title="Подзадачи" className="flex items-center gap-0.5">
+                      <span data-tip="Подзадачи" className="flex items-center gap-0.5">
                         <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
                         </svg>
@@ -588,7 +635,7 @@ export function KanbanBoard({
                       </span>
                     )}
                     {t.patchLogCount > 0 && (
-                      <span title="Патч-логи" className="flex items-center gap-0.5">
+                      <span data-tip="Патч-логи" className="flex items-center gap-0.5">
                         <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                         </svg>
@@ -596,7 +643,7 @@ export function KanbanBoard({
                       </span>
                     )}
                     {t.spentHours > 0 && (
-                      <span title="Затрачено времени" className="flex items-center gap-0.5">
+                      <span data-tip="Затрачено времени" className="flex items-center gap-0.5">
                         <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>

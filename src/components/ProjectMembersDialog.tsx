@@ -38,7 +38,7 @@ export function ProjectMembersDialog({
       <button
         onClick={() => setOpen(true)}
         className="rounded-lg border border-edge px-3 py-2 text-sm text-muted transition hover:bg-surface-2 hover:text-foreground"
-        title="Участники проекта"
+        data-tip="Участники проекта"
       >
         Участники · {members.length}
       </button>
@@ -80,7 +80,7 @@ export function ProjectMembersDialog({
                       <button
                         type="button"
                         disabled={pending}
-                        title="Исключить из проекта"
+                        data-tip="Исключить из проекта"
                         onClick={() =>
                           startTransition(() => removeProjectMemberAction(projectId, m.id))
                         }

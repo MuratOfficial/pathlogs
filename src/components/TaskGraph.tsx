@@ -84,7 +84,7 @@ function TaskNode({ data }: NodeProps) {
           {task.assignees.slice(0, 3).map((a) => (
             <span
               key={a.id}
-              title={a.name}
+              data-tip={a.name}
               className="flex h-5 w-5 items-center justify-center rounded-full border border-surface bg-accent/30 text-[8px] font-bold text-accent-hover"
             >
               {initials(a.name)}

@@ -70,12 +70,12 @@ function CompletionChart({
               <div
                 className="w-1/2 rounded-t bg-indigo-500/70"
                 style={{ height: `${(d.created / max) * 100}%` }}
-                title={`Создано: ${d.created}`}
+                data-tip={`Создано: ${d.created}`}
               />
               <div
                 className="w-1/2 rounded-t bg-emerald-500/70"
                 style={{ height: `${(d.closed / max) * 100}%` }}
-                title={`Закрыто: ${d.closed}`}
+                data-tip={`Закрыто: ${d.closed}`}
               />
             </div>
             <span className="text-[10px] text-muted">{d.label}</span>

@@ -194,7 +194,7 @@ export function ImportFileDialog() {
                       <tbody>
                         {preview.sample.map((t, i) => (
                           <tr key={i} className="border-t border-edge/60">
-                            <td className="max-w-[18rem] truncate px-2 py-1.5" title={t.title}>
+                            <td className="max-w-[18rem] truncate px-2 py-1.5" data-tip={t.title}>
                               {t.title}
                             </td>
                             <td className="px-2 py-1.5 text-muted">{t.status}</td>

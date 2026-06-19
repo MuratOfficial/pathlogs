@@ -78,7 +78,7 @@ export function UserRow({
           onChange={(e) => setRate(e.target.value)}
           onBlur={commitRate}
           onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-          title="Ставка в час для расчёта стоимости"
+          data-tip="Ставка в час для расчёта стоимости"
           className="w-24 rounded-lg border border-edge bg-surface-2 px-2 py-1.5 text-xs outline-none focus:border-accent disabled:opacity-50"
         />
       </td>
@@ -94,7 +94,7 @@ export function UserRow({
               ? "bg-emerald-500/15 text-emerald-400 hover:bg-red-500/15 hover:text-red-400"
               : "bg-red-500/15 text-red-400 hover:bg-emerald-500/15 hover:text-emerald-400"
           }`}
-          title={isSelf ? "Нельзя деактивировать себя" : user.active ? "Деактивировать" : "Активировать"}
+          data-tip={isSelf ? "Нельзя деактивировать себя" : user.active ? "Деактивировать" : "Активировать"}
         >
           {user.active ? "Активен" : "Отключён"}
         </button>

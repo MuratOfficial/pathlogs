@@ -33,7 +33,7 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      title={isDark ? "Светлая тема" : "Тёмная тема"}
+      data-tip={isDark ? "Светлая тема" : "Тёмная тема"}
       aria-label="Переключить тему"
       className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-foreground"
     >

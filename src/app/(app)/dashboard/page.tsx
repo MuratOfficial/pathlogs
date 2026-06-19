@@ -53,7 +53,7 @@ export default async function DashboardPage({
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Проекты</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="page-hint">
             {showArchived ? "Архивные проекты" : "Активные проекты и их прогресс"}
           </p>
         </div>
@@ -95,10 +95,10 @@ export default async function DashboardPage({
               <div
                 key={p.id}
                 style={{ animationDelay: `${Math.min(i, 9) * 0.05}s` }}
-                className="hover-lift animate-fade-up group relative rounded-2xl border border-edge bg-surface p-5 hover:border-accent/50"
+                className="hover-lift animate-fade-up group relative flex flex-col rounded-2xl border border-edge bg-surface p-5 hover:border-accent/50"
               >
                 <Link href={`/projects/${p.id}`} className="absolute inset-0 z-0" />
-                <div className="relative z-10 pointer-events-none">
+                <div className="relative z-10 flex flex-1 flex-col pointer-events-none">
                   <div className="mb-3 flex items-start justify-between">
                     <span className="rounded-md bg-accent/15 px-2 py-1 font-mono text-xs font-bold text-accent-hover">
                       {p.key}
@@ -119,7 +119,7 @@ export default async function DashboardPage({
                     <p className="mt-1 line-clamp-2 text-sm text-muted">{p.description}</p>
                   )}
 
-                  <div className="mt-4">
+                  <div className="mt-auto pt-4">
                     <div className="mb-1.5 flex justify-between text-xs text-muted">
                       <span>
                         {done} / {total} задач завершено
@@ -139,7 +139,7 @@ export default async function DashboardPage({
                       {p.members.slice(0, 5).map((m) => (
                         <span
                           key={m.id}
-                          title={m.user.name}
+                          data-tip={m.user.name}
                           className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-surface bg-accent/25 text-[10px] font-bold text-accent-hover"
                         >
                           {initials(m.user.name)}

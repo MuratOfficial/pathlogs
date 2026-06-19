@@ -14,7 +14,7 @@ export function ArchiveProjectButton({
 
   return (
     <button
-      title={archived ? "Восстановить из архива" : "В архив"}
+      data-tip={archived ? "Восстановить из архива" : "В архив"}
       disabled={pending}
       onClick={(e) => {
         e.preventDefault();

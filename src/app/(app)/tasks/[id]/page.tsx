@@ -229,7 +229,7 @@ export default async function TaskPage({
                         {c.assignees.slice(0, 3).map((a) => (
                           <span
                             key={a.id}
-                            title={a.name}
+                            data-tip={a.name}
                             className="flex h-6 w-6 items-center justify-center rounded-full border border-surface bg-accent/25 text-[9px] font-bold text-accent-hover"
                           >
                             {initials(a.name)}

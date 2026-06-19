@@ -58,7 +58,7 @@ function Item({ item }: { item: ChecklistItemDTO }) {
             setDraft(item.text);
             setEditing(true);
           }}
-          title="Нажмите, чтобы редактировать"
+          data-tip="Нажмите, чтобы редактировать"
           className={`min-w-0 flex-1 cursor-text text-sm ${
             item.done ? "text-muted line-through decoration-muted/60" : "text-foreground/90"
           }`}
@@ -68,7 +68,7 @@ function Item({ item }: { item: ChecklistItemDTO }) {
       )}
       <button
         type="button"
-        title="Удалить пункт"
+        data-tip="Удалить пункт"
         onClick={() => startTransition(() => deleteChecklistItemAction(item.id))}
         className="invisible shrink-0 rounded p-0.5 text-muted transition hover:text-red-400 group-hover:visible"
       >

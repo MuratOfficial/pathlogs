@@ -84,18 +84,35 @@ export function Hotkeys() {
       onClick={(e) => e.target === e.currentTarget && setHelpOpen(false)}
     >
       <div className="animate-pop-in w-full max-w-sm rounded-2xl border border-edge bg-surface p-6 shadow-2xl">
-        <h2 className="mb-4 text-lg font-semibold">Горячие клавиши</h2>
-        <ul className="space-y-2">
+        <div className="mb-4 flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent-hover">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 7h14M5 12h14M5 17h7M19 17h.01" />
+            </svg>
+          </span>
+          <h2 className="text-lg font-semibold">Горячие клавиши</h2>
+        </div>
+        <ul className="divide-y divide-edge/60 overflow-hidden rounded-xl border border-edge/60 bg-surface-2/40">
           {SHORTCUTS.map((s) => (
-            <li key={s.keys} className="flex items-center justify-between text-sm">
+            <li
+              key={s.keys}
+              className="flex items-center justify-between px-3 py-2 text-sm transition hover:bg-surface-2"
+            >
               <span className="text-muted">{s.label}</span>
-              <kbd className="rounded border border-edge bg-surface-2 px-2 py-0.5 font-mono text-xs">
-                {s.keys}
-              </kbd>
+              <span className="flex gap-1">
+                {s.keys.split(" ").map((k, i) => (
+                  <kbd
+                    key={i}
+                    className="rounded-md border border-edge bg-surface px-2 py-0.5 font-mono text-xs font-semibold text-foreground shadow-sm"
+                  >
+                    {k}
+                  </kbd>
+                ))}
+              </span>
             </li>
           ))}
         </ul>
-        <p className="mt-4 text-xs text-muted">
+        <p className="page-hint mt-4">
           «g» — лидер: нажмите g, затем вторую клавишу.
         </p>
       </div>
