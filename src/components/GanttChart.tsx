@@ -2,12 +2,14 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { TaskDTO } from "@/lib/types";
+import type { TaskDTO, LinkDTO } from "@/lib/types";
 import { STATUS_COLORS, STATUS_LABELS } from "@/lib/labels";
 import { updateTaskFieldsAction } from "@/lib/actions/tasks";
 import { TypeBadge } from "./TaskBadges";
 
 const DAY = 86400000;
+const ROW_H = 37; // фиксированная высота строки — для точного наложения SVG-связей
+const CRIT = "#f59e0b"; // янтарный — критический путь
 
 function startOfDay(d: Date) {
   const x = new Date(d);
@@ -34,9 +36,11 @@ interface DragState {
 export function GanttChart({
   tasks,
   projectKey,
+  links = [],
 }: {
   tasks: TaskDTO[];
   projectKey: string;
+  links?: LinkDTO[];
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -85,6 +89,93 @@ export function GanttChart({
   const labelW = 260;
   const chartW = totalDays * dayW;
   const todayOffset = Math.round((today.getTime() - scaleStart.getTime()) / DAY);
+
+  // ── Раскладка строк + зависимости (BLOCKS) ───────────────────────
+  const layout = new Map<string, { idx: number; offset: number; span: number }>();
+  dated.forEach((row, idx) => {
+    const offset = Math.round((row.from.getTime() - scaleStart.getTime()) / DAY);
+    const span = Math.round((row.to.getTime() - row.from.getTime()) / DAY) + 1;
+    layout.set(row.task.id, { idx, offset, span });
+  });
+  const datedIds = new Set(layout.keys());
+  const durOf = (id: string) => layout.get(id)!.span;
+
+  // Рёбра «from блокирует to» между задачами с датами
+  const edges = links.filter(
+    (l) =>
+      l.type === "BLOCKS" &&
+      datedIds.has(l.fromId) &&
+      datedIds.has(l.toId) &&
+      l.fromId !== l.toId
+  );
+
+  // Критический путь = длиннейшая по длительности цепочка зависимостей
+  const adj = new Map<string, string[]>();
+  const indeg = new Map<string, number>();
+  datedIds.forEach((id) => indeg.set(id, 0));
+  edges.forEach((e) => {
+    (adj.get(e.fromId) ?? adj.set(e.fromId, []).get(e.fromId)!).push(e.toId);
+    indeg.set(e.toId, (indeg.get(e.toId) ?? 0) + 1);
+  });
+  const order: string[] = [];
+  const q = [...datedIds].filter((id) => indeg.get(id) === 0);
+  const indegLeft = new Map(indeg);
+  while (q.length) {
+    const n = q.shift()!;
+    order.push(n);
+    for (const m of adj.get(n) ?? []) {
+      indegLeft.set(m, indegLeft.get(m)! - 1);
+      if (indegLeft.get(m) === 0) q.push(m);
+    }
+  }
+  const critSet = new Set<string>();
+  const critPrev = new Map<string, string | null>();
+  if (edges.length && order.length === datedIds.size) {
+    const dist = new Map<string, number>();
+    datedIds.forEach((id) => {
+      dist.set(id, durOf(id));
+      critPrev.set(id, null);
+    });
+    for (const n of order) {
+      for (const m of adj.get(n) ?? []) {
+        const cand = dist.get(n)! + durOf(m);
+        if (cand > dist.get(m)!) {
+          dist.set(m, cand);
+          critPrev.set(m, n);
+        }
+      }
+    }
+    let end: string | null = null;
+    let best = -1;
+    datedIds.forEach((id) => {
+      if (dist.get(id)! > best) {
+        best = dist.get(id)!;
+        end = id;
+      }
+    });
+    const path: string[] = [];
+    let cur: string | null = end;
+    while (cur) {
+      path.push(cur);
+      cur = critPrev.get(cur) ?? null;
+    }
+    if (path.length > 1) path.forEach((id) => critSet.add(id));
+  }
+  const critIsEdge = (from: string, to: string) =>
+    critSet.has(from) && critSet.has(to) && critPrev.get(to) === from;
+
+  // Заблокированные: задача с датами, которую блокирует незавершённый блокер
+  const blockedBy = new Map<string, string[]>();
+  for (const l of links) {
+    if (l.type !== "BLOCKS" || !datedIds.has(l.toId)) continue;
+    const blocker = tasks.find((t) => t.id === l.fromId);
+    if (blocker && blocker.status !== "DONE" && blocker.status !== "CLOSED") {
+      const arr = blockedBy.get(l.toId) ?? [];
+      arr.push(`${projectKey}-${blocker.number}`);
+      blockedBy.set(l.toId, arr);
+    }
+  }
+  const chartH = dated.length * ROW_H;
 
   // ── Перетаскивание ────────────────────────────────────────────────
   function onPointerDown(
@@ -148,8 +239,26 @@ export function GanttChart({
   }
 
   return (
-    <div className="h-full overflow-auto rounded-2xl border border-edge bg-surface">
-      <div style={{ width: labelW + chartW, minWidth: "100%" }}>
+    <div className="flex h-full flex-col">
+      {(critSet.size > 0 || blockedBy.size > 0) && (
+        <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+          {critSet.size > 0 && (
+            <span className="flex items-center gap-1.5">
+              <span style={{ color: CRIT }}>⚡</span> Критический путь:{" "}
+              <b className="text-foreground">{critSet.size}</b> задач
+            </span>
+          )}
+          {blockedBy.size > 0 && (
+            <span className="flex items-center gap-1.5">
+              <span className="text-red-400">🔒</span> Заблокировано:{" "}
+              <b className="text-foreground">{blockedBy.size}</b>
+            </span>
+          )}
+          {edges.length > 0 && <span>Связей BLOCKS: {edges.length}</span>}
+        </div>
+      )}
+      <div className="min-h-0 flex-1 overflow-auto rounded-2xl border border-edge bg-surface">
+        <div style={{ width: labelW + chartW, minWidth: "100%" }}>
         <div className="sticky top-0 z-10 flex border-b border-edge bg-surface">
           <div
             className="shrink-0 border-r border-edge px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted"
@@ -193,21 +302,41 @@ export function GanttChart({
               startOfDay(new Date(task.dueDate)) < today &&
               task.status !== "DONE" &&
               task.status !== "CLOSED";
+            const critical = critSet.has(task.id);
+            const blockers = blockedBy.get(task.id);
             return (
               <div
                 key={task.id}
                 className="flex items-center border-b border-edge/60 hover:bg-surface-2/40"
+                style={{ height: ROW_H }}
               >
                 <div
                   onClick={() => router.push(`/tasks/${task.id}`)}
                   className="flex shrink-0 cursor-pointer items-center gap-2 px-4 py-2"
                   style={{ width: labelW }}
                 >
+                  {critical && (
+                    <span
+                      className="shrink-0 text-xs"
+                      style={{ color: CRIT }}
+                      data-tip="На критическом пути"
+                    >
+                      ⚡
+                    </span>
+                  )}
                   <span className="font-mono text-[11px] text-muted">
                     {projectKey}-{task.number}
                   </span>
                   <TypeBadge type={task.type} />
                   <span className="min-w-0 flex-1 truncate text-sm">{task.title}</span>
+                  {blockers && (
+                    <span
+                      className="shrink-0 text-xs text-red-400"
+                      data-tip={`Заблокирована: ${blockers.join(", ")}`}
+                    >
+                      🔒
+                    </span>
+                  )}
                 </div>
                 <div className="relative py-2" style={{ width: chartW, height: 36 }}>
                   <div
@@ -217,8 +346,16 @@ export function GanttChart({
                       left: offset * dayW + 1,
                       width: Math.max(span * dayW - 2, dayW - 2),
                       backgroundColor: STATUS_COLORS[task.status],
-                      outline: overdue ? "1.5px solid #ef4444" : undefined,
-                      boxShadow: isDragging ? "0 0 0 2px var(--color-accent)" : undefined,
+                      outline: overdue
+                        ? "1.5px solid #ef4444"
+                        : critical
+                          ? `1.5px solid ${CRIT}`
+                          : undefined,
+                      boxShadow: isDragging
+                        ? "0 0 0 2px var(--color-accent)"
+                        : critical
+                          ? `0 0 0 1px ${CRIT}, 0 0 10px -2px ${CRIT}`
+                          : undefined,
                     }}
                     data-tip={`${STATUS_LABELS[task.status]} · ${from.toLocaleDateString("ru-RU")} — ${to.toLocaleDateString("ru-RU")}`}
                   >
@@ -244,7 +381,46 @@ export function GanttChart({
               </div>
             );
           })}
+
+          {edges.length > 0 && (
+            <svg
+              className="pointer-events-none absolute left-0 top-0 z-10 overflow-visible"
+              width={labelW + chartW}
+              height={chartH}
+            >
+              <defs>
+                <marker id="gantt-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                  <path d="M0,0 L6,3 L0,6 Z" fill="var(--color-muted)" />
+                </marker>
+                <marker id="gantt-arrow-crit" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                  <path d="M0,0 L6,3 L0,6 Z" fill={CRIT} />
+                </marker>
+              </defs>
+              {edges.map((e, i) => {
+                const a = layout.get(e.fromId)!;
+                const b = layout.get(e.toId)!;
+                const x1 = labelW + (a.offset + a.span) * dayW;
+                const y1 = a.idx * ROW_H + ROW_H / 2;
+                const x2 = labelW + b.offset * dayW;
+                const y2 = b.idx * ROW_H + ROW_H / 2;
+                const crit = critIsEdge(e.fromId, e.toId);
+                const dx = Math.max(16, Math.abs(x2 - x1) / 2);
+                return (
+                  <path
+                    key={i}
+                    d={`M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2 - 6} ${y2}`}
+                    fill="none"
+                    stroke={crit ? CRIT : "var(--color-muted)"}
+                    strokeWidth={crit ? 2 : 1.25}
+                    strokeOpacity={crit ? 0.9 : 0.5}
+                    markerEnd={`url(#${crit ? "gantt-arrow-crit" : "gantt-arrow"})`}
+                  />
+                );
+              })}
+            </svg>
+          )}
         </div>
+      </div>
       </div>
     </div>
   );

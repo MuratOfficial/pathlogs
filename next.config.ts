@@ -8,6 +8,20 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "15mb",
     },
   },
+  async headers() {
+    return [
+      {
+        // SW не должен кэшироваться браузером — иначе обновления не доедут
+        source: "/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

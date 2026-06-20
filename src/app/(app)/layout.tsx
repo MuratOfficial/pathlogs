@@ -9,6 +9,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { AppShell } from "@/components/AppShell";
 import { TooltipLayer } from "@/components/TooltipLayer";
 import { UnreadBadge } from "@/components/UnreadBadge";
+import { CommandPalette } from "@/components/CommandPalette";
+import { SearchTrigger } from "@/components/SearchTrigger";
 
 export default async function AppLayout({
   children,
@@ -31,6 +33,8 @@ export default async function AppLayout({
         </span>
         <span className="text-base font-bold tracking-tight">PathLogs</span>
       </Link>
+
+      <SearchTrigger />
 
       <nav className="flex-1 space-y-1 px-3">
           <Link
@@ -110,6 +114,7 @@ export default async function AppLayout({
     <>
       <Hotkeys />
       <TooltipLayer />
+      <CommandPalette />
       <AppShell sidebar={sidebar}>{children}</AppShell>
     </>
   );

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-const PUBLIC_PATHS = ["/login", "/register"];
+const PUBLIC_PATHS = ["/login", "/register", "/roadmap"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -26,7 +26,9 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (token && isPublic && !pathname.startsWith("/api")) {
+  // Залогиненного уводим только со страниц входа/регистрации (но не с публичного роадмапа)
+  const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/register");
+  if (token && isAuthPage) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
@@ -34,5 +36,5 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|uploads|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|uploads|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };

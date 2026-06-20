@@ -14,6 +14,9 @@ import { ArchiveProjectButton } from "@/components/ArchiveProjectButton";
 import { ProjectStats } from "@/components/ProjectStats";
 import { TemplatesDialog } from "@/components/TemplatesDialog";
 import { GanttChart } from "@/components/GanttChart";
+import { ActivityFeed } from "@/components/ActivityFeed";
+import { getProjectActivity } from "@/lib/activity";
+import { ShareRoadmapDialog } from "@/components/ShareRoadmapDialog";
 import { WebhooksDialog } from "@/components/WebhooksDialog";
 import { ExportMenu } from "@/components/ExportMenu";
 import { formatHours } from "@/lib/labels";
@@ -81,6 +84,7 @@ const VIEWS = [
   { id: "graph", label: "Граф веток" },
   { id: "list", label: "Список" },
   { id: "gantt", label: "Гант" },
+  { id: "activity", label: "Активность" },
   { id: "stats", label: "Аналитика" },
 ] as const;
 
@@ -226,6 +230,12 @@ export default async function ProjectPage({
             <span>Затрачено: <b className="text-foreground">{formatHours(totalSpent)}</b></span>
           </div>
           <ExportMenu projectId={project.id} />
+          {canManage && (
+            <ShareRoadmapDialog
+              projectId={project.id}
+              initialToken={project.publicToken}
+            />
+          )}
           <TemplatesDialog
             projectId={project.id}
             templates={templates}
@@ -301,7 +311,15 @@ export default async function ProjectPage({
             savedFilters={savedFilters}
           />
         )}
-        {view === "gantt" && <GanttChart tasks={tasks} projectKey={project.key} />}
+        {view === "gantt" && (
+          <GanttChart tasks={tasks} projectKey={project.key} links={linkDtos} />
+        )}
+        {view === "activity" && (
+          <ActivityFeed
+            items={await getProjectActivity(project.id)}
+            projectKey={project.key}
+          />
+        )}
         {view === "stats" && (
           <ProjectStats
             tasks={tasks}

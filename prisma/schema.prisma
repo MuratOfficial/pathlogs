@@ -92,6 +92,8 @@ model Project {
   name        String
   description String?
   status      ProjectStatus   @default(ACTIVE)
+  // Если задан — проект доступен публично только для чтения по /roadmap/<token>
+  publicToken String?         @unique
   owner       User            @relation("ProjectOwner", fields: [ownerId], references: [id])
   ownerId     String
   members     ProjectMember[]

@@ -5,6 +5,7 @@ import { requireUser } from "@/auth";
 import { requireProjectManager } from "@/lib/access";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { randomBytes } from "crypto";
 import { z } from "zod";
 
 const projectSchema = z.object({
@@ -58,6 +59,27 @@ export async function toggleProjectArchiveAction(projectId: string) {
   });
   revalidatePath("/dashboard");
   revalidatePath(`/projects/${projectId}`);
+}
+
+/**
+ * Включает/выключает публичную read-only ссылку на роадмап проекта.
+ * Возвращает новый токен (или null, если выключили). Только менеджер+.
+ */
+export async function togglePublicRoadmapAction(
+  projectId: string
+): Promise<{ token: string | null }> {
+  await requireProjectManager(projectId);
+  const project = await prisma.project.findUniqueOrThrow({
+    where: { id: projectId },
+    select: { publicToken: true },
+  });
+  const token = project.publicToken ? null : randomBytes(16).toString("hex");
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { publicToken: token },
+  });
+  revalidatePath(`/projects/${projectId}`);
+  return { token };
 }
 
 export async function addProjectMemberAction(projectId: string, userId: string) {

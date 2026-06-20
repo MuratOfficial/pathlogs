@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,6 +17,11 @@ export const metadata: Metadata = {
   title: "PathLogs — задачи, ветки, патч-логи",
   description:
     "Система управления проектами с ветвлением задач, канбаном и патч-логами",
+  appleWebApp: { capable: true, title: "PathLogs", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0b0f1a",
 };
 
 export default function RootLayout({
@@ -35,7 +41,10 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ServiceWorkerRegister />
+        {children}
+      </body>
     </html>
   );
 }
