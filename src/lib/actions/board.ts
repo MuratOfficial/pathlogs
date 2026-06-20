@@ -7,6 +7,7 @@ import {
   requireTaskMember,
 } from "@/lib/access";
 import { revalidatePath } from "next/cache";
+import { recordStatusChange } from "@/lib/statusHistory";
 import type { ColumnDTO } from "@/lib/types";
 
 function toDto(c: {
@@ -95,11 +96,14 @@ export async function deleteBoardColumnAction(columnId: string) {
  * обновляется; кастомные колонки статус не меняют.
  */
 export async function moveTaskToColumnAction(taskId: string, columnId: string) {
-  const { task: current } = await requireTaskMember(taskId);
+  const { user, task: current } = await requireTaskMember(taskId);
   const column = await prisma.boardColumn.findUniqueOrThrow({ where: { id: columnId } });
   if (column.projectId !== current.projectId) {
     throw new Error("Колонка принадлежит другому проекту");
   }
+  const before = column.status
+    ? await prisma.task.findUnique({ where: { id: taskId }, select: { status: true } })
+    : null;
   const task = await prisma.task.update({
     where: { id: taskId },
     data: {
@@ -113,6 +117,9 @@ export async function moveTaskToColumnAction(taskId: string, columnId: string) {
         : {}),
     },
   });
+  if (column.status && before) {
+    await recordStatusChange(taskId, user.id, before.status, column.status);
+  }
   revalidatePath(`/projects/${task.projectId}`);
   revalidatePath(`/tasks/${taskId}`);
 }
@@ -127,7 +134,7 @@ export async function moveTaskAction(
   columnId: string,
   orderedTaskIds: string[]
 ) {
-  const { task: current } = await requireTaskMember(taskId);
+  const { user, task: current } = await requireTaskMember(taskId);
   const column = await prisma.boardColumn.findUniqueOrThrow({ where: { id: columnId } });
   if (column.projectId !== current.projectId) {
     throw new Error("Колонка принадлежит другому проекту");
@@ -138,11 +145,12 @@ export async function moveTaskAction(
     : [...orderedTaskIds, taskId];
   const tasks = await prisma.task.findMany({
     where: { id: { in: ids } },
-    select: { id: true, projectId: true },
+    select: { id: true, projectId: true, status: true },
   });
   if (tasks.some((t) => t.projectId !== column.projectId)) {
     throw new Error("Задача из другого проекта");
   }
+  const beforeStatus = tasks.find((t) => t.id === taskId)?.status ?? null;
 
   await prisma.$transaction(
     ids.map((id, i) =>
@@ -166,6 +174,9 @@ export async function moveTaskAction(
         : prisma.task.update({ where: { id }, data: { order: i } })
     )
   );
+  if (column.status && beforeStatus) {
+    await recordStatusChange(taskId, user.id, beforeStatus, column.status);
+  }
   revalidatePath(`/projects/${column.projectId}`);
   revalidatePath(`/tasks/${taskId}`);
 }

@@ -9,6 +9,7 @@ import {
   requireTaskMember,
 } from "@/lib/access";
 import { notifyTaskWatchers, notifyUsers } from "@/lib/notify";
+import { recordStatusChange } from "@/lib/statusHistory";
 import { STATUS_LABELS } from "@/lib/labels";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -103,6 +104,9 @@ export async function createTaskAction(
     include: { project: { select: { key: true } } },
   });
 
+  // Начальная точка истории статусов («создана»)
+  await recordStatusChange(task.id, user.id, null, task.status);
+
   await notifyUsers(
     assigneeIds,
     user.id,
@@ -117,6 +121,10 @@ export async function createTaskAction(
 
 export async function updateTaskStatusAction(taskId: string, status: TaskStatus) {
   const { user, task: current } = await requireTaskMember(taskId);
+  const before = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { status: true },
+  });
   // Смена статуса переносит карточку в колонку этого статуса (если она есть)
   const statusColumn = await prisma.boardColumn.findFirst({
     where: { projectId: current.projectId, status },
@@ -131,6 +139,7 @@ export async function updateTaskStatusAction(taskId: string, status: TaskStatus)
     },
     include: { project: { select: { key: true } } },
   });
+  await recordStatusChange(taskId, user.id, before?.status ?? null, status);
   await notifyTaskWatchers(
     taskId,
     user.id,

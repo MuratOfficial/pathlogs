@@ -16,6 +16,8 @@ import { TaskMetaPanel } from "@/components/task/TaskMetaPanel";
 import { EditableText } from "@/components/task/EditableText";
 import { PatchLogForm } from "@/components/task/PatchLogForm";
 import { TimeEntryForm } from "@/components/task/TimeEntryForm";
+import { TaskStatusTimeline } from "@/components/task/TaskStatusTimeline";
+import { GitCommits } from "@/components/task/GitCommits";
 import { FileUpload } from "@/components/task/FileUpload";
 import { AddLinkForm } from "@/components/task/AddLinkForm";
 import { ConfirmActionButton } from "@/components/task/ConfirmActionButton";
@@ -100,6 +102,32 @@ export default async function TaskPage({
     : [task.project.owner, ...memberUsers];
 
   const spent = task.timeEntries.reduce((s, e) => s + e.hours, 0);
+
+  // История статусов (машина времени)
+  const statusEvents = (
+    await prisma.taskStatusEvent.findMany({
+      where: { taskId: id },
+      orderBy: { at: "asc" },
+      select: { id: true, toStatus: true, at: true, user: { select: { name: true } } },
+    })
+  ).map((e) => ({ id: e.id, toStatus: e.toStatus, at: e.at, actor: e.user?.name ?? null }));
+
+  // Git-коммиты задачи
+  const commits = await prisma.gitCommitRef.findMany({
+    where: { taskId: id },
+    orderBy: [{ committedAt: "desc" }, { createdAt: "desc" }],
+    take: 20,
+    select: {
+      id: true,
+      sha: true,
+      message: true,
+      url: true,
+      author: true,
+      filesChanged: true,
+      committedAt: true,
+      createdAt: true,
+    },
+  });
 
   // Ссылка «в Google Calendar» — только если у задачи есть даты
   const h = await headers();
@@ -416,6 +444,24 @@ export default async function TaskPage({
               ))}
             </ul>
           </section>
+
+          {/* История статусов (машина времени) */}
+          <section className="rounded-2xl border border-edge bg-surface p-5">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
+              История статусов
+            </h2>
+            <TaskStatusTimeline events={statusEvents} />
+          </section>
+
+          {/* Git-коммиты */}
+          {commits.length > 0 && (
+            <section className="rounded-2xl border border-edge bg-surface p-5">
+              <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
+                Коммиты
+              </h2>
+              <GitCommits commits={commits} />
+            </section>
+          )}
 
           {/* Календарь */}
           {gcalUrl && (

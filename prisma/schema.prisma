@@ -84,6 +84,7 @@ model User {
   apiTokens     ApiToken[]
   savedFilters  SavedFilter[]
   trelloCredential TrelloCredential?
+  statusEvents  TaskStatusEvent[] @relation("StatusEventUser")
 }
 
 model Project {
@@ -169,9 +170,25 @@ model Task {
   notifications Notification[]
   linksFrom     TaskLink[]   @relation("LinkFrom")
   linksTo       TaskLink[]   @relation("LinkTo")
+  statusEvents  TaskStatusEvent[]
+  gitCommits    GitCommitRef[]
 
   @@index([projectId, status])
   @@index([parentId])
+}
+
+/// История смены статусов задачи (для «машины времени»).
+model TaskStatusEvent {
+  id         String      @id @default(cuid())
+  task       Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId     String
+  user       User?       @relation("StatusEventUser", fields: [userId], references: [id], onDelete: SetNull)
+  userId     String?
+  fromStatus TaskStatus?
+  toStatus   TaskStatus
+  at         DateTime    @default(now())
+
+  @@index([taskId, at])
 }
 
 /// Комментарий — обсуждение задачи (в отличие от патч-лога — журнала реализации).
@@ -360,10 +377,16 @@ model TrelloCredential {
 
 /// Зафиксированное упоминание задачи в git-коммите (защита от дублей патч-логов).
 model GitCommitRef {
-  id        String   @id @default(cuid())
-  taskId    String
-  sha       String
-  createdAt DateTime @default(now())
+  id           String    @id @default(cuid())
+  task         Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId       String
+  sha          String
+  message      String?
+  url          String?
+  author       String?
+  filesChanged Int?
+  committedAt  DateTime?
+  createdAt    DateTime  @default(now())
 
   @@unique([taskId, sha])
 }

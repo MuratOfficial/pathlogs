@@ -42,6 +42,25 @@ export async function POST(req: NextRequest) {
     const url = typeof c.url === "string" ? c.url : null;
     if (!sha || !message) continue;
 
+    // Автор и статистика по файлам (формат GitHub/GitLab push)
+    const authorObj = (typeof c.author === "object" && c.author
+      ? (c.author as Record<string, unknown>)
+      : null);
+    const author =
+      (authorObj && String(authorObj.name ?? authorObj.username ?? "")) ||
+      (typeof c.author === "string" ? c.author : "") ||
+      null;
+    const fileCount = (key: string) =>
+      Array.isArray((c as Record<string, unknown>)[key])
+        ? ((c as Record<string, unknown>)[key] as unknown[]).length
+        : 0;
+    const filesChanged =
+      fileCount("added") + fileCount("removed") + fileCount("modified") || null;
+    const committedAt =
+      typeof c.timestamp === "string" && !Number.isNaN(Date.parse(c.timestamp))
+        ? new Date(c.timestamp)
+        : null;
+
     // Уникальные ссылки КЛЮЧ-НОМЕР в сообщении
     const refs = new Map<string, number>();
     for (const m of message.matchAll(REF_RE)) {
@@ -64,7 +83,9 @@ export async function POST(req: NextRequest) {
       }
       // Защита от дублей: одна пара задача+sha — один патч-лог
       try {
-        await prisma.gitCommitRef.create({ data: { taskId: task.id, sha } });
+        await prisma.gitCommitRef.create({
+          data: { taskId: task.id, sha, message, url, author, filesChanged, committedAt },
+        });
       } catch {
         skipped.push(`${code}@${sha.slice(0, 7)} (повтор)`);
         continue;
