@@ -258,12 +258,12 @@ export default async function ProjectPage({
         </div>
       </div>
 
-      <div className="mb-4 flex w-fit max-w-full flex-wrap gap-1 rounded-xl border border-edge bg-surface p-1">
+      <div className="no-scrollbar mb-4 flex w-fit max-w-full flex-nowrap gap-1 overflow-x-auto rounded-xl border border-edge bg-surface p-1">
         {VIEWS.map((v) => (
           <Link
             key={v.id}
             href={`/projects/${project.id}?view=${v.id}`}
-            className={`rounded-lg px-4 py-1.5 text-sm font-medium transition ${
+            className={`shrink-0 whitespace-nowrap rounded-lg px-4 py-1.5 text-sm font-medium transition ${
               view === v.id
                 ? "bg-accent text-white"
                 : "text-muted hover:bg-surface-2 hover:text-foreground"
