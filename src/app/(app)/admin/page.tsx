@@ -28,7 +28,7 @@ export default async function AdminPage() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Администрирование</h1>
           <p className="page-hint">Пользователи, роли и статистика системы</p>
@@ -50,8 +50,8 @@ export default async function AdminPage() {
         ))}
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-edge bg-surface">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-2xl border border-edge bg-surface">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-surface-2/60 text-left text-xs text-muted">
             <tr>
               <th className="px-5 py-3 font-medium">Пользователь</th>

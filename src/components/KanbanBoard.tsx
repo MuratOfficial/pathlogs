@@ -14,7 +14,7 @@ import {
 } from "@/lib/actions/board";
 import { updateTaskStatusAction } from "@/lib/actions/tasks";
 import { BOARD_PALETTE, formatDate, formatHours } from "@/lib/labels";
-import { AssigneeAvatars, PriorityDot, TypeBadge } from "./TaskBadges";
+import { AssigneeAvatars, PriorityBadge, TypeBadge } from "./TaskBadges";
 
 // Размеры popover для расчёта позиции (ширина w-44 + переворот при нехватке места)
 const PALETTE_W = 176;
@@ -633,7 +633,7 @@ export function KanbanBoard({
                           onClose={() => setPaletteFor(null)}
                         />
                       )}
-                      <PriorityDot priority={t.priority} />
+                      <PriorityBadge priority={t.priority} />
                     </span>
                   </div>
                   <p

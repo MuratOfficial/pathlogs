@@ -12,7 +12,7 @@ import {
   formatHours,
 } from "@/lib/labels";
 import { saveFilterAction, deleteFilterAction } from "@/lib/actions/filters";
-import { AssigneeAvatars, PriorityDot, TypeBadge } from "./TaskBadges";
+import { AssigneeAvatars, PriorityBadge, TypeBadge } from "./TaskBadges";
 
 export interface SavedFilterDTO {
   id: string;
@@ -163,7 +163,7 @@ export function TaskListView({
                 </td>
                 <td className="px-4 py-3">
                   <Link href={`/tasks/${t.id}`} className="flex items-center gap-2 font-medium hover:text-accent-hover">
-                    <PriorityDot priority={t.priority} />
+                    <PriorityBadge priority={t.priority} />
                     {t.title}
                   </Link>
                 </td>

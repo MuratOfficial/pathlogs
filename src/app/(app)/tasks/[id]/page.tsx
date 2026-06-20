@@ -11,7 +11,7 @@ import {
   formatHours,
   initials,
 } from "@/lib/labels";
-import { TypeBadge, PriorityDot } from "@/components/TaskBadges";
+import { TypeBadge, PriorityBadge } from "@/components/TaskBadges";
 import { TaskMetaPanel } from "@/components/task/TaskMetaPanel";
 import { EditableText } from "@/components/task/EditableText";
 import { PatchLogForm } from "@/components/task/PatchLogForm";
@@ -148,7 +148,7 @@ export default async function TaskPage({
           <div className="rounded-2xl border border-edge bg-surface p-6">
             <div className="mb-3 flex items-center gap-3">
               <TypeBadge type={task.type} />
-              <PriorityDot priority={task.priority} />
+              <PriorityBadge priority={task.priority} />
               <span
                 className="rounded px-2 py-0.5 text-xs font-semibold"
                 style={{

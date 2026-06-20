@@ -17,7 +17,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import type { TaskDTO, LinkDTO } from "@/lib/types";
 import { STATUS_COLORS, STATUS_LABELS, formatHours, initials } from "@/lib/labels";
-import { TypeBadge, PriorityDot } from "./TaskBadges";
+import { TypeBadge, PriorityBadge } from "./TaskBadges";
 
 const GAP_X = 320;
 const GAP_Y = 120;
@@ -66,7 +66,7 @@ function TaskNode({ data }: NodeProps) {
         </span>
         <TypeBadge type={task.type} />
         <span className="ml-auto">
-          <PriorityDot priority={task.priority} />
+          <PriorityBadge priority={task.priority} />
         </span>
       </div>
       <p className="mb-2 text-xs font-semibold leading-snug text-foreground">{task.title}</p>

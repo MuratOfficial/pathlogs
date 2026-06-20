@@ -47,11 +47,15 @@ export function WebhooksDialog({
         type="button"
         onClick={() => setOpen(true)}
         data-tip="Интеграции: Slack / Telegram / webhooks"
-        className="rounded-lg border border-edge px-3 py-2 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
+        aria-label="Интеграции"
+        className="flex items-center gap-1.5 rounded-lg border border-edge px-3 py-2 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
       >
-        Интеграции
+        <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+        </svg>
+        <span className="hidden sm:inline">Интеграции</span>
         {webhooks.length > 0 && (
-          <span className="ml-1.5 text-accent-hover">{webhooks.length}</span>
+          <span className="text-accent-hover">{webhooks.length}</span>
         )}
       </button>
 

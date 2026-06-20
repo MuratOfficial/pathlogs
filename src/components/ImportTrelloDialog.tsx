@@ -89,12 +89,14 @@ export function ImportTrelloDialog({ hasSaved = false }: { hasSaved?: boolean })
       <button
         type="button"
         onClick={openDialog}
-        className="flex items-center gap-2 rounded-lg border border-edge px-4 py-2 text-sm font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
+        aria-label="Импорт из Trello"
+        data-tip="Импорт из Trello"
+        className="flex items-center gap-2 rounded-lg border border-edge px-3 py-2 text-sm font-medium text-muted transition hover:bg-surface-2 hover:text-foreground sm:px-4"
       >
-        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+        <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
           <path d="M19.5 3h-15A1.5 1.5 0 003 4.5v15A1.5 1.5 0 004.5 21h15a1.5 1.5 0 001.5-1.5v-15A1.5 1.5 0 0019.5 3zM10.5 16.5a.75.75 0 01-.75.75H6.75a.75.75 0 01-.75-.75v-9a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v9zm7.5-4a.75.75 0 01-.75.75h-3a.75.75 0 01-.75-.75v-5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75v5z" />
         </svg>
-        Импорт из Trello
+        <span className="hidden sm:inline">Импорт из Trello</span>
       </button>
 
       {open && (

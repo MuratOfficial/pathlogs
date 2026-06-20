@@ -50,14 +50,14 @@ export default async function DashboardPage({
 
   return (
     <div className="mx-auto max-w-6xl">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Проекты</h1>
           <p className="page-hint">
             {showArchived ? "Архивные проекты" : "Активные проекты и их прогресс"}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Link
             href={showArchived ? "/dashboard" : "/dashboard?archived=1"}
             className="rounded-lg border border-edge px-4 py-2 text-sm text-muted transition hover:bg-surface-2 hover:text-foreground"

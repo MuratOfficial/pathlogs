@@ -7,7 +7,7 @@ import {
   formatDate,
   formatHours,
 } from "@/lib/labels";
-import { TypeBadge, PriorityDot } from "@/components/TaskBadges";
+import { TypeBadge, PriorityBadge } from "@/components/TaskBadges";
 import type { TaskStatus } from "@prisma/client";
 
 const ACTIVE_ORDER: TaskStatus[] = ["IN_PROGRESS", "REVIEW", "TODO"];
@@ -84,7 +84,7 @@ export default async function MyTasksPage() {
                         {t.project.key}-{t.number}
                       </span>
                       <TypeBadge type={t.type} />
-                      <PriorityDot priority={t.priority} />
+                      <PriorityBadge priority={t.priority} />
                       <span className="min-w-0 flex-1 truncate text-sm font-medium">
                         {t.title}
                       </span>

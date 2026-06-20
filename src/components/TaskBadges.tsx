@@ -18,13 +18,37 @@ export function TypeBadge({ type }: { type: TaskType }) {
   );
 }
 
-export function PriorityDot({ priority }: { priority: Priority }) {
+// Приоритет как «шкала уровня»: 1–4 возрастающих столбика, заполненных
+// по уровню и цветом приоритета — заметнее и нагляднее точки.
+const PRIORITY_LEVEL: Record<Priority, number> = {
+  LOW: 1,
+  MEDIUM: 2,
+  HIGH: 3,
+  CRITICAL: 4,
+};
+
+export function PriorityBadge({ priority }: { priority: Priority }) {
+  const level = PRIORITY_LEVEL[priority];
+  const color = PRIORITY_COLORS[priority];
   return (
     <span
       data-tip={`Приоритет: ${PRIORITY_LABELS[priority]}`}
-      className="inline-block h-2 w-2 shrink-0 rounded-full"
-      style={{ backgroundColor: PRIORITY_COLORS[priority] }}
-    />
+      aria-label={`Приоритет: ${PRIORITY_LABELS[priority]}`}
+      role="img"
+      className="inline-flex shrink-0 items-end gap-[2px]"
+      style={{ height: 13 }}
+    >
+      {[1, 2, 3, 4].map((i) => (
+        <span
+          key={i}
+          className="w-[3px] rounded-[1px]"
+          style={{
+            height: 4 + i * 2.5,
+            backgroundColor: i <= level ? color : "var(--border)",
+          }}
+        />
+      ))}
+    </span>
   );
 }
 

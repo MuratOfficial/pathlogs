@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type ReactNode } from "react";
 import { createTaskAction } from "@/lib/actions/tasks";
 import { PRIORITY_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { TaskDTO, MemberDTO, TaskTemplateDTO } from "@/lib/types";
@@ -12,7 +12,12 @@ export function NewTaskDialog({
   members,
   templates = [],
   defaultParentId,
-  triggerLabel = "+ Новая задача",
+  triggerLabel = (
+    <>
+      <span className="sm:hidden">+ Задача</span>
+      <span className="hidden sm:inline">+ Новая задача</span>
+    </>
+  ),
   triggerClassName = "rounded-lg bg-accent px-4 py-2 text-sm font-semibold transition hover:bg-accent-hover",
 }: {
   projectId: string;
@@ -20,7 +25,7 @@ export function NewTaskDialog({
   members: MemberDTO[];
   templates?: TaskTemplateDTO[];
   defaultParentId?: string;
-  triggerLabel?: string;
+  triggerLabel?: ReactNode;
   triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
