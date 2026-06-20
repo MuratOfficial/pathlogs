@@ -30,31 +30,39 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Открытие/закрытие по ⌘K / Ctrl+K
+  // Сброс запроса/выбора делаем в момент открытия (не в эффекте — иначе
+  // каскадные ре-рендеры).
+  function openPalette() {
+    setQuery("");
+    setActive(0);
+    setOpen(true);
+  }
+  function closePalette() {
+    setOpen(false);
+  }
+
+  // Актуальное значение open для обработчика клавиш (deps [] у эффекта ниже)
+  const openRef = useRef(false);
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
+
+  // Открытие/закрытие по ⌘K / Ctrl+K (и по событию из кнопки сайдбара)
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setOpen((o) => !o);
+        if (openRef.current) closePalette();
+        else openPalette();
       }
     }
-    function onOpen() {
-      setOpen(true);
-    }
     window.addEventListener("keydown", onKey);
-    window.addEventListener("cmdk:open", onOpen);
+    window.addEventListener("cmdk:open", openPalette);
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("cmdk:open", onOpen);
+      window.removeEventListener("cmdk:open", openPalette);
     };
   }, []);
-
-  useEffect(() => {
-    if (open) {
-      setQuery("");
-      setActive(0);
-    }
-  }, [open]);
 
   // Поиск с дебаунсом
   useEffect(() => {

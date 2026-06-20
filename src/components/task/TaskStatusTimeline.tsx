@@ -45,7 +45,7 @@ export function TaskStatusTimeline({ events }: { events: StatusEvent[] }) {
     <ol className="relative space-y-1 border-l border-edge pl-5">
       {events.map((e, i) => {
         const next = events[i + 1];
-        const durMs = (next ? next.at.getTime() : Date.now()) - e.at.getTime();
+        const durMs = (next ? next.at.getTime() : new Date().getTime()) - e.at.getTime();
         const color = STATUS_COLORS[e.toStatus];
         const isCurrent = !next;
         return (
