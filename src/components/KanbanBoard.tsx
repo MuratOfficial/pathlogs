@@ -285,15 +285,21 @@ export function KanbanBoard({
   const [tasks, setTasks] = useState(initialTasks);
   const [columns, setColumns] = useState(initialColumns);
 
+  const [isPending, startTransition] = useTransition();
+
   // После ревалидации сервер присылает свежие props — сбрасываем локальное
   // (оптимистичное) состояние на серверную правду прямо во время рендера.
+  // Пока есть незавершённые действия (isPending) — доверяем оптимистичному
+  // состоянию: иначе ревалидация одного действия перезатёрла бы более свежее
+  // оптимистичное изменение другого (гонка при быстрых кликах). Когда все
+  // действия завершатся, синхронизируемся с финальной серверной правдой.
   const [prevTasks, setPrevTasks] = useState(initialTasks);
-  if (initialTasks !== prevTasks) {
+  if (initialTasks !== prevTasks && !isPending) {
     setPrevTasks(initialTasks);
     setTasks(initialTasks);
   }
   const [prevColumns, setPrevColumns] = useState(initialColumns);
-  if (initialColumns !== prevColumns) {
+  if (initialColumns !== prevColumns && !isPending) {
     setPrevColumns(initialColumns);
     setColumns(initialColumns);
   }
@@ -305,7 +311,6 @@ export function KanbanBoard({
   const [overColDrag, setOverColDrag] = useState<string | null>(null); // колонка-цель при переносе колонки
   const [paletteFor, setPaletteFor] = useState<string | null>(null); // id колонки или задачи
   const [paletteRect, setPaletteRect] = useState<DOMRect | null>(null); // якорь палитры
-  const [, startTransition] = useTransition();
 
   // Открыть/закрыть палитру, запомнив позицию кнопки-триггера
   function togglePalette(id: string, e: React.MouseEvent<HTMLButtonElement>) {
@@ -453,7 +458,7 @@ export function KanbanBoard({
               setOverColDrag((c) => (c === col.id ? null : c));
             }}
             onDrop={() => (dragColId ? dropColumn(col.id) : dropCard(col))}
-            className={`flex w-80 shrink-0 flex-col rounded-2xl border bg-surface/60 transition ${
+            className={`flex w-[85vw] max-w-[20rem] shrink-0 flex-col rounded-2xl border bg-surface/60 transition sm:w-80 ${
               overCol === col.id && !dragColId
                 ? "border-accent/60 bg-accent/5"
                 : isColDropTarget
@@ -533,6 +538,9 @@ export function KanbanBoard({
                 <div
                   key={t.id}
                   draggable
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${projectKey}-${t.number}: ${t.title}`}
                   onDragStart={() => setDragId(t.id)}
                   onDragEnd={() => {
                     setDragId(null);
@@ -547,7 +555,19 @@ export function KanbanBoard({
                     setOverTaskId(t.id);
                   }}
                   onClick={() => router.push(`/tasks/${t.id}`)}
-                  className={`group cursor-pointer rounded-xl border border-edge bg-surface p-3.5 transition hover:border-accent/50 ${
+                  onKeyDown={(e) => {
+                    // Клавиши обрабатываем только когда фокус на самой карточке,
+                    // а не на вложенных кнопках (галочка, палитра).
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      router.push(`/tasks/${t.id}`);
+                    } else if (e.key.toLowerCase() === "d") {
+                      e.preventDefault();
+                      toggleTaskDone(t);
+                    }
+                  }}
+                  className={`group cursor-pointer rounded-xl border border-edge bg-surface p-3.5 outline-none transition hover:border-accent/50 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40 ${
                     dragId === t.id ? "opacity-40" : ""
                   } ${
                     overTaskId === t.id && dragId && dragId !== t.id
@@ -566,6 +586,7 @@ export function KanbanBoard({
                       return (
                         <button
                           type="button"
+                          data-tip={isDone ? "Снять отметку «Готово»" : "Отметить выполненной"}
                           aria-label={isDone ? "Снять отметку «Готово»" : "Отметить выполненной"}
                           onClick={(e) => {
                             e.stopPropagation();

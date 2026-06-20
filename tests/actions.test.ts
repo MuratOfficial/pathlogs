@@ -385,6 +385,22 @@ describe("updateTaskStatusAction / updateTaskFieldsAction", () => {
     expect(updated.columnId).toBe(fx.cols.inProgress.id);
   });
 
+  it("DONE проставляет closedAt и сбрасывает колонку (нет колонки DONE), возврат в TODO — сбрасывает closedAt", async () => {
+    loginAs(fx.member);
+    await updateTaskStatusAction(fx.task.id, "DONE");
+    let t = await prisma.task.findUniqueOrThrow({ where: { id: fx.task.id } });
+    expect(t.status).toBe("DONE");
+    expect(t.closedAt).not.toBeNull();
+    expect(t.columnId).toBeNull(); // в фикстурах нет колонки со статусом DONE
+
+    // Снятие отметки (как повторный клик по галочке в канбане)
+    await updateTaskStatusAction(fx.task.id, "TODO");
+    t = await prisma.task.findUniqueOrThrow({ where: { id: fx.task.id } });
+    expect(t.status).toBe("TODO");
+    expect(t.closedAt).toBeNull();
+    expect(t.columnId).toBe(fx.cols.todo.id);
+  });
+
   it("исполнители фильтруются по участникам проекта", async () => {
     loginAs(fx.member);
     await updateTaskFieldsAction(fx.task.id, {

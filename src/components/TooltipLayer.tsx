@@ -65,6 +65,31 @@ export function TooltipLayer() {
       hide(current);
     }
 
+    // Доступность: нативный title читался скринридерами, а data-tip — нет.
+    // Для иконочных элементов (без видимого текста и без своего aria-label)
+    // дублируем data-tip в aria-label. Элементы с текстом не трогаем —
+    // их доступным именем уже служит видимый текст.
+    function labelOne(el: Element) {
+      const tip = el.getAttribute("data-tip");
+      if (!tip || el.hasAttribute("aria-label")) return;
+      if ((el.textContent ?? "").trim() !== "") return;
+      el.setAttribute("aria-label", tip);
+    }
+    function labelTree(root: Element) {
+      if (root.matches?.("[data-tip]")) labelOne(root);
+      root.querySelectorAll?.("[data-tip]").forEach(labelOne);
+    }
+    labelTree(document.body);
+    // Карточки/колонки появляются динамически — навешиваем на новые узлы
+    const observer = new MutationObserver((records) => {
+      for (const rec of records) {
+        rec.addedNodes.forEach((n) => {
+          if (n.nodeType === 1) labelTree(n as Element);
+        });
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
     document.addEventListener("mouseover", onOver);
     document.addEventListener("mouseout", onOut);
     document.addEventListener("focusin", onOver);
@@ -79,6 +104,7 @@ export function TooltipLayer() {
       document.removeEventListener("focusout", onOut);
       window.removeEventListener("scroll", onScrollOrResize, true);
       window.removeEventListener("resize", onScrollOrResize);
+      observer.disconnect();
     };
   }, []);
 

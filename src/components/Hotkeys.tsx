@@ -8,6 +8,8 @@ const SHORTCUTS: { keys: string; label: string }[] = [
   { keys: "g m", label: "Мои задачи" },
   { keys: "g n", label: "Уведомления" },
   { keys: "g p", label: "Профиль" },
+  { keys: "Enter", label: "Открыть карточку в фокусе (канбан)" },
+  { keys: "d", label: "Отметить карточку в фокусе выполненной" },
   { keys: "?", label: "Эта подсказка" },
   { keys: "Esc", label: "Закрыть подсказку" },
 ];
