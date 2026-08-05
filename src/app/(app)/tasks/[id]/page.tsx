@@ -14,6 +14,7 @@ import {
 import { TypeBadge, PriorityBadge, TagChip } from "@/components/TaskBadges";
 import { TaskMetaPanel } from "@/components/task/TaskMetaPanel";
 import { TaskTags } from "@/components/task/TaskTags";
+import { TaskSectionNav, type TaskSectionDTO } from "@/components/task/TaskSectionNav";
 import { EditableText } from "@/components/task/EditableText";
 import { PatchLogForm } from "@/components/task/PatchLogForm";
 import { TimeEntryForm } from "@/components/task/TimeEntryForm";
@@ -155,6 +156,32 @@ export default async function TaskPage({
     url: `${origin}/tasks/${task.id}`,
   });
 
+  // Разделы для липкой навигации по карточке. Блоки, которых на странице нет
+  // (коммиты, календарь), в навигацию не попадают.
+  const sections: TaskSectionDTO[] = [
+    { id: "task-overview", label: "Описание" },
+    { id: "task-checklist", label: "Чек-лист", count: task.checklist.length },
+    { id: "task-subtasks", label: "Подзадачи", count: task.children.length },
+    { id: "task-patchlog", label: "Патч-лог", count: task.patchLogs.length },
+    { id: "task-comments", label: "Обсуждение", count: task.comments.length },
+    { id: "task-links", label: "Ссылки", count: resourceLinks.length },
+    { id: "task-files", label: "Файлы", count: task.attachments.length },
+    { id: "task-meta", label: "Параметры" },
+    { id: "task-tags", label: "Метки", count: task.tags.length },
+    { id: "task-time", label: "Трудозатраты", count: task.timeEntries.length },
+    { id: "task-history", label: "История статусов" },
+    ...(commits.length > 0
+      ? [{ id: "task-commits", label: "Коммиты", count: commits.length }]
+      : []),
+    ...(gcalUrl ? [{ id: "task-calendar", label: "Календарь" }] : []),
+    {
+      id: "task-relations",
+      label: "Связи",
+      count: task.linksFrom.length + task.linksTo.length,
+    },
+    { id: "task-info", label: "Информация" },
+  ];
+
   // Право удаления: автор задачи, владелец проекта, менеджер или админ
   const canDeleteTask =
     task.creatorId === user.id ||
@@ -185,10 +212,12 @@ export default async function TaskPage({
         </span>
       </div>
 
+      <TaskSectionNav sections={sections} />
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
         {/* ОСНОВНАЯ КОЛОНКА */}
         <div className="min-w-0 space-y-6">
-          <div className="rounded-2xl border border-edge bg-surface p-6">
+          <div id="task-overview" className="rounded-2xl border border-edge bg-surface p-6">
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <TypeBadge type={task.type} />
               <PriorityBadge priority={task.priority} />
@@ -231,7 +260,7 @@ export default async function TaskPage({
           </div>
 
           {/* Чек-лист */}
-          <section className="rounded-2xl border border-edge bg-surface p-6">
+          <section id="task-checklist" className="rounded-2xl border border-edge bg-surface p-6">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
               Чек-лист (
               {task.checklist.filter((i) => i.done).length}/{task.checklist.length})
@@ -243,7 +272,7 @@ export default async function TaskPage({
           </section>
 
           {/* Подзадачи */}
-          <section className="rounded-2xl border border-edge bg-surface p-6">
+          <section id="task-subtasks" className="rounded-2xl border border-edge bg-surface p-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
                 Подзадачи · ветки ({task.children.length})
@@ -295,7 +324,7 @@ export default async function TaskPage({
           </section>
 
           {/* Патч-лог */}
-          <section className="rounded-2xl border border-edge bg-surface p-6">
+          <section id="task-patchlog" className="rounded-2xl border border-edge bg-surface p-6">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
               Патч-лог · история реализации ({task.patchLogs.length})
             </h2>
@@ -332,7 +361,7 @@ export default async function TaskPage({
           </section>
 
           {/* Обсуждение */}
-          <section className="rounded-2xl border border-edge bg-surface p-6">
+          <section id="task-comments" className="rounded-2xl border border-edge bg-surface p-6">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
               Обсуждение ({task.comments.length})
             </h2>
@@ -371,7 +400,7 @@ export default async function TaskPage({
           </section>
 
           {/* Ссылки */}
-          <section className="rounded-2xl border border-edge bg-surface p-6">
+          <section id="task-links" className="rounded-2xl border border-edge bg-surface p-6">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
               Ссылки ({resourceLinks.length})
             </h2>
@@ -384,7 +413,7 @@ export default async function TaskPage({
           </section>
 
           {/* Файлы */}
-          <section className="rounded-2xl border border-edge bg-surface p-6">
+          <section id="task-files" className="rounded-2xl border border-edge bg-surface p-6">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
               Файлы ({task.attachments.length})
             </h2>
@@ -426,31 +455,35 @@ export default async function TaskPage({
 
         {/* САЙДБАР */}
         <div className="space-y-6">
-          <TaskMetaPanel
-            task={{
-              id: task.id,
-              status: task.status,
-              type: task.type,
-              priority: task.priority,
-              estimateHours: task.estimateHours,
-              startDate: task.startDate?.toISOString().slice(0, 10) ?? null,
-              dueDate: task.dueDate?.toISOString().slice(0, 10) ?? null,
-              assigneeIds: task.assignees.map((a) => a.id),
-            }}
-            users={projectMembers}
-          />
+          <div id="task-meta">
+            <TaskMetaPanel
+              task={{
+                id: task.id,
+                status: task.status,
+                type: task.type,
+                priority: task.priority,
+                estimateHours: task.estimateHours,
+                startDate: task.startDate?.toISOString().slice(0, 10) ?? null,
+                dueDate: task.dueDate?.toISOString().slice(0, 10) ?? null,
+                assigneeIds: task.assignees.map((a) => a.id),
+              }}
+              users={projectMembers}
+            />
+          </div>
 
           {/* Метки */}
-          <TaskTags
-            taskId={task.id}
-            projectId={task.projectId}
-            tags={task.tags}
-            projectTags={projectTags}
-            canManage={canManageTags}
-          />
+          <div id="task-tags">
+            <TaskTags
+              taskId={task.id}
+              projectId={task.projectId}
+              tags={task.tags}
+              projectTags={projectTags}
+              canManage={canManageTags}
+            />
+          </div>
 
           {/* Трудозатраты */}
-          <section className="rounded-2xl border border-edge bg-surface p-5">
+          <section id="task-time" className="rounded-2xl border border-edge bg-surface p-5">
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
               Трудозатраты
             </h2>
@@ -509,7 +542,7 @@ export default async function TaskPage({
           </section>
 
           {/* История статусов (машина времени) */}
-          <section className="rounded-2xl border border-edge bg-surface p-5">
+          <section id="task-history" className="rounded-2xl border border-edge bg-surface p-5">
             <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
               История статусов
             </h2>
@@ -518,7 +551,7 @@ export default async function TaskPage({
 
           {/* Git-коммиты */}
           {commits.length > 0 && (
-            <section className="rounded-2xl border border-edge bg-surface p-5">
+            <section id="task-commits" className="rounded-2xl border border-edge bg-surface p-5">
               <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
                 Коммиты
               </h2>
@@ -528,7 +561,7 @@ export default async function TaskPage({
 
           {/* Календарь */}
           {gcalUrl && (
-            <section className="rounded-2xl border border-edge bg-surface p-5">
+            <section id="task-calendar" className="rounded-2xl border border-edge bg-surface p-5">
               <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
                 Календарь
               </h2>
@@ -558,7 +591,7 @@ export default async function TaskPage({
           )}
 
           {/* Связи */}
-          <section className="rounded-2xl border border-edge bg-surface p-5">
+          <section id="task-relations" className="rounded-2xl border border-edge bg-surface p-5">
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
               Связи
             </h2>
@@ -593,7 +626,7 @@ export default async function TaskPage({
           </section>
 
           {/* Информация */}
-          <section className="rounded-2xl border border-edge bg-surface p-5 text-xs text-muted">
+          <section id="task-info" className="rounded-2xl border border-edge bg-surface p-5 text-xs text-muted">
             <p className="mb-1">
               Создал: <span className="text-foreground">{task.creator.name}</span>
             </p>
