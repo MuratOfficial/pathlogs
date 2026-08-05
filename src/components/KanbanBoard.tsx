@@ -14,7 +14,8 @@ import {
 } from "@/lib/actions/board";
 import { updateTaskStatusAction } from "@/lib/actions/tasks";
 import { BOARD_PALETTE, formatDate, formatHours } from "@/lib/labels";
-import { AssigneeAvatars, PriorityBadge, TypeBadge } from "./TaskBadges";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { AssigneeAvatars, PriorityBadge, TagChips, TypeBadge } from "./TaskBadges";
 
 // Размеры popover для расчёта позиции (ширина w-44 + переворот при нехватке места)
 const PALETTE_W = 176;
@@ -311,6 +312,7 @@ export function KanbanBoard({
   const [overColDrag, setOverColDrag] = useState<string | null>(null); // колонка-цель при переносе колонки
   const [paletteFor, setPaletteFor] = useState<string | null>(null); // id колонки или задачи
   const [paletteRect, setPaletteRect] = useState<DOMRect | null>(null); // якорь палитры
+  const [colToRemove, setColToRemove] = useState<ColumnDTO | null>(null); // подтверждение удаления
 
   // Открыть/закрыть палитру, запомнив позицию кнопки-триггера
   function togglePalette(id: string, e: React.MouseEvent<HTMLButtonElement>) {
@@ -408,6 +410,7 @@ export function KanbanBoard({
   }
 
   function removeColumn(colId: string) {
+    setColToRemove(null);
     setColumns((prev) => prev.filter((c) => c.id !== colId));
     setTasks((prev) =>
       prev.map((t) => (t.columnId === colId ? { ...t, columnId: null } : t))
@@ -523,7 +526,7 @@ export function KanbanBoard({
                 <button
                   type="button"
                   data-tip="Удалить колонку (задачи вернутся в колонки статусов)"
-                  onClick={() => removeColumn(col.id)}
+                  onClick={() => setColToRemove(col)}
                   className="text-muted transition hover:text-red-400"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -645,6 +648,11 @@ export function KanbanBoard({
                   >
                     {t.title}
                   </p>
+                  {t.tags.length > 0 && (
+                    <div className="mb-2.5">
+                      <TagChips tags={t.tags} small />
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 text-[11px] text-muted">
                     <AssigneeAvatars assignees={t.assignees} />
                     {t.childrenCount > 0 && (
@@ -686,6 +694,15 @@ export function KanbanBoard({
       })}
 
       <AddColumn onCreate={createColumn} />
+
+      <ConfirmDialog
+        open={colToRemove !== null}
+        title={`Удалить колонку «${colToRemove?.name ?? ""}»?`}
+        message="Задачи не пропадут — они вернутся в колонки своих статусов."
+        confirmLabel="Удалить колонку"
+        onConfirm={() => colToRemove && removeColumn(colToRemove.id)}
+        onCancel={() => setColToRemove(null)}
+      />
     </div>
   );
 }

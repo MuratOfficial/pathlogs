@@ -8,6 +8,7 @@ import {
   toggleUserActiveAction,
 } from "@/lib/actions/admin";
 import { ROLE_LABELS } from "@/lib/labels";
+import { EditUserDialog } from "./EditUserDialog";
 
 export function UserRow({
   user,
@@ -29,6 +30,14 @@ export function UserRow({
 }) {
   const [pending, startTransition] = useTransition();
   const [rate, setRate] = useState(user.hourlyRate != null ? String(user.hourlyRate) : "");
+
+  // После ревалидации (например, правки через диалог) сервер присылает свежую
+  // ставку — синхронизируем поле, иначе в нём висело бы старое значение.
+  const [prevRate, setPrevRate] = useState(user.hourlyRate);
+  if (user.hourlyRate !== prevRate && !pending) {
+    setPrevRate(user.hourlyRate);
+    setRate(user.hourlyRate != null ? String(user.hourlyRate) : "");
+  }
 
   function commitRate() {
     const n = parseFloat(rate.replace(",", "."));
@@ -98,6 +107,19 @@ export function UserRow({
         >
           {user.active ? "Активен" : "Отключён"}
         </button>
+      </td>
+      <td className="px-5 py-3">
+        <EditUserDialog
+          user={{
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            active: user.active,
+            hourlyRate: user.hourlyRate,
+          }}
+          isSelf={isSelf}
+        />
       </td>
     </tr>
   );

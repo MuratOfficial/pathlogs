@@ -17,8 +17,16 @@ export interface TaskDTO {
   spentHours: number;
   order: number;
   assignees: { id: string; name: string }[];
+  tags: TagDTO[];
   patchLogCount: number;
   childrenCount: number;
+}
+
+/** Метка задачи (в рамках проекта). */
+export interface TagDTO {
+  id: string;
+  name: string;
+  color: string;
 }
 
 /** Колонка канбан-доски. status задан у стандартных колонок, null — у кастомных. */
@@ -42,6 +50,35 @@ export interface LinkDTO {
 export interface MemberDTO {
   id: string;
   name: string;
+}
+
+/** Вариант ответа опроса вместе с результатами голосования. */
+export interface PollOptionDTO {
+  id: string;
+  text: string;
+  votes: number;
+  /** Кто выбрал этот вариант. Пусто у анонимных опросов. */
+  voters: MemberDTO[];
+  chosenByMe: boolean;
+}
+
+/** Опрос участников проекта. */
+export interface PollDTO {
+  id: string;
+  question: string;
+  description: string | null;
+  /** Разрешён выбор нескольких вариантов. */
+  multiple: boolean;
+  /** Имена проголосовавших скрыты. */
+  anonymous: boolean;
+  closed: boolean;
+  author: MemberDTO;
+  createdAt: string;
+  options: PollOptionDTO[];
+  /** Сколько человек проголосовало (не голосов, а людей). */
+  voterCount: number;
+  /** Текущий пользователь может завершить/удалить опрос. */
+  canManage: boolean;
 }
 
 /** Шаблон задачи для предзаполнения формы создания. */

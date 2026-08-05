@@ -51,7 +51,7 @@ export default async function AdminPage() {
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-edge bg-surface">
-        <table className="w-full min-w-[640px] text-sm">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-surface-2/60 text-left text-xs text-muted">
             <tr>
               <th className="px-5 py-3 font-medium">Пользователь</th>
@@ -61,6 +61,9 @@ export default async function AdminPage() {
               <th className="px-5 py-3 font-medium">Патч-логов</th>
               <th className="px-5 py-3 font-medium">Регистрация</th>
               <th className="px-5 py-3 font-medium">Статус</th>
+              <th className="px-5 py-3 font-medium">
+                <span className="sr-only">Действия</span>
+              </th>
             </tr>
           </thead>
           <tbody>

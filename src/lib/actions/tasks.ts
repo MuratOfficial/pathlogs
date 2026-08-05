@@ -26,6 +26,7 @@ const taskSchema = z.object({
   startDate: z.string().optional(),
   dueDate: z.string().optional(),
   assigneeIds: z.array(z.string()).optional(),
+  tagIds: z.array(z.string()).optional(),
   checklist: z.string().optional(),
 });
 
@@ -59,6 +60,7 @@ export async function createTaskAction(
     startDate: formData.get("startDate") || undefined,
     dueDate: formData.get("dueDate") || undefined,
     assigneeIds: formData.getAll("assigneeIds").map(String),
+    tagIds: formData.getAll("tagIds").map(String),
     checklist: formData.get("checklist") || undefined,
   });
   if (!parsed.success) {
@@ -78,6 +80,15 @@ export async function createTaskAction(
   }
 
   const assigneeIds = await filterProjectMembers(d.projectId, d.assigneeIds ?? []);
+  // Метки — только из этого же проекта
+  const tagIds = d.tagIds?.length
+    ? (
+        await prisma.tag.findMany({
+          where: { id: { in: d.tagIds }, projectId: d.projectId },
+          select: { id: true },
+        })
+      ).map((t) => t.id)
+    : [];
 
   const task = await prisma.task.create({
     data: {
@@ -94,6 +105,7 @@ export async function createTaskAction(
       assignees: assigneeIds.length
         ? { connect: assigneeIds.map((id) => ({ id })) }
         : undefined,
+      tags: tagIds.length ? { connect: tagIds.map((id) => ({ id })) } : undefined,
       checklist: {
         create: parseChecklistLines(d.checklist).map((text, i) => ({
           text,

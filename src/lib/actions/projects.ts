@@ -50,6 +50,46 @@ export async function createProjectAction(
   redirect(`/projects/${project.id}`);
 }
 
+/**
+ * Редактирует название, ключ и описание проекта.
+ * Доступно владельцу, админу и менеджеру проекта (см. requireProjectManager).
+ */
+export async function updateProjectAction(
+  projectId: string,
+  _prev: { error?: string; ok?: boolean } | undefined,
+  formData: FormData
+): Promise<{ error?: string; ok?: boolean }> {
+  await requireProjectManager(projectId);
+  const parsed = projectSchema.safeParse({
+    name: formData.get("name"),
+    key: formData.get("key"),
+    description: formData.get("description") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
+  }
+
+  const key = parsed.data.key.toUpperCase();
+  const clash = await prisma.project.findUnique({
+    where: { key },
+    select: { id: true },
+  });
+  if (clash && clash.id !== projectId) return { error: `Ключ «${key}» уже занят` };
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      name: parsed.data.name,
+      key,
+      description: parsed.data.description ?? null,
+    },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
+}
+
 export async function toggleProjectArchiveAction(projectId: string) {
   await requireProjectManager(projectId);
   const project = await prisma.project.findUniqueOrThrow({ where: { id: projectId } });

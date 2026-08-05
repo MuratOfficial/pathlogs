@@ -11,8 +11,9 @@ import {
   formatHours,
   initials,
 } from "@/lib/labels";
-import { TypeBadge, PriorityBadge } from "@/components/TaskBadges";
+import { TypeBadge, PriorityBadge, TagChip } from "@/components/TaskBadges";
 import { TaskMetaPanel } from "@/components/task/TaskMetaPanel";
+import { TaskTags } from "@/components/task/TaskTags";
 import { EditableText } from "@/components/task/EditableText";
 import { PatchLogForm } from "@/components/task/PatchLogForm";
 import { TimeEntryForm } from "@/components/task/TimeEntryForm";
@@ -35,7 +36,7 @@ import {
   deleteTaskAction,
   updateTaskFieldsAction,
 } from "@/lib/actions/tasks";
-import { canAccessProject } from "@/lib/access";
+import { canAccessProject, canManageProject } from "@/lib/access";
 
 export default async function TaskPage({
   params,
@@ -64,6 +65,7 @@ export default async function TaskPage({
       },
       creator: { select: { id: true, name: true } },
       assignees: { select: { id: true, name: true } },
+      tags: { select: { id: true, name: true, color: true }, orderBy: { name: "asc" } },
       patchLogs: {
         include: { author: { select: { id: true, name: true } } },
         orderBy: { createdAt: "desc" },
@@ -102,6 +104,14 @@ export default async function TaskPage({
     : [task.project.owner, ...memberUsers];
 
   const spent = task.timeEntries.reduce((s, e) => s + e.hours, 0);
+
+  // Метки проекта — для панели меток в сайдбаре
+  const projectTags = await prisma.tag.findMany({
+    where: { projectId: task.projectId },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, color: true },
+  });
+  const canManageTags = await canManageProject(task.projectId, user);
 
   // История статусов (машина времени)
   const statusEvents = (
@@ -174,7 +184,7 @@ export default async function TaskPage({
         {/* ОСНОВНАЯ КОЛОНКА */}
         <div className="min-w-0 space-y-6">
           <div className="rounded-2xl border border-edge bg-surface p-6">
-            <div className="mb-3 flex items-center gap-3">
+            <div className="mb-3 flex flex-wrap items-center gap-3">
               <TypeBadge type={task.type} />
               <PriorityBadge priority={task.priority} />
               <span
@@ -186,6 +196,13 @@ export default async function TaskPage({
               >
                 {STATUS_LABELS[task.status]}
               </span>
+              {task.tags.length > 0 && (
+                <span className="flex flex-wrap items-center gap-1.5">
+                  {task.tags.map((t) => (
+                    <TagChip key={t.id} tag={t} />
+                  ))}
+                </span>
+              )}
             </div>
             <EditableText
               value={task.title}
@@ -230,6 +247,7 @@ export default async function TaskPage({
                 projectId={task.projectId}
                 tasks={[{ id: task.id, number: task.number, title: task.title }, ...projectTasks]}
                 members={projectMembers}
+                projectTags={projectTags}
                 defaultParentId={task.id}
                 triggerLabel="+ Подзадача"
                 triggerClassName="rounded-lg border border-edge px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
@@ -404,6 +422,15 @@ export default async function TaskPage({
             users={projectMembers}
           />
 
+          {/* Метки */}
+          <TaskTags
+            taskId={task.id}
+            projectId={task.projectId}
+            tags={task.tags}
+            projectTags={projectTags}
+            canManage={canManageTags}
+          />
+
           {/* Трудозатраты */}
           <section className="rounded-2xl border border-edge bg-surface p-5">
             <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -424,25 +451,43 @@ export default async function TaskPage({
               </div>
             )}
             <TimeEntryForm taskId={task.id} />
-            <ul className="mt-4 space-y-2">
-              {task.timeEntries.slice(0, 8).map((e) => (
-                <li key={e.id} className="flex items-center gap-2 text-xs">
-                  <span className="font-semibold text-foreground">{formatHours(e.hours)}</span>
-                  <span className="truncate text-muted">
-                    {e.user.name}
-                    {e.note ? ` · ${e.note}` : ""}
-                  </span>
-                  <span className="ml-auto shrink-0 text-muted">{formatDate(e.date)}</span>
-                  {(e.userId === user.id || user.role === "ADMIN") && (
-                    <ConfirmActionButton
-                      action={deleteTimeEntryAction.bind(null, e.id)}
-                      confirmText="Удалить запись времени?"
-                      small
-                    />
-                  )}
-                </li>
-              ))}
-            </ul>
+            {task.timeEntries.length > 0 && (
+              <ul className="mt-4 space-y-2 border-t border-edge pt-4">
+                {task.timeEntries.slice(0, 8).map((e) => (
+                  <li
+                    key={e.id}
+                    className="rounded-xl border border-edge bg-surface-2/50 px-3 py-2"
+                  >
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="shrink-0 font-semibold text-foreground">
+                        {formatHours(e.hours)}
+                      </span>
+                      <span className="min-w-0 truncate text-muted">{e.user.name}</span>
+                      <span className="ml-auto shrink-0 text-muted">{formatDate(e.date)}</span>
+                      {(e.userId === user.id || user.role === "ADMIN") && (
+                        <ConfirmActionButton
+                          action={deleteTimeEntryAction.bind(null, e.id)}
+                          confirmText="Удалить запись времени?"
+                          small
+                        />
+                      )}
+                    </div>
+                    {/* Комментарий — отдельной строкой с переносами: длинный
+                        текст читается целиком и не ломает вёрстку строки. */}
+                    {e.note && (
+                      <p className="mt-1.5 whitespace-pre-wrap break-words text-xs leading-relaxed text-muted">
+                        {e.note}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {task.timeEntries.length > 8 && (
+              <p className="mt-2 text-center text-[11px] text-muted">
+                показаны последние 8 из {task.timeEntries.length}
+              </p>
+            )}
           </section>
 
           {/* История статусов (машина времени) */}
@@ -541,7 +586,8 @@ export default async function TaskPage({
               <div className="mt-4 border-t border-edge pt-3">
                 <ConfirmActionButton
                   action={deleteTaskAction.bind(null, task.id)}
-                  confirmText="Удалить задачу со всеми патч-логами и записями времени?"
+                  confirmTitle={`Удалить задачу ${task.project.key}-${task.number}?`}
+                  confirmText="Вместе с задачей будут удалены её патч-логи, комментарии, файлы и записи времени. Действие необратимо."
                   label="Удалить задачу"
                   redirectTo={`/projects/${task.projectId}`}
                 />

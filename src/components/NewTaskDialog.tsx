@@ -3,14 +3,16 @@
 import { useActionState, useState, type ReactNode } from "react";
 import { createTaskAction } from "@/lib/actions/tasks";
 import { PRIORITY_LABELS, TYPE_LABELS } from "@/lib/labels";
-import type { TaskDTO, MemberDTO, TaskTemplateDTO } from "@/lib/types";
+import type { TaskDTO, MemberDTO, TaskTemplateDTO, TagDTO } from "@/lib/types";
 import type { Priority, TaskType } from "@prisma/client";
+import { TagChip } from "./TaskBadges";
 
 export function NewTaskDialog({
   projectId,
   tasks,
   members,
   templates = [],
+  projectTags = [],
   defaultParentId,
   triggerLabel = (
     <>
@@ -24,6 +26,8 @@ export function NewTaskDialog({
   tasks: Pick<TaskDTO, "id" | "number" | "title">[];
   members: MemberDTO[];
   templates?: TaskTemplateDTO[];
+  /** Метки проекта, которые можно проставить сразу при создании. */
+  projectTags?: TagDTO[];
   defaultParentId?: string;
   triggerLabel?: ReactNode;
   triggerClassName?: string;
@@ -178,6 +182,28 @@ export function NewTaskDialog({
                 <input name="dueDate" type="date" className={inputCls} />
               </label>
             </div>
+
+            {projectTags.length > 0 && (
+              <fieldset className="mb-4">
+                <span className="mb-1.5 block text-sm text-muted">Метки</span>
+                <div className="flex flex-wrap gap-1.5 rounded-lg border border-edge bg-surface-2 p-2.5">
+                  {projectTags.map((t) => (
+                    <label key={t.id} className="cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="tagIds"
+                        value={t.id}
+                        className="peer sr-only"
+                      />
+                      {/* Невыбранные метки приглушены, выбранные — в полном цвете */}
+                      <span className="inline-block rounded-full opacity-40 grayscale transition peer-checked:opacity-100 peer-checked:grayscale-0 hover:opacity-75">
+                        <TagChip tag={t} />
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
 
             <fieldset className="mb-5">
               <span className="mb-1.5 block text-sm text-muted">Исполнители</span>

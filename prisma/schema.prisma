@@ -85,6 +85,8 @@ model User {
   savedFilters  SavedFilter[]
   trelloCredential TrelloCredential?
   statusEvents  TaskStatusEvent[] @relation("StatusEventUser")
+  polls         Poll[]            @relation("PollAuthor")
+  pollVotes     PollVote[]        @relation("PollVoter")
 }
 
 model Project {
@@ -103,8 +105,25 @@ model Project {
   templates   TaskTemplate[]
   webhooks    WebhookEndpoint[]
   savedFilters SavedFilter[]
+  tags        Tag[]
+  polls       Poll[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+}
+
+/// Метка задачи. Живёт в рамках проекта: имена уникальны внутри проекта,
+/// на задачи из других проектов метку повесить нельзя.
+model Tag {
+  id        String   @id @default(cuid())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  name      String
+  color     String   @default("#6366f1")
+  tasks     Task[]   @relation("TaskTags")
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, name])
+  @@index([projectId])
 }
 
 /// Колонка канбан-доски. Колонки со status — стандартные (перенос задачи меняет её статус),
@@ -172,6 +191,7 @@ model Task {
   linksTo       TaskLink[]   @relation("LinkTo")
   statusEvents  TaskStatusEvent[]
   gitCommits    GitCommitRef[]
+  tags          Tag[]        @relation("TaskTags")
 
   @@index([projectId, status])
   @@index([parentId])
@@ -373,6 +393,55 @@ model TrelloCredential {
   token     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Опрос среди участников проекта. Создавать может любой участник,
+/// голосовать — тоже (по одному голосу на вариант).
+model Poll {
+  id          String       @id @default(cuid())
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  author      User         @relation("PollAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    String
+  question    String
+  description String?
+  /// Разрешён выбор нескольких вариантов
+  multiple    Boolean      @default(false)
+  /// Анонимный: имена проголосовавших не показываются
+  anonymous   Boolean      @default(false)
+  /// Заполнено — опрос завершён, голосовать нельзя
+  closedAt    DateTime?
+  options     PollOption[]
+  votes       PollVote[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([projectId, createdAt])
+}
+
+model PollOption {
+  id     String     @id @default(cuid())
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  pollId String
+  text   String
+  order  Float      @default(0)
+  votes  PollVote[]
+
+  @@index([pollId])
+}
+
+model PollVote {
+  id        String     @id @default(cuid())
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  pollId    String
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  optionId  String
+  user      User       @relation("PollVoter", fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime   @default(now())
+
+  @@unique([optionId, userId])
+  @@index([pollId, userId])
 }
 
 /// Зафиксированное упоминание задачи в git-коммите (защита от дублей патч-логов).

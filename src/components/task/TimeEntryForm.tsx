@@ -12,42 +12,53 @@ export function TimeEntryForm({ taskId }: { taskId: string }) {
   }, [state]);
 
   const inputCls =
-    "rounded-lg border border-edge bg-surface-2 px-2.5 py-1.5 text-sm outline-none focus:border-accent";
+    "rounded-lg border border-edge bg-surface-2 px-2.5 py-1.5 text-sm outline-none transition focus:border-accent";
 
   return (
     <form ref={formRef} action={formAction} className="space-y-2">
       <input type="hidden" name="taskId" value={taskId} />
       <div className="flex gap-2">
-        <input
-          name="hours"
-          type="number"
-          step="0.25"
-          min="0.25"
-          required
-          placeholder="Часы"
-          className={`${inputCls} w-20`}
-        />
-        <input
-          name="date"
-          type="date"
-          defaultValue={new Date().toISOString().slice(0, 10)}
-          className={`${inputCls} flex-1`}
-        />
+        <label className="block w-24 shrink-0">
+          <span className="mb-1 block text-[11px] text-muted">Часы</span>
+          <input
+            name="hours"
+            type="number"
+            step="0.25"
+            min="0.25"
+            required
+            placeholder="1.5"
+            className={`${inputCls} w-full`}
+          />
+        </label>
+        <label className="block min-w-0 flex-1">
+          <span className="mb-1 block text-[11px] text-muted">Дата</span>
+          <input
+            name="date"
+            type="date"
+            defaultValue={new Date().toISOString().slice(0, 10)}
+            className={`${inputCls} w-full`}
+          />
+        </label>
       </div>
-      <div className="flex gap-2">
-        <input
+      {/* Комментарий — многострочное поле на всю ширину: длинный текст
+          переносится и виден целиком, а не уезжает за границу поля. */}
+      <label className="block">
+        <span className="mb-1 block text-[11px] text-muted">Комментарий</span>
+        <textarea
           name="note"
-          placeholder="Комментарий (необязательно)"
-          className={`${inputCls} min-w-0 flex-1`}
+          rows={2}
+          maxLength={500}
+          placeholder="Что делали за это время (необязательно)"
+          className={`${inputCls} w-full resize-y leading-relaxed`}
         />
-        <button
-          type="submit"
-          disabled={pending}
-          className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold transition hover:bg-accent-hover disabled:opacity-50"
-        >
-          +
-        </button>
-      </div>
+      </label>
+      <button
+        type="submit"
+        disabled={pending}
+        className="w-full rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold transition hover:bg-accent-hover disabled:opacity-50"
+      >
+        {pending ? "Добавляем…" : "Добавить запись"}
+      </button>
       {state?.error && <p className="text-xs text-red-400">{state.error}</p>}
     </form>
   );

@@ -86,6 +86,19 @@ export function initials(name: string): string {
     .join("");
 }
 
+/**
+ * Русское склонение по числу: plural(2, "голос", "голоса", "голосов") → «голоса».
+ * one — 1, 21, 31…; few — 2–4, 22–24…; many — всё остальное.
+ */
+export function plural(n: number, one: string, few: string, many: string): string {
+  const abs = Math.abs(n) % 100;
+  if (abs >= 11 && abs <= 14) return many;
+  const last = abs % 10;
+  if (last === 1) return one;
+  if (last >= 2 && last <= 4) return few;
+  return many;
+}
+
 export function formatDate(d: Date | string | null | undefined): string {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("ru-RU", {

@@ -2,7 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
-import type { TaskDTO, LinkDTO, MemberDTO, ColumnDTO, TaskTemplateDTO } from "@/lib/types";
+import type {
+  TaskDTO,
+  LinkDTO,
+  MemberDTO,
+  ColumnDTO,
+  TaskTemplateDTO,
+  TagDTO,
+} from "@/lib/types";
 import { ensureDefaultColumns } from "@/lib/board";
 import { canAccessProject, canManageProject } from "@/lib/access";
 import { ProjectMembersDialog } from "@/components/ProjectMembersDialog";
@@ -19,6 +26,9 @@ import { getProjectActivity } from "@/lib/activity";
 import { ShareRoadmapDialog } from "@/components/ShareRoadmapDialog";
 import { WebhooksDialog } from "@/components/WebhooksDialog";
 import { ExportMenu } from "@/components/ExportMenu";
+import { EditProjectDialog } from "@/components/EditProjectDialog";
+import { PollsPanel } from "@/components/PollsPanel";
+import { getProjectPolls } from "@/lib/polls";
 import { formatHours } from "@/lib/labels";
 
 /** Суммарные часы и стоимость по сотрудникам для вкладки «Аналитика». */
@@ -84,6 +94,7 @@ const VIEWS = [
   { id: "graph", label: "Граф веток" },
   { id: "list", label: "Список" },
   { id: "gantt", label: "Гант" },
+  { id: "polls", label: "Опрос" },
   { id: "activity", label: "Активность" },
   { id: "stats", label: "Аналитика" },
 ] as const;
@@ -111,11 +122,13 @@ export default async function ProjectPage({
       tasks: {
         include: {
           assignees: { select: { id: true, name: true } },
+          tags: { select: { id: true, name: true, color: true } },
           timeEntries: { select: { hours: true } },
           _count: { select: { patchLogs: true, children: true } },
         },
         orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       },
+      tags: { orderBy: { name: "asc" }, select: { id: true, name: true, color: true } },
       members: { include: { user: { select: { id: true, name: true } } } },
       owner: { select: { id: true, name: true } },
       columns: { orderBy: { order: "asc" } },
@@ -162,9 +175,12 @@ export default async function ProjectPage({
     spentHours: t.timeEntries.reduce((s, e) => s + e.hours, 0),
     order: t.order,
     assignees: t.assignees,
+    tags: t.tags,
     patchLogCount: t._count.patchLogs,
     childrenCount: t._count.children,
   }));
+
+  const projectTags: TagDTO[] = project.tags;
 
   const linkDtos: LinkDTO[] = links.map((l) => ({
     id: l.id,
@@ -219,7 +235,18 @@ export default async function ProjectPage({
             </span>
           )}
           {canManage && (
-            <ArchiveProjectButton projectId={project.id} archived={project.status === "ARCHIVED"} />
+            <>
+              <EditProjectDialog
+                projectId={project.id}
+                name={project.name}
+                projectKey={project.key}
+                description={project.description}
+              />
+              <ArchiveProjectButton
+                projectId={project.id}
+                archived={project.status === "ARCHIVED"}
+              />
+            </>
           )}
         </div>
 
@@ -264,9 +291,16 @@ export default async function ProjectPage({
             tasks={tasks}
             members={members}
             templates={templates}
+            projectTags={projectTags}
           />
         </div>
       </div>
+
+      {project.description && (
+        <p className="mb-4 max-w-3xl whitespace-pre-wrap break-words text-sm leading-relaxed text-muted">
+          {project.description}
+        </p>
+      )}
 
       <div className="no-scrollbar mb-4 flex w-fit max-w-full flex-nowrap gap-1 overflow-x-auto rounded-xl border border-edge bg-surface p-1">
         {VIEWS.map((v) => (
@@ -309,10 +343,17 @@ export default async function ProjectPage({
             members={members}
             projectId={project.id}
             savedFilters={savedFilters}
+            projectTags={projectTags}
           />
         )}
         {view === "gantt" && (
           <GanttChart tasks={tasks} projectKey={project.key} links={linkDtos} />
+        )}
+        {view === "polls" && (
+          <PollsPanel
+            projectId={project.id}
+            polls={await getProjectPolls(project.id, user)}
+          />
         )}
         {view === "activity" && (
           <ActivityFeed
