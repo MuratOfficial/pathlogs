@@ -28,7 +28,9 @@ import { WebhooksDialog } from "@/components/WebhooksDialog";
 import { ExportMenu } from "@/components/ExportMenu";
 import { EditProjectDialog } from "@/components/EditProjectDialog";
 import { PollsPanel } from "@/components/PollsPanel";
+import { ResourceLinks } from "@/components/ResourceLinks";
 import { getProjectPolls } from "@/lib/polls";
+import { getResourceLinks } from "@/lib/links";
 import { formatHours } from "@/lib/labels";
 
 /** Суммарные часы и стоимость по сотрудникам для вкладки «Аналитика». */
@@ -95,6 +97,7 @@ const VIEWS = [
   { id: "list", label: "Список" },
   { id: "gantt", label: "Гант" },
   { id: "polls", label: "Опрос" },
+  { id: "links", label: "Ссылки" },
   { id: "activity", label: "Активность" },
   { id: "stats", label: "Аналитика" },
 ] as const;
@@ -286,13 +289,16 @@ export default async function ProjectPage({
             candidates={candidates}
             canManage={canManage}
           />
-          <NewTaskDialog
-            projectId={project.id}
-            tasks={tasks}
-            members={members}
-            templates={templates}
-            projectTags={projectTags}
-          />
+          {/* На канбане задачи создаются кнопкой внутри колонки — здесь дубль не нужен */}
+          {view !== "board" && (
+            <NewTaskDialog
+              projectId={project.id}
+              tasks={tasks}
+              members={members}
+              templates={templates}
+              projectTags={projectTags}
+            />
+          )}
         </div>
       </div>
 
@@ -326,6 +332,9 @@ export default async function ProjectPage({
             projectId={project.id}
             projectKey={project.key}
             canManageBoard={canManage}
+            members={members}
+            templates={templates}
+            projectTags={projectTags}
           />
         )}
         {view === "graph" && (
@@ -354,6 +363,20 @@ export default async function ProjectPage({
             projectId={project.id}
             polls={await getProjectPolls(project.id, user)}
           />
+        )}
+        {view === "links" && (
+          <div className="h-full overflow-y-auto pb-4">
+            <div className="mx-auto max-w-3xl">
+              <p className="mb-4 text-sm text-muted">
+                Общие материалы проекта: документация, макеты, дашборды, регламенты.
+                Ссылки, привязанные к конкретным задачам, живут в самих задачах.
+              </p>
+              <ResourceLinks
+                projectId={project.id}
+                links={await getResourceLinks(project.id, user)}
+              />
+            </div>
+          </div>
         )}
         {view === "activity" && (
           <ActivityFeed

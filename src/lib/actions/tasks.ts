@@ -20,6 +20,7 @@ const taskSchema = z.object({
   description: z.string().optional(),
   projectId: z.string().min(1),
   parentId: z.string().optional(),
+  columnId: z.string().optional(),
   type: z.enum(["FEATURE", "BUG", "REFACTOR", "ANALYTICS", "MANAGEMENT", "DESIGN", "DOCS", "RESEARCH"]),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
   estimateHours: z.coerce.number().positive().optional(),
@@ -54,6 +55,7 @@ export async function createTaskAction(
     description: formData.get("description") || undefined,
     projectId: formData.get("projectId"),
     parentId: formData.get("parentId") || undefined,
+    columnId: formData.get("columnId") || undefined,
     type: formData.get("type"),
     priority: formData.get("priority"),
     estimateHours: formData.get("estimateHours") || undefined,
@@ -90,12 +92,29 @@ export async function createTaskAction(
       ).map((t) => t.id)
     : [];
 
+  // Задача, созданная кнопкой «+» внутри колонки доски, сразу в неё и попадает;
+  // если у колонки есть статус — задача получает и его
+  let columnId: string | null = null;
+  let columnStatus: TaskStatus | undefined;
+  if (d.columnId) {
+    const column = await prisma.boardColumn.findUnique({
+      where: { id: d.columnId },
+      select: { id: true, projectId: true, status: true },
+    });
+    if (column?.projectId === d.projectId) {
+      columnId = column.id;
+      columnStatus = column.status ?? undefined;
+    }
+  }
+
   const task = await prisma.task.create({
     data: {
       title: d.title,
       description: d.description,
       projectId: d.projectId,
       parentId: d.parentId || null,
+      columnId,
+      ...(columnStatus ? { status: columnStatus } : {}),
       type: d.type as TaskType,
       priority: d.priority as Priority,
       estimateHours: d.estimateHours,
@@ -135,18 +154,24 @@ export async function updateTaskStatusAction(taskId: string, status: TaskStatus)
   const { user, task: current } = await requireTaskMember(taskId);
   const before = await prisma.task.findUnique({
     where: { id: taskId },
-    select: { status: true },
+    select: { status: true, columnId: true },
   });
-  // Смена статуса переносит карточку в колонку этого статуса (если она есть)
-  const statusColumn = await prisma.boardColumn.findFirst({
-    where: { projectId: current.projectId, status },
-    select: { id: true },
-  });
+  // Смена статуса не двигает карточку по доске — она остаётся в своей колонке.
+  // Если колонка явно не задана, карточка отображалась в колонке своего прежнего
+  // статуса: закрепляем её там, иначе новый статус утащил бы её в другую колонку.
+  let columnId = before?.columnId ?? null;
+  if (!columnId && before) {
+    const currentColumn = await prisma.boardColumn.findFirst({
+      where: { projectId: current.projectId, status: before.status },
+      select: { id: true },
+    });
+    columnId = currentColumn?.id ?? null;
+  }
   const task = await prisma.task.update({
     where: { id: taskId },
     data: {
       status,
-      columnId: statusColumn?.id ?? null,
+      columnId,
       closedAt: status === "CLOSED" || status === "DONE" ? new Date() : null,
     },
     include: { project: { select: { key: true } } },

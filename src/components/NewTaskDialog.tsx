@@ -14,6 +14,7 @@ export function NewTaskDialog({
   templates = [],
   projectTags = [],
   defaultParentId,
+  columnId,
   triggerLabel = (
     <>
       <span className="sm:hidden">+ Задача</span>
@@ -29,6 +30,8 @@ export function NewTaskDialog({
   /** Метки проекта, которые можно проставить сразу при создании. */
   projectTags?: TagDTO[];
   defaultParentId?: string;
+  /** Колонка доски, в которую сразу попадёт задача (кнопка «+» внутри колонки). */
+  columnId?: string;
   triggerLabel?: ReactNode;
   triggerClassName?: string;
 }) {
@@ -68,6 +71,7 @@ export function NewTaskDialog({
           >
             <h2 className="mb-5 text-lg font-semibold">Новая задача</h2>
             <input type="hidden" name="projectId" value={projectId} />
+            {columnId && <input type="hidden" name="columnId" value={columnId} />}
 
             {templates.length > 0 && (
               <label className="mb-4 block">

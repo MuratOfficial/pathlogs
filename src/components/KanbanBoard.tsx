@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import type { TaskDTO, ColumnDTO } from "@/lib/types";
+import type { TaskDTO, ColumnDTO, MemberDTO, TaskTemplateDTO, TagDTO } from "@/lib/types";
+import { NewTaskDialog } from "./NewTaskDialog";
 import {
   createBoardColumnAction,
   updateBoardColumnAction,
@@ -159,65 +160,154 @@ function AddColumn({
   );
 }
 
-/** Бейдж количества карточек с WIP-лимитом. Клик (для управляющих) — задать лимит. */
-function WipBadge({
-  count,
-  limit,
-  canEdit,
-  onSetLimit,
-}: {
-  count: number;
-  limit: number | null;
-  canEdit: boolean;
-  onSetLimit: (limit: number | null) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(limit ? String(limit) : "");
+/** Бейдж количества карточек; подсвечивается красным при превышении WIP-лимита. */
+function WipBadge({ count, limit }: { count: number; limit: number | null }) {
   const over = limit != null && count > limit;
-
-  if (editing) {
-    function commit() {
-      setEditing(false);
-      const n = parseInt(value, 10);
-      onSetLimit(Number.isFinite(n) && n > 0 ? n : null);
-    }
-    return (
-      <input
-        autoFocus
-        type="number"
-        min={1}
-        value={value}
-        placeholder="∞"
-        onChange={(e) => setValue(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
-          if (e.key === "Escape") setEditing(false);
-        }}
-        className="w-14 rounded-full border border-accent bg-surface-2 px-2 py-0.5 text-center text-xs outline-none"
-        data-tip="WIP-лимит колонки (пусто — без лимита)"
-      />
-    );
-  }
-
   return (
     <span
-      onClick={canEdit ? () => { setValue(limit ? String(limit) : ""); setEditing(true); } : undefined}
-      data-tip={
-        canEdit
-          ? "Нажмите, чтобы задать WIP-лимит"
-          : limit != null
-            ? `WIP-лимит: ${limit}`
-            : undefined
-      }
-      className={`rounded-full px-2 py-0.5 text-xs ${canEdit ? "cursor-pointer" : ""} ${
-        over
-          ? "bg-red-500/20 font-semibold text-red-400"
-          : "bg-surface-2 text-muted"
+      data-tip={limit != null ? `WIP-лимит: ${limit}` : undefined}
+      className={`rounded-full px-2 py-0.5 text-xs ${
+        over ? "bg-red-500/20 font-semibold text-red-400" : "bg-surface-2 text-muted"
       }`}
     >
       {limit != null ? `${count}/${limit}` : count}
     </span>
+  );
+}
+
+// Размеры поповера редактирования колонки для расчёта позиции
+const EDITOR_W = 264;
+const EDITOR_H = 300;
+
+/**
+ * Поповер редактирования колонки: название, цвет, WIP-лимит и удаление.
+ * Одно понятное место вместо трёх разрозненных инлайн-контролов.
+ */
+function ColumnEditor({
+  column,
+  anchorRect,
+  canDelete,
+  onSave,
+  onDelete,
+  onClose,
+}: {
+  column: ColumnDTO;
+  anchorRect: DOMRect;
+  canDelete: boolean;
+  onSave: (fields: { name: string; color: string; wipLimit: number | null }) => void;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(column.name);
+  const [color, setColor] = useState(column.color);
+  const [wip, setWip] = useState(column.wipLimit != null ? String(column.wipLimit) : "");
+
+  const gap = 6;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const left = Math.min(Math.max(8, anchorRect.right - EDITOR_W), vw - EDITOR_W - 8);
+  let top = anchorRect.bottom + gap;
+  if (top + EDITOR_H > vh - 8) {
+    const above = anchorRect.top - gap - EDITOR_H;
+    top = above >= 8 ? above : Math.max(8, vh - EDITOR_H - 8);
+  }
+
+  function save() {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const n = parseInt(wip, 10);
+    onSave({
+      name: trimmed,
+      color,
+      wipLimit: Number.isFinite(n) && n > 0 ? n : null,
+    });
+    onClose();
+  }
+
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div
+        style={{ position: "fixed", top, left, width: EDITOR_W }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") save();
+          if (e.key === "Escape") onClose();
+        }}
+        className="z-50 rounded-xl border border-edge bg-surface p-3.5 shadow-2xl"
+      >
+        <label className="mb-3 block">
+          <span className="mb-1 block text-[11px] text-muted">Название</span>
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full rounded-lg border border-edge bg-surface-2 px-2.5 py-1.5 text-sm outline-none transition focus:border-accent"
+          />
+        </label>
+
+        <span className="mb-1 block text-[11px] text-muted">Цвет</span>
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {BOARD_PALETTE.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setColor(c)}
+              aria-label={`Цвет ${c}`}
+              className={`h-5 w-5 rounded-full border transition hover:scale-110 ${
+                color === c ? "border-foreground" : "border-edge"
+              }`}
+              style={{ backgroundColor: c }}
+            />
+          ))}
+        </div>
+
+        <label className="mb-4 block">
+          <span className="mb-1 block text-[11px] text-muted">
+            WIP-лимит <span className="opacity-70">· пусто — без лимита</span>
+          </span>
+          <input
+            type="number"
+            min={1}
+            value={wip}
+            placeholder="∞"
+            onChange={(e) => setWip(e.target.value)}
+            className="w-full rounded-lg border border-edge bg-surface-2 px-2.5 py-1.5 text-sm outline-none transition focus:border-accent"
+          />
+        </label>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={save}
+            disabled={!name.trim()}
+            className="flex-1 rounded-lg bg-accent py-1.5 text-sm font-semibold transition hover:bg-accent-hover disabled:opacity-50"
+          >
+            Сохранить
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-edge px-3 py-1.5 text-sm text-muted transition hover:text-foreground"
+          >
+            Отмена
+          </button>
+        </div>
+
+        {canDelete && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onDelete();
+            }}
+            className="mt-2.5 w-full rounded-lg border border-red-500/30 py-1.5 text-xs font-medium text-red-400 transition hover:bg-red-500/10"
+          >
+            Удалить колонку
+          </button>
+        )}
+      </div>
+    </>,
+    document.body
   );
 }
 
@@ -274,6 +364,9 @@ export function KanbanBoard({
   projectId,
   projectKey,
   canManageBoard,
+  members,
+  templates = [],
+  projectTags = [],
 }: {
   tasks: TaskDTO[];
   columns: ColumnDTO[];
@@ -281,6 +374,10 @@ export function KanbanBoard({
   projectKey: string;
   /** Право удалять колонки (менеджер проекта, владелец или админ). */
   canManageBoard: boolean;
+  /** Для формы «+ Задача» внутри колонки. */
+  members: MemberDTO[];
+  templates?: TaskTemplateDTO[];
+  projectTags?: TagDTO[];
 }) {
   const router = useRouter();
   const [tasks, setTasks] = useState(initialTasks);
@@ -310,8 +407,10 @@ export function KanbanBoard({
   const [overCol, setOverCol] = useState<string | null>(null); // колонка-цель для карточки
   const [dragColId, setDragColId] = useState<string | null>(null); // перетаскиваемая колонка
   const [overColDrag, setOverColDrag] = useState<string | null>(null); // колонка-цель при переносе колонки
-  const [paletteFor, setPaletteFor] = useState<string | null>(null); // id колонки или задачи
+  const [paletteFor, setPaletteFor] = useState<string | null>(null); // id задачи (цвет карточки)
   const [paletteRect, setPaletteRect] = useState<DOMRect | null>(null); // якорь палитры
+  const [editorFor, setEditorFor] = useState<string | null>(null); // id редактируемой колонки
+  const [editorRect, setEditorRect] = useState<DOMRect | null>(null); // якорь редактора колонки
   const [colToRemove, setColToRemove] = useState<ColumnDTO | null>(null); // подтверждение удаления
 
   // Открыть/закрыть палитру, запомнив позицию кнопки-триггера
@@ -321,6 +420,15 @@ export function KanbanBoard({
     } else {
       setPaletteRect(e.currentTarget.getBoundingClientRect());
       setPaletteFor(id);
+    }
+  }
+
+  function toggleEditor(colId: string, e: React.MouseEvent<HTMLButtonElement>) {
+    if (editorFor === colId) {
+      setEditorFor(null);
+    } else {
+      setEditorRect(e.currentTarget.getBoundingClientRect());
+      setEditorFor(colId);
     }
   }
 
@@ -393,27 +501,28 @@ export function KanbanBoard({
     });
   }
 
-  function recolorColumn(colId: string, color: string | null) {
-    if (!color) return;
-    setColumns((prev) => prev.map((c) => (c.id === colId ? { ...c, color } : c)));
-    startTransition(() => updateBoardColumnAction(colId, { color }));
-  }
-
   function renameColumn(colId: string, name: string) {
     setColumns((prev) => prev.map((c) => (c.id === colId ? { ...c, name } : c)));
     startTransition(() => updateBoardColumnAction(colId, { name }));
   }
 
-  function setColumnWip(colId: string, wipLimit: number | null) {
-    setColumns((prev) => prev.map((c) => (c.id === colId ? { ...c, wipLimit } : c)));
-    startTransition(() => updateBoardColumnAction(colId, { wipLimit }));
+  function saveColumn(
+    colId: string,
+    fields: { name: string; color: string; wipLimit: number | null }
+  ) {
+    setColumns((prev) => prev.map((c) => (c.id === colId ? { ...c, ...fields } : c)));
+    startTransition(() => updateBoardColumnAction(colId, fields));
   }
 
   function removeColumn(colId: string) {
     setColToRemove(null);
+    // Задачи удалённой колонки на сервере переезжают в первую оставшуюся —
+    // повторяем это оптимистично, чтобы карточки не мигали и не пропадали
+    const fallback = sorted.find((c) => c.id !== colId)?.id ?? null;
+    const moved = new Set(tasksOf(colId).map((t) => t.id));
     setColumns((prev) => prev.filter((c) => c.id !== colId));
     setTasks((prev) =>
-      prev.map((t) => (t.columnId === colId ? { ...t, columnId: null } : t))
+      prev.map((t) => (moved.has(t.id) ? { ...t, columnId: fallback } : t))
     );
     startTransition(() => deleteBoardColumnAction(colId));
   }
@@ -425,15 +534,14 @@ export function KanbanBoard({
 
   // Быстрая отметка «Готово» по клику на галочку (как в Trello).
   // Повторный клик снимает отметку и возвращает в «К выполнению».
+  // Карточка при этом остаётся в своей колонке — статус её не двигает.
   function toggleTaskDone(t: TaskDTO) {
     const isDone = t.status === "DONE" || t.status === "CLOSED";
     const next = isDone ? "TODO" : "DONE";
-    const targetCol = columns.find((c) => c.status === next) ?? null;
+    const stayIn = columnOf(t);
     setTasks((prev) =>
       prev.map((x) =>
-        x.id === t.id
-          ? { ...x, status: next, columnId: targetCol?.id ?? x.columnId }
-          : x
+        x.id === t.id ? { ...x, status: next, columnId: stayIn ?? x.columnId } : x
       )
     );
     startTransition(() => updateTaskStatusAction(t.id, next));
@@ -497,42 +605,35 @@ export function KanbanBoard({
                   <path d="M7 4a1 1 0 110 2 1 1 0 010-2zM7 9a1 1 0 110 2 1 1 0 010-2zM7 14a1 1 0 110 2 1 1 0 010-2zM13 4a1 1 0 110 2 1 1 0 010-2zM13 9a1 1 0 110 2 1 1 0 010-2zM13 14a1 1 0 110 2 1 1 0 010-2z" />
                 </svg>
               </span>
-              <span className="relative">
-                <button
-                  type="button"
-                  data-tip="Цвет колонки"
-                  onClick={(e) => togglePalette(col.id, e)}
-                  className="block h-2.5 w-2.5 rounded-full transition hover:scale-125"
-                  style={{ backgroundColor: col.color }}
-                />
-                {paletteFor === col.id && paletteRect && (
-                  <ColorPalette
-                    anchorRect={paletteRect}
-                    onPick={(c) => recolorColumn(col.id, c)}
-                    onClose={() => setPaletteFor(null)}
-                  />
-                )}
-              </span>
+              <span
+                aria-hidden
+                className="block h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: col.color }}
+              />
               <div className="min-w-0 flex-1">
                 <ColumnTitle name={col.name} onRename={(n) => renameColumn(col.id, n)} />
               </div>
-              <WipBadge
-                count={colTasks.length}
-                limit={col.wipLimit}
-                canEdit={canManageBoard}
-                onSetLimit={(l) => setColumnWip(col.id, l)}
-              />
-              {!col.status && canManageBoard && (
-                <button
-                  type="button"
-                  data-tip="Удалить колонку (задачи вернутся в колонки статусов)"
-                  onClick={() => setColToRemove(col)}
-                  className="text-muted transition hover:text-red-400"
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+              <WipBadge count={colTasks.length} limit={col.wipLimit} />
+              <button
+                type="button"
+                data-tip="Настроить колонку"
+                aria-label={`Настроить колонку «${col.name}»`}
+                onClick={(e) => toggleEditor(col.id, e)}
+                className="shrink-0 rounded p-0.5 text-muted transition hover:bg-surface-2 hover:text-foreground"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
+                </svg>
+              </button>
+              {editorFor === col.id && editorRect && (
+                <ColumnEditor
+                  column={col}
+                  anchorRect={editorRect}
+                  canDelete={canManageBoard && columns.length > 1}
+                  onSave={(fields) => saveColumn(col.id, fields)}
+                  onDelete={() => setColToRemove(col)}
+                  onClose={() => setEditorFor(null)}
+                />
               )}
             </div>
 
@@ -570,8 +671,14 @@ export function KanbanBoard({
                       toggleTaskDone(t);
                     }
                   }}
+                  // Выполненные карточки приглушены (блёклый цвет и полупрозрачность),
+                  // при наведении проявляются — сразу видно, что уже сделано
                   className={`group cursor-pointer rounded-xl border border-edge bg-surface p-3.5 outline-none transition hover:border-accent/50 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40 ${
                     dragId === t.id ? "opacity-40" : ""
+                  } ${
+                    t.status === "DONE" || t.status === "CLOSED"
+                      ? "opacity-55 saturate-50 hover:opacity-100 hover:saturate-100 focus-visible:opacity-100"
+                      : ""
                   } ${
                     overTaskId === t.id && dragId && dragId !== t.id
                       ? "border-t-2 border-t-accent"
@@ -689,6 +796,28 @@ export function KanbanBoard({
                 </div>
               )}
             </div>
+
+            {/* Создание задачи прямо в колонке: неброская строка внизу,
+                как в Trello — задача сразу попадает в эту колонку */}
+            <div className="px-3 pb-3">
+              <NewTaskDialog
+                projectId={projectId}
+                columnId={col.id}
+                tasks={tasks}
+                members={members}
+                templates={templates}
+                projectTags={projectTags}
+                triggerLabel={
+                  <>
+                    <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Задача
+                  </>
+                }
+                triggerClassName="flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
+              />
+            </div>
           </div>
         );
       })}
@@ -698,7 +827,7 @@ export function KanbanBoard({
       <ConfirmDialog
         open={colToRemove !== null}
         title={`Удалить колонку «${colToRemove?.name ?? ""}»?`}
-        message="Задачи не пропадут — они вернутся в колонки своих статусов."
+        message="Задачи не пропадут — они переедут в первую колонку доски. Статусы задач не изменятся."
         confirmLabel="Удалить колонку"
         onConfirm={() => colToRemove && removeColumn(colToRemove.id)}
         onCancel={() => setColToRemove(null)}

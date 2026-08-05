@@ -80,14 +80,38 @@ export async function updateBoardColumnAction(
 }
 
 /**
- * Удалять можно только кастомные колонки (менеджер проекта, владелец или админ);
- * задачи из них возвращаются в колонку своего статуса.
+ * Удаляет колонку доски (менеджер проекта, владелец или админ) — любую,
+ * включая стандартную. Задачи не теряются: они переезжают в первую оставшуюся
+ * колонку, статус при этом не меняется. Последнюю колонку удалить нельзя.
  */
 export async function deleteBoardColumnAction(columnId: string) {
   const column = await prisma.boardColumn.findUniqueOrThrow({ where: { id: columnId } });
   await requireProjectManager(column.projectId);
-  if (column.status) throw new Error("Стандартную колонку удалить нельзя");
-  await prisma.boardColumn.delete({ where: { id: columnId } });
+
+  const rest = await prisma.boardColumn.findMany({
+    where: { projectId: column.projectId, id: { not: columnId } },
+    orderBy: { order: "asc" },
+    select: { id: true },
+  });
+  if (rest.length === 0) {
+    throw new Error("Нельзя удалить последнюю колонку доски");
+  }
+
+  await prisma.$transaction([
+    prisma.task.updateMany({
+      where: {
+        projectId: column.projectId,
+        OR: [
+          { columnId },
+          // Карточки без явной колонки показывались здесь по своему статусу —
+          // закрепляем и их, иначе после удаления они пропали бы с доски
+          ...(column.status ? [{ columnId: null, status: column.status }] : []),
+        ],
+      },
+      data: { columnId: rest[0]!.id },
+    }),
+    prisma.boardColumn.delete({ where: { id: columnId } }),
+  ]);
   revalidatePath(`/projects/${column.projectId}`);
 }
 

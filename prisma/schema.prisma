@@ -87,6 +87,7 @@ model User {
   statusEvents  TaskStatusEvent[] @relation("StatusEventUser")
   polls         Poll[]            @relation("PollAuthor")
   pollVotes     PollVote[]        @relation("PollVoter")
+  resourceLinks ResourceLink[]    @relation("ResourceLinkAuthor")
 }
 
 model Project {
@@ -107,6 +108,7 @@ model Project {
   savedFilters SavedFilter[]
   tags        Tag[]
   polls       Poll[]
+  links       ResourceLink[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 }
@@ -192,6 +194,7 @@ model Task {
   statusEvents  TaskStatusEvent[]
   gitCommits    GitCommitRef[]
   tags          Tag[]        @relation("TaskTags")
+  links         ResourceLink[]
 
   @@index([projectId, status])
   @@index([parentId])
@@ -393,6 +396,30 @@ model TrelloCredential {
   token     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/// Полезная ссылка с описанием: документация, макеты, дашборды, регламенты.
+/// taskId == null — ссылка уровня проекта (вкладка «Ссылки»),
+/// иначе — ссылка конкретной задачи. projectId заполнен всегда: по нему
+/// проверяется доступ и каскадно удаляются ссылки вместе с проектом.
+model ResourceLink {
+  id          String   @id @default(cuid())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String
+  task        Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId      String?
+  /// Только http/https — схема проверяется при сохранении
+  url         String
+  /// Необязательное название; если не задано — показываем хост
+  title       String?
+  description String?
+  author      User     @relation("ResourceLinkAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId, taskId])
+  @@index([taskId])
 }
 
 /// Опрос среди участников проекта. Создавать может любой участник,

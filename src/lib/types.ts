@@ -52,6 +52,19 @@ export interface MemberDTO {
   name: string;
 }
 
+/** Полезная ссылка проекта или задачи. */
+export interface ResourceLinkDTO {
+  id: string;
+  url: string;
+  /** Необязательное название; если null — показываем хост. */
+  title: string | null;
+  description: string | null;
+  author: MemberDTO;
+  createdAt: string;
+  /** Текущий пользователь может редактировать и удалять ссылку. */
+  canEdit: boolean;
+}
+
 /** Вариант ответа опроса вместе с результатами голосования. */
 export interface PollOptionDTO {
   id: string;

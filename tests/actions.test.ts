@@ -377,28 +377,47 @@ describe("updateTaskStatusAction / updateTaskFieldsAction", () => {
     );
   });
 
-  it("смена статуса синхронизирует колонку", async () => {
+  it("смена статуса не двигает карточку: она остаётся в своей колонке", async () => {
     loginAs(fx.member);
+    // Карточка лежит в кастомной колонке — статус её оттуда не выдёргивает
+    await prisma.task.update({
+      where: { id: fx.task.id },
+      data: { columnId: fx.cols.custom.id },
+    });
     await updateTaskStatusAction(fx.task.id, "IN_PROGRESS");
     const updated = await prisma.task.findUniqueOrThrow({ where: { id: fx.task.id } });
     expect(updated.status).toBe("IN_PROGRESS");
-    expect(updated.columnId).toBe(fx.cols.inProgress.id);
+    expect(updated.columnId).toBe(fx.cols.custom.id);
   });
 
-  it("DONE проставляет closedAt и сбрасывает колонку (нет колонки DONE), возврат в TODO — сбрасывает closedAt", async () => {
+  it("карточка без явной колонки закрепляется за той, где отображалась", async () => {
     loginAs(fx.member);
+    // columnId не задан: на доске карточка видна в колонке своего статуса (TODO)
+    expect(fx.task.columnId).toBeNull();
+    await updateTaskStatusAction(fx.task.id, "IN_PROGRESS");
+    const updated = await prisma.task.findUniqueOrThrow({ where: { id: fx.task.id } });
+    expect(updated.columnId).toBe(fx.cols.todo.id);
+  });
+
+  it("DONE проставляет closedAt, возврат в TODO — сбрасывает; колонка не меняется", async () => {
+    loginAs(fx.member);
+    await prisma.task.update({
+      where: { id: fx.task.id },
+      data: { columnId: fx.cols.custom.id },
+    });
+
     await updateTaskStatusAction(fx.task.id, "DONE");
     let t = await prisma.task.findUniqueOrThrow({ where: { id: fx.task.id } });
     expect(t.status).toBe("DONE");
     expect(t.closedAt).not.toBeNull();
-    expect(t.columnId).toBeNull(); // в фикстурах нет колонки со статусом DONE
+    expect(t.columnId).toBe(fx.cols.custom.id);
 
     // Снятие отметки (как повторный клик по галочке в канбане)
     await updateTaskStatusAction(fx.task.id, "TODO");
     t = await prisma.task.findUniqueOrThrow({ where: { id: fx.task.id } });
     expect(t.status).toBe("TODO");
     expect(t.closedAt).toBeNull();
-    expect(t.columnId).toBe(fx.cols.todo.id);
+    expect(t.columnId).toBe(fx.cols.custom.id);
   });
 
   it("исполнители фильтруются по участникам проекта", async () => {
@@ -454,20 +473,57 @@ describe("board actions", () => {
     expect(t.status).toBe("IN_PROGRESS");
   });
 
-  it("удаление колонки: разработчику нельзя, менеджеру можно, статусную — никому", async () => {
+  it("удаление колонки: разработчику нельзя, менеджеру можно — включая статусную", async () => {
     loginAs(fx.member);
     await expect(deleteBoardColumnAction(fx.cols.custom.id)).rejects.toThrow(
       "Требуются права менеджера проекта"
     );
 
     loginAs(fx.manager);
-    await expect(deleteBoardColumnAction(fx.cols.todo.id)).rejects.toThrow(
-      "Стандартную колонку удалить нельзя"
-    );
     await deleteBoardColumnAction(fx.cols.custom.id);
     expect(
       await prisma.boardColumn.findUnique({ where: { id: fx.cols.custom.id } })
     ).toBeNull();
+
+    // Стандартную колонку тоже можно удалить
+    await deleteBoardColumnAction(fx.cols.inProgress.id);
+    expect(
+      await prisma.boardColumn.findUnique({ where: { id: fx.cols.inProgress.id } })
+    ).toBeNull();
+  });
+
+  it("удаление колонки переносит её задачи в первую оставшуюся, не меняя статус", async () => {
+    loginAs(fx.manager);
+    // Задача с явной колонкой и задача, видимая в колонке по статусу
+    await prisma.task.update({
+      where: { id: fx.task.id },
+      data: { columnId: fx.cols.inProgress.id, status: "IN_PROGRESS" },
+    });
+    const implicit = await prisma.task.create({
+      data: {
+        title: "Без явной колонки",
+        projectId: fx.project.id,
+        creatorId: fx.member.id,
+        status: "IN_PROGRESS",
+      },
+    });
+
+    await deleteBoardColumnAction(fx.cols.inProgress.id);
+
+    for (const id of [fx.task.id, implicit.id]) {
+      const t = await prisma.task.findUniqueOrThrow({ where: { id } });
+      expect(t.columnId).toBe(fx.cols.todo.id); // первая оставшаяся колонка
+      expect(t.status).toBe("IN_PROGRESS"); // статус не тронут
+    }
+  });
+
+  it("последнюю колонку доски удалить нельзя", async () => {
+    loginAs(fx.manager);
+    await deleteBoardColumnAction(fx.cols.custom.id);
+    await deleteBoardColumnAction(fx.cols.inProgress.id);
+    await expect(deleteBoardColumnAction(fx.cols.todo.id)).rejects.toThrow(
+      "Нельзя удалить последнюю колонку доски"
+    );
   });
 });
 

@@ -25,6 +25,8 @@ import { ConfirmActionButton } from "@/components/task/ConfirmActionButton";
 import { Checklist } from "@/components/task/Checklist";
 import { CommentForm } from "@/components/task/CommentForm";
 import { Markdown } from "@/components/Markdown";
+import { ResourceLinks } from "@/components/ResourceLinks";
+import { getResourceLinks } from "@/lib/links";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { googleCalendarUrl } from "@/lib/calendar";
 import {
@@ -112,6 +114,9 @@ export default async function TaskPage({
     select: { id: true, name: true, color: true },
   });
   const canManageTags = await canManageProject(task.projectId, user);
+
+  // Полезные ссылки задачи (блок «Ссылки»)
+  const resourceLinks = await getResourceLinks(task.projectId, user, task.id);
 
   // История статусов (машина времени)
   const statusEvents = (
@@ -363,6 +368,19 @@ export default async function TaskPage({
               )}
             </div>
             <CommentForm taskId={task.id} members={projectMembers} />
+          </section>
+
+          {/* Ссылки */}
+          <section className="rounded-2xl border border-edge bg-surface p-6">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
+              Ссылки ({resourceLinks.length})
+            </h2>
+            <ResourceLinks
+              projectId={task.projectId}
+              taskId={task.id}
+              links={resourceLinks}
+              emptyHint="Ссылок пока нет — добавьте макет, тикет, спеку или пул-реквест."
+            />
           </section>
 
           {/* Файлы */}
