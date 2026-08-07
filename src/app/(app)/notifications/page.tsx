@@ -30,7 +30,7 @@ export default async function NotificationsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-400">
       <h1 className="mb-6 text-xl font-bold tracking-tight">Уведомления</h1>
 
       {notifications.length === 0 ? (

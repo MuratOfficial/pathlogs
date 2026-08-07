@@ -6,6 +6,7 @@ import { NewProjectDialog } from "@/components/NewProjectDialog";
 import { ImportTrelloDialog } from "@/components/ImportTrelloDialog";
 import { ImportFileDialog } from "@/components/ImportFileDialog";
 import { ArchiveProjectButton } from "@/components/ArchiveProjectButton";
+import { PinProjectButton } from "@/components/PinProjectButton";
 
 export default async function DashboardPage({
   searchParams,
@@ -48,8 +49,17 @@ export default async function DashboardPage({
     orderBy: { updatedAt: "desc" },
   });
 
+  const pinnedIds = new Set(
+    (
+      await prisma.projectPin.findMany({
+        where: { userId: user.id },
+        select: { projectId: true },
+      })
+    ).map((p) => p.projectId)
+  );
+
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-400">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Проекты</h1>
@@ -103,14 +113,15 @@ export default async function DashboardPage({
                     <span className="rounded-md bg-accent/15 px-2 py-1 font-mono text-xs font-bold text-accent-hover">
                       {p.key}
                     </span>
-                    {canManage && (
-                      <span className="pointer-events-auto">
+                    <span className="pointer-events-auto flex items-center gap-0.5">
+                      <PinProjectButton projectId={p.id} pinned={pinnedIds.has(p.id)} />
+                      {canManage && (
                         <ArchiveProjectButton
                           projectId={p.id}
                           archived={p.status === "ARCHIVED"}
                         />
-                      </span>
-                    )}
+                      )}
+                    </span>
                   </div>
                   <h3 className="text-base font-semibold group-hover:text-accent-hover">
                     {p.name}

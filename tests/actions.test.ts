@@ -43,10 +43,12 @@ import {
   moveTaskAction,
   reorderColumnsAction,
   updateBoardColumnAction,
+  setBoardColumnHiddenAction,
 } from "@/lib/actions/board";
 import {
   removeProjectMemberAction,
   toggleProjectArchiveAction,
+  toggleProjectPinAction,
 } from "@/lib/actions/projects";
 import { createTemplateAction, deleteTemplateAction } from "@/lib/actions/templates";
 import { saveFilterAction, deleteFilterAction } from "@/lib/actions/filters";
@@ -524,6 +526,178 @@ describe("board actions", () => {
     await expect(deleteBoardColumnAction(fx.cols.todo.id)).rejects.toThrow(
       "Нельзя удалить последнюю колонку доски"
     );
+  });
+
+  it("задачи удалённой колонки не уезжают в скрытую", async () => {
+    loginAs(fx.manager);
+    await setBoardColumnHiddenAction(fx.cols.todo.id, true); // первая по порядку
+    await prisma.task.update({
+      where: { id: fx.task.id },
+      data: { columnId: fx.cols.inProgress.id },
+    });
+
+    await deleteBoardColumnAction(fx.cols.inProgress.id);
+
+    const t = await prisma.task.findUniqueOrThrow({ where: { id: fx.task.id } });
+    expect(t.columnId).toBe(fx.cols.custom.id); // первая ВИДИМАЯ колонка
+  });
+});
+
+describe("скрытие колонок", () => {
+  it("скрытая колонка сохраняет задачи и возвращается обратно", async () => {
+    loginAs(fx.member);
+    await prisma.task.update({
+      where: { id: fx.task.id },
+      data: { columnId: fx.cols.todo.id },
+    });
+
+    await setBoardColumnHiddenAction(fx.cols.todo.id, true);
+    let col = await prisma.boardColumn.findUniqueOrThrow({
+      where: { id: fx.cols.todo.id },
+    });
+    expect(col.hidden).toBe(true);
+    // Задача осталась в колонке — она просто не видна на доске
+    const hiddenTask = await prisma.task.findUniqueOrThrow({ where: { id: fx.task.id } });
+    expect(hiddenTask.columnId).toBe(fx.cols.todo.id);
+
+    await setBoardColumnHiddenAction(fx.cols.todo.id, false);
+    col = await prisma.boardColumn.findUniqueOrThrow({ where: { id: fx.cols.todo.id } });
+    expect(col.hidden).toBe(false);
+  });
+
+  it("последнюю видимую колонку скрыть нельзя", async () => {
+    loginAs(fx.member);
+    await setBoardColumnHiddenAction(fx.cols.todo.id, true);
+    await setBoardColumnHiddenAction(fx.cols.inProgress.id, true);
+    await expect(setBoardColumnHiddenAction(fx.cols.custom.id, true)).rejects.toThrow(
+      "Нельзя скрыть последнюю колонку доски"
+    );
+  });
+
+  it("посторонний колонки не скрывает", async () => {
+    loginAs(fx.outsider);
+    await expect(setBoardColumnHiddenAction(fx.cols.todo.id, true)).rejects.toThrow(
+      "Нет доступа к проекту"
+    );
+  });
+});
+
+describe("сортировка колонки", () => {
+  it("порядок карточек сохраняется в колонке", async () => {
+    loginAs(fx.member);
+    await updateBoardColumnAction(fx.cols.todo.id, { sort: "CREATED_DESC" });
+    const col = await prisma.boardColumn.findUniqueOrThrow({
+      where: { id: fx.cols.todo.id },
+    });
+    expect(col.sort).toBe("CREATED_DESC");
+    expect(col.name).toBe("К выполнению"); // остальные поля не тронуты
+  });
+
+  it("посторонний сортировку не меняет", async () => {
+    loginAs(fx.outsider);
+    await expect(
+      updateBoardColumnAction(fx.cols.todo.id, { sort: "CREATED_ASC" })
+    ).rejects.toThrow("Нет доступа к проекту");
+  });
+});
+
+describe("закрепление проекта", () => {
+  it("участник закрепляет и открепляет проект", async () => {
+    loginAs(fx.member);
+    expect(await toggleProjectPinAction(fx.project.id)).toEqual({ pinned: true });
+    expect(
+      await prisma.projectPin.count({
+        where: { userId: fx.member.id, projectId: fx.project.id },
+      })
+    ).toBe(1);
+
+    expect(await toggleProjectPinAction(fx.project.id)).toEqual({ pinned: false });
+    expect(
+      await prisma.projectPin.count({
+        where: { userId: fx.member.id, projectId: fx.project.id },
+      })
+    ).toBe(0);
+  });
+
+  it("закрепление персональное: у другого участника своё", async () => {
+    loginAs(fx.member);
+    await toggleProjectPinAction(fx.project.id);
+    loginAs(fx.manager);
+    expect(
+      await prisma.projectPin.count({ where: { userId: fx.manager.id } })
+    ).toBe(0);
+  });
+
+  it("посторонний чужой проект не закрепляет", async () => {
+    loginAs(fx.outsider);
+    await expect(toggleProjectPinAction(fx.project.id)).rejects.toThrow(
+      "Нет доступа к проекту"
+    );
+  });
+});
+
+describe("колонка «К выполнению» для новых задач", () => {
+  it("задача без явной колонки попадает в колонку «К выполнению»", async () => {
+    loginAs(fx.member);
+    await createTaskAction(undefined, taskForm(fx.project.id));
+    const created = await prisma.task.findFirstOrThrow({
+      where: { title: "Новая задача" },
+    });
+    expect(created.columnId).toBe(fx.cols.todo.id);
+  });
+
+  it("удалённая колонка «К выполнению» восстанавливается, задача не теряется", async () => {
+    loginAs(fx.manager);
+    await deleteBoardColumnAction(fx.cols.todo.id);
+
+    await createTaskAction(undefined, taskForm(fx.project.id));
+
+    const created = await prisma.task.findFirstOrThrow({
+      where: { title: "Новая задача" },
+    });
+    const restored = await prisma.boardColumn.findFirstOrThrow({
+      where: { projectId: fx.project.id, status: "TODO" },
+    });
+    expect(restored.hidden).toBe(false);
+    expect(created.columnId).toBe(restored.id);
+    // Восстановленная колонка встаёт первой на доске
+    const first = await prisma.boardColumn.findFirstOrThrow({
+      where: { projectId: fx.project.id },
+      orderBy: { order: "asc" },
+    });
+    expect(first.id).toBe(restored.id);
+  });
+
+  it("скрытая колонка «К выполнению» показывается обратно", async () => {
+    loginAs(fx.member);
+    await setBoardColumnHiddenAction(fx.cols.todo.id, true);
+
+    await createTaskAction(undefined, taskForm(fx.project.id));
+
+    const col = await prisma.boardColumn.findUniqueOrThrow({
+      where: { id: fx.cols.todo.id },
+    });
+    expect(col.hidden).toBe(false);
+    const created = await prisma.task.findFirstOrThrow({
+      where: { title: "Новая задача" },
+    });
+    expect(created.columnId).toBe(fx.cols.todo.id);
+    // Дубликат колонки не создаём
+    expect(
+      await prisma.boardColumn.count({ where: { projectId: fx.project.id, status: "TODO" } })
+    ).toBe(1);
+  });
+
+  it("явно выбранная колонка важнее «К выполнению»", async () => {
+    loginAs(fx.member);
+    await createTaskAction(
+      undefined,
+      taskForm(fx.project.id, { columnId: fx.cols.custom.id })
+    );
+    const created = await prisma.task.findFirstOrThrow({
+      where: { title: "Новая задача" },
+    });
+    expect(created.columnId).toBe(fx.cols.custom.id);
   });
 });
 

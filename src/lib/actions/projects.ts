@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
-import { requireProjectManager } from "@/lib/access";
+import { requireProjectManager, requireProjectMember } from "@/lib/access";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { randomBytes } from "crypto";
@@ -16,6 +16,11 @@ const projectSchema = z.object({
     .max(6)
     .regex(/^[A-Za-z]+$/, "Ключ — только латинские буквы"),
   description: z.string().optional(),
+  /// Пустая строка — «без цвета», фон остаётся обычным
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Цвет — в формате #rrggbb")
+    .optional(),
 });
 
 export async function createProjectAction(
@@ -51,7 +56,7 @@ export async function createProjectAction(
 }
 
 /**
- * Редактирует название, ключ и описание проекта.
+ * Редактирует название, ключ, описание и фоновый цвет проекта.
  * Доступно владельцу, админу и менеджеру проекта (см. requireProjectManager).
  */
 export async function updateProjectAction(
@@ -64,6 +69,7 @@ export async function updateProjectAction(
     name: formData.get("name"),
     key: formData.get("key"),
     description: formData.get("description") || undefined,
+    color: formData.get("color") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
@@ -82,12 +88,35 @@ export async function updateProjectAction(
       name: parsed.data.name,
       key,
       description: parsed.data.description ?? null,
+      color: parsed.data.color ?? null,
     },
   });
 
   revalidatePath("/dashboard");
   revalidatePath(`/projects/${projectId}`);
   return { ok: true };
+}
+
+/**
+ * Закрепляет проект в боковом меню текущего пользователя (или снимает закрепление).
+ * Закрепление персональное: каждый видит только свои проекты.
+ */
+export async function toggleProjectPinAction(
+  projectId: string
+): Promise<{ pinned: boolean }> {
+  const user = await requireProjectMember(projectId);
+  const existing = await prisma.projectPin.findUnique({
+    where: { userId_projectId: { userId: user.id, projectId } },
+    select: { id: true },
+  });
+  if (existing) {
+    await prisma.projectPin.delete({ where: { id: existing.id } });
+  } else {
+    await prisma.projectPin.create({ data: { userId: user.id, projectId } });
+  }
+  revalidatePath("/dashboard");
+  revalidatePath(`/projects/${projectId}`);
+  return { pinned: !existing };
 }
 
 export async function toggleProjectArchiveAction(projectId: string) {

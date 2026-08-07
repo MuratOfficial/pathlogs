@@ -61,6 +61,14 @@ enum StorageType {
   LOCAL
 }
 
+/// Порядок карточек внутри колонки доски.
+/// MANUAL — ручной (перетаскиванием), остальные — по дате создания задачи.
+enum ColumnSort {
+  MANUAL
+  CREATED_DESC
+  CREATED_ASC
+}
+
 model User {
   id            String          @id @default(cuid())
   email         String          @unique
@@ -88,6 +96,7 @@ model User {
   polls         Poll[]            @relation("PollAuthor")
   pollVotes     PollVote[]        @relation("PollVoter")
   resourceLinks ResourceLink[]    @relation("ResourceLinkAuthor")
+  pinnedProjects ProjectPin[]
 }
 
 model Project {
@@ -96,6 +105,9 @@ model Project {
   name        String
   description String?
   status      ProjectStatus   @default(ACTIVE)
+  /// Фоновый цвет проекта (hex). Тонирует фон страниц проекта и его задач.
+  /// null — обычный фон темы.
+  color       String?
   // Если задан — проект доступен публично только для чтения по /roadmap/<token>
   publicToken String?         @unique
   owner       User            @relation("ProjectOwner", fields: [ownerId], references: [id])
@@ -109,8 +121,22 @@ model Project {
   tags        Tag[]
   polls       Poll[]
   links       ResourceLink[]
+  pins        ProjectPin[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+}
+
+/// Проект, закреплённый пользователем в боковом меню (кнопка-звёздочка).
+model ProjectPin {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, projectId])
+  @@index([userId])
 }
 
 /// Метка задачи. Живёт в рамках проекта: имена уникальны внутри проекта,
@@ -140,6 +166,10 @@ model BoardColumn {
   status    TaskStatus?
   /// WIP-лимит: при превышении числа задач колонка подсвечивается. null — без лимита
   wipLimit  Int?
+  /// Порядок карточек внутри колонки: вручную или по дате создания
+  sort      ColumnSort  @default(MANUAL)
+  /// Скрытая колонка не показывается на доске; задачи в ней сохраняются
+  hidden    Boolean     @default(false)
   tasks     Task[]
   createdAt DateTime    @default(now())
 

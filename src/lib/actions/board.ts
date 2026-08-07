@@ -9,6 +9,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { recordStatusChange } from "@/lib/statusHistory";
 import type { ColumnDTO } from "@/lib/types";
+import type { ColumnSort } from "@prisma/client";
 
 function toDto(c: {
   id: string;
@@ -17,6 +18,8 @@ function toDto(c: {
   order: number;
   status: ColumnDTO["status"];
   wipLimit: number | null;
+  sort: ColumnSort;
+  hidden: boolean;
 }): ColumnDTO {
   return {
     id: c.id,
@@ -25,6 +28,8 @@ function toDto(c: {
     order: c.order,
     status: c.status,
     wipLimit: c.wipLimit,
+    sort: c.sort,
+    hidden: c.hidden,
   };
 }
 
@@ -55,7 +60,12 @@ export async function createBoardColumnAction(
 
 export async function updateBoardColumnAction(
   columnId: string,
-  fields: { name?: string; color?: string; wipLimit?: number | null }
+  fields: {
+    name?: string;
+    color?: string;
+    wipLimit?: number | null;
+    sort?: ColumnSort;
+  }
 ) {
   const existing = await prisma.boardColumn.findUniqueOrThrow({
     where: { id: columnId },
@@ -74,8 +84,32 @@ export async function updateBoardColumnAction(
       ...(fields.name !== undefined ? { name: fields.name.trim() } : {}),
       ...(fields.color !== undefined ? { color: fields.color } : {}),
       ...(wip !== undefined ? { wipLimit: wip } : {}),
+      ...(fields.sort !== undefined ? { sort: fields.sort } : {}),
     },
   });
+  revalidatePath(`/projects/${column.projectId}`);
+}
+
+/**
+ * Прячет колонку с доски или возвращает её обратно. В отличие от удаления,
+ * задачи остаются в колонке и появятся снова, как только её восстановят.
+ * Последнюю видимую колонку скрыть нельзя — доска не осталась бы без колонок.
+ */
+export async function setBoardColumnHiddenAction(columnId: string, hidden: boolean) {
+  const column = await prisma.boardColumn.findUniqueOrThrow({
+    where: { id: columnId },
+    select: { projectId: true },
+  });
+  await requireProjectMember(column.projectId);
+
+  if (hidden) {
+    const visible = await prisma.boardColumn.count({
+      where: { projectId: column.projectId, hidden: false, id: { not: columnId } },
+    });
+    if (visible === 0) throw new Error("Нельзя скрыть последнюю колонку доски");
+  }
+
+  await prisma.boardColumn.update({ where: { id: columnId }, data: { hidden } });
   revalidatePath(`/projects/${column.projectId}`);
 }
 
@@ -91,11 +125,13 @@ export async function deleteBoardColumnAction(columnId: string) {
   const rest = await prisma.boardColumn.findMany({
     where: { projectId: column.projectId, id: { not: columnId } },
     orderBy: { order: "asc" },
-    select: { id: true },
+    select: { id: true, hidden: true },
   });
   if (rest.length === 0) {
     throw new Error("Нельзя удалить последнюю колонку доски");
   }
+  // Переезжаем в первую видимую колонку, чтобы задачи не уехали в скрытую
+  const target = rest.find((c) => !c.hidden) ?? rest[0]!;
 
   await prisma.$transaction([
     prisma.task.updateMany({
@@ -108,7 +144,7 @@ export async function deleteBoardColumnAction(columnId: string) {
           ...(column.status ? [{ columnId: null, status: column.status }] : []),
         ],
       },
-      data: { columnId: rest[0]!.id },
+      data: { columnId: target.id },
     }),
     prisma.boardColumn.delete({ where: { id: columnId } }),
   ]);

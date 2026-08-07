@@ -27,6 +27,8 @@ import { ShareRoadmapDialog } from "@/components/ShareRoadmapDialog";
 import { WebhooksDialog } from "@/components/WebhooksDialog";
 import { ExportMenu } from "@/components/ExportMenu";
 import { EditProjectDialog } from "@/components/EditProjectDialog";
+import { PinProjectButton } from "@/components/PinProjectButton";
+import { ProjectBackdrop } from "@/components/ProjectBackdrop";
 import { PollsPanel } from "@/components/PollsPanel";
 import { ResourceLinks } from "@/components/ResourceLinks";
 import { getProjectPolls } from "@/lib/polls";
@@ -127,6 +129,7 @@ export default async function ProjectPage({
           assignees: { select: { id: true, name: true } },
           tags: { select: { id: true, name: true, color: true } },
           timeEntries: { select: { hours: true } },
+          checklist: { select: { done: true } },
           _count: { select: { patchLogs: true, children: true } },
         },
         orderBy: [{ order: "asc" }, { createdAt: "asc" }],
@@ -162,6 +165,15 @@ export default async function ProjectPage({
     select: { id: true, name: true, query: true },
   });
 
+  // Сколько подзадач уже выполнено — считаем по самим задачам проекта,
+  // они и так все загружены (лишний запрос в БД не нужен)
+  const doneChildren = new Map<string, number>();
+  for (const t of project.tasks) {
+    if (t.parentId && (t.status === "DONE" || t.status === "CLOSED")) {
+      doneChildren.set(t.parentId, (doneChildren.get(t.parentId) ?? 0) + 1);
+    }
+  }
+
   const tasks: TaskDTO[] = project.tasks.map((t) => ({
     id: t.id,
     number: t.number,
@@ -177,10 +189,14 @@ export default async function ProjectPage({
     estimateHours: t.estimateHours,
     spentHours: t.timeEntries.reduce((s, e) => s + e.hours, 0),
     order: t.order,
+    createdAt: t.createdAt.toISOString(),
     assignees: t.assignees,
     tags: t.tags,
     patchLogCount: t._count.patchLogs,
     childrenCount: t._count.children,
+    childrenDoneCount: doneChildren.get(t.id) ?? 0,
+    checklistCount: t.checklist.length,
+    checklistDoneCount: t.checklist.filter((c) => c.done).length,
   }));
 
   const projectTags: TagDTO[] = project.tags;
@@ -199,12 +215,20 @@ export default async function ProjectPage({
     order: c.order,
     status: c.status,
     wipLimit: c.wipLimit,
+    sort: c.sort,
+    hidden: c.hidden,
   }));
 
   const members: MemberDTO[] = project.members.some((m) => m.user.id === project.ownerId)
     ? project.members.map((m) => m.user)
     : [project.owner, ...project.members.map((m) => m.user)];
   const canManage = await canManageProject(id, user);
+  const pinned = Boolean(
+    await prisma.projectPin.findUnique({
+      where: { userId_projectId: { userId: user.id, projectId: id } },
+      select: { id: true },
+    })
+  );
   // Кандидаты на добавление — только для тех, кто может управлять составом
   const candidates: MemberDTO[] = canManage
     ? await prisma.user.findMany({
@@ -220,7 +244,8 @@ export default async function ProjectPage({
   ).length;
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-3rem)] min-w-0 max-w-[1600px] flex-col">
+    <div className="mx-auto flex h-[calc(100vh-3rem)] min-w-0 max-w-400 flex-col">
+      <ProjectBackdrop color={project.color} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link href="/dashboard" className="text-muted transition hover:text-foreground">
@@ -237,6 +262,7 @@ export default async function ProjectPage({
               В архиве
             </span>
           )}
+          <PinProjectButton projectId={project.id} pinned={pinned} />
           {canManage && (
             <>
               <EditProjectDialog
@@ -244,6 +270,7 @@ export default async function ProjectPage({
                 name={project.name}
                 projectKey={project.key}
                 description={project.description}
+                color={project.color}
               />
               <ArchiveProjectButton
                 projectId={project.id}
@@ -366,7 +393,7 @@ export default async function ProjectPage({
         )}
         {view === "links" && (
           <div className="h-full overflow-y-auto pb-4">
-            <div className="mx-auto max-w-3xl">
+            <div className="mx-auto max-w-400">
               <p className="mb-4 text-sm text-muted">
                 Общие материалы проекта: документация, макеты, дашборды, регламенты.
                 Ссылки, привязанные к конкретным задачам, живут в самих задачах.

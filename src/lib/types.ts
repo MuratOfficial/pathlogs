@@ -1,4 +1,10 @@
-import type { LinkType, Priority, TaskStatus, TaskType } from "@prisma/client";
+import type {
+  ColumnSort,
+  LinkType,
+  Priority,
+  TaskStatus,
+  TaskType,
+} from "@prisma/client";
 
 /** Сериализуемое представление задачи для клиентских компонентов (канбан, граф). */
 export interface TaskDTO {
@@ -16,10 +22,16 @@ export interface TaskDTO {
   estimateHours: number | null;
   spentHours: number;
   order: number;
+  createdAt: string;
   assignees: { id: string; name: string }[];
   tags: TagDTO[];
   patchLogCount: number;
   childrenCount: number;
+  /** Сколько подзадач уже выполнено (статус DONE/CLOSED). */
+  childrenDoneCount: number;
+  checklistCount: number;
+  /** Сколько пунктов чек-листа отмечено. */
+  checklistDoneCount: number;
 }
 
 /** Метка задачи (в рамках проекта). */
@@ -38,6 +50,10 @@ export interface ColumnDTO {
   status: TaskStatus | null;
   /** WIP-лимит: при превышении колонка подсвечивается. null — без лимита. */
   wipLimit: number | null;
+  /** Порядок карточек внутри колонки: вручную или по дате создания. */
+  sort: ColumnSort;
+  /** Скрытая колонка не показывается на доске (задачи в ней сохраняются). */
+  hidden: boolean;
 }
 
 export interface LinkDTO {

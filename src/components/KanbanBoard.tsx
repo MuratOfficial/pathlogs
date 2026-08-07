@@ -9,10 +9,12 @@ import {
   createBoardColumnAction,
   updateBoardColumnAction,
   deleteBoardColumnAction,
+  setBoardColumnHiddenAction,
   moveTaskAction,
   reorderColumnsAction,
   updateTaskColorAction,
 } from "@/lib/actions/board";
+import type { ColumnSort } from "@prisma/client";
 import { updateTaskStatusAction } from "@/lib/actions/tasks";
 import { BOARD_PALETTE, formatDate, formatHours } from "@/lib/labels";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -177,30 +179,47 @@ function WipBadge({ count, limit }: { count: number; limit: number | null }) {
 
 // Размеры поповера редактирования колонки для расчёта позиции
 const EDITOR_W = 264;
-const EDITOR_H = 300;
+const EDITOR_H = 420;
+
+/** Порядок карточек внутри колонки — подписи для селекта. */
+const SORT_LABELS: Record<ColumnSort, string> = {
+  MANUAL: "Вручную (перетаскиванием)",
+  CREATED_DESC: "По дате создания: новые сверху",
+  CREATED_ASC: "По дате создания: старые сверху",
+};
 
 /**
- * Поповер редактирования колонки: название, цвет, WIP-лимит и удаление.
- * Одно понятное место вместо трёх разрозненных инлайн-контролов.
+ * Поповер редактирования колонки: название, цвет, WIP-лимит, порядок карточек,
+ * скрытие и удаление. Одно понятное место вместо разрозненных инлайн-контролов.
  */
 function ColumnEditor({
   column,
   anchorRect,
   canDelete,
+  canHide,
   onSave,
+  onHide,
   onDelete,
   onClose,
 }: {
   column: ColumnDTO;
   anchorRect: DOMRect;
   canDelete: boolean;
-  onSave: (fields: { name: string; color: string; wipLimit: number | null }) => void;
+  canHide: boolean;
+  onSave: (fields: {
+    name: string;
+    color: string;
+    wipLimit: number | null;
+    sort: ColumnSort;
+  }) => void;
+  onHide: () => void;
   onDelete: () => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState(column.name);
   const [color, setColor] = useState(column.color);
   const [wip, setWip] = useState(column.wipLimit != null ? String(column.wipLimit) : "");
+  const [sort, setSort] = useState<ColumnSort>(column.sort);
 
   const gap = 6;
   const vw = window.innerWidth;
@@ -220,6 +239,7 @@ function ColumnEditor({
       name: trimmed,
       color,
       wipLimit: Number.isFinite(n) && n > 0 ? n : null,
+      sort,
     });
     onClose();
   }
@@ -261,7 +281,7 @@ function ColumnEditor({
           ))}
         </div>
 
-        <label className="mb-4 block">
+        <label className="mb-3 block">
           <span className="mb-1 block text-[11px] text-muted">
             WIP-лимит <span className="opacity-70">· пусто — без лимита</span>
           </span>
@@ -273,6 +293,21 @@ function ColumnEditor({
             onChange={(e) => setWip(e.target.value)}
             className="w-full rounded-lg border border-edge bg-surface-2 px-2.5 py-1.5 text-sm outline-none transition focus:border-accent"
           />
+        </label>
+
+        <label className="mb-4 block">
+          <span className="mb-1 block text-[11px] text-muted">Порядок карточек</span>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as ColumnSort)}
+            className="w-full rounded-lg border border-edge bg-surface-2 px-2.5 py-1.5 text-sm outline-none transition focus:border-accent"
+          >
+            {(Object.keys(SORT_LABELS) as ColumnSort[]).map((s) => (
+              <option key={s} value={s}>
+                {SORT_LABELS[s]}
+              </option>
+            ))}
+          </select>
         </label>
 
         <div className="flex gap-2">
@@ -293,6 +328,20 @@ function ColumnEditor({
           </button>
         </div>
 
+        {canHide && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onHide();
+            }}
+            data-tip="Задачи останутся в колонке — вернуть можно в любой момент"
+            className="mt-2.5 w-full rounded-lg border border-edge py-1.5 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
+          >
+            Скрыть колонку
+          </button>
+        )}
+
         {canDelete && (
           <button
             type="button"
@@ -300,7 +349,7 @@ function ColumnEditor({
               onClose();
               onDelete();
             }}
-            className="mt-2.5 w-full rounded-lg border border-red-500/30 py-1.5 text-xs font-medium text-red-400 transition hover:bg-red-500/10"
+            className="mt-2 w-full rounded-lg border border-red-500/30 py-1.5 text-xs font-medium text-red-400 transition hover:bg-red-500/10"
           >
             Удалить колонку
           </button>
@@ -432,18 +481,28 @@ export function KanbanBoard({
     }
   }
 
-  const sorted = [...columns].sort((a, b) => a.order - b.order);
+  const byOrder = [...columns].sort((a, b) => a.order - b.order);
+  const sorted = byOrder.filter((c) => !c.hidden);
+  const hiddenColumns = byOrder.filter((c) => c.hidden);
 
   function columnOf(t: TaskDTO): string | null {
     if (t.columnId && columns.some((c) => c.id === t.columnId)) return t.columnId;
     if (t.status === "CLOSED" || t.status === "ARCHIVED") return null;
-    return columns.find((c) => c.status === t.status)?.id ?? null;
+    // Карточка без явной колонки показывается в колонке своего статуса —
+    // но только в видимой, иначе она «уехала» бы в скрытую и пропала
+    return sorted.find((c) => c.status === t.status)?.id ?? null;
   }
 
   function tasksOf(colId: string): TaskDTO[] {
-    return tasks
-      .filter((t) => columnOf(t) === colId)
-      .sort((a, b) => a.order - b.order);
+    const col = columns.find((c) => c.id === colId);
+    const list = tasks.filter((t) => columnOf(t) === colId);
+    if (col?.sort === "CREATED_DESC") {
+      return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    }
+    if (col?.sort === "CREATED_ASC") {
+      return list.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    }
+    return list.sort((a, b) => a.order - b.order);
   }
 
   // ── Перенос карточки ──────────────────────────────────────────────
@@ -452,7 +511,9 @@ export function KanbanBoard({
     if (!id) return;
     const list = tasksOf(col.id).filter((t) => t.id !== id);
     let insertIndex = list.length;
-    if (overTaskId && overTaskId !== id) {
+    // В колонке с сортировкой по дате позиция вставки не имеет смысла —
+    // порядок всё равно задаёт дата создания
+    if (col.sort === "MANUAL" && overTaskId && overTaskId !== id) {
       const idx = list.findIndex((t) => t.id === overTaskId);
       if (idx >= 0) insertIndex = idx;
     }
@@ -508,10 +569,16 @@ export function KanbanBoard({
 
   function saveColumn(
     colId: string,
-    fields: { name: string; color: string; wipLimit: number | null }
+    fields: { name: string; color: string; wipLimit: number | null; sort: ColumnSort }
   ) {
     setColumns((prev) => prev.map((c) => (c.id === colId ? { ...c, ...fields } : c)));
     startTransition(() => updateBoardColumnAction(colId, fields));
+  }
+
+  /** Скрыть колонку с доски или вернуть её обратно (задачи остаются в ней). */
+  function setColumnHidden(colId: string, hidden: boolean) {
+    setColumns((prev) => prev.map((c) => (c.id === colId ? { ...c, hidden } : c)));
+    startTransition(() => setBoardColumnHiddenAction(colId, hidden));
   }
 
   function removeColumn(colId: string) {
@@ -630,7 +697,9 @@ export function KanbanBoard({
                   column={col}
                   anchorRect={editorRect}
                   canDelete={canManageBoard && columns.length > 1}
+                  canHide={sorted.length > 1}
                   onSave={(fields) => saveColumn(col.id, fields)}
+                  onHide={() => setColumnHidden(col.id, true)}
                   onDelete={() => setColToRemove(col)}
                   onClose={() => setEditorFor(null)}
                 />
@@ -680,7 +749,7 @@ export function KanbanBoard({
                       ? "opacity-55 saturate-50 hover:opacity-100 hover:saturate-100 focus-visible:opacity-100"
                       : ""
                   } ${
-                    overTaskId === t.id && dragId && dragId !== t.id
+                    overTaskId === t.id && dragId && dragId !== t.id && col.sort === "MANUAL"
                       ? "border-t-2 border-t-accent"
                       : ""
                   }`}
@@ -762,12 +831,32 @@ export function KanbanBoard({
                   )}
                   <div className="flex items-center gap-2 text-[11px] text-muted">
                     <AssigneeAvatars assignees={t.assignees} />
+                    {/* Подзадачи и чек-лист — «выполнено из всего»:
+                        прогресс карточки виден без её открытия */}
                     {t.childrenCount > 0 && (
-                      <span data-tip="Подзадачи" className="flex items-center gap-0.5">
+                      <span
+                        data-tip={`Подзадачи: выполнено ${t.childrenDoneCount} из ${t.childrenCount}`}
+                        className={`flex items-center gap-0.5 tabular-nums ${
+                          t.childrenDoneCount === t.childrenCount ? "text-emerald-400" : ""
+                        }`}
+                      >
                         <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
                         </svg>
-                        {t.childrenCount}
+                        {t.childrenDoneCount}/{t.childrenCount}
+                      </span>
+                    )}
+                    {t.checklistCount > 0 && (
+                      <span
+                        data-tip={`Чек-лист: отмечено ${t.checklistDoneCount} из ${t.checklistCount}`}
+                        className={`flex items-center gap-0.5 tabular-nums ${
+                          t.checklistDoneCount === t.checklistCount ? "text-emerald-400" : ""
+                        }`}
+                      >
+                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75h11.25M9 12h11.25M9 17.25h11.25M3.75 6.4l1.2 1.2 2-2.6M3.75 11.65l1.2 1.2 2-2.6M3.75 16.9l1.2 1.2 2-2.6" />
+                        </svg>
+                        {t.checklistDoneCount}/{t.checklistCount}
                       </span>
                     )}
                     {t.patchLogCount > 0 && (
@@ -823,6 +912,44 @@ export function KanbanBoard({
       })}
 
       <AddColumn onCreate={createColumn} />
+
+      {/* Скрытые колонки: доска о них помнит — вернуть можно в один клик */}
+      {hiddenColumns.length > 0 && (
+        <div className="flex h-fit w-60 shrink-0 flex-col gap-2 rounded-2xl border border-dashed border-edge/80 p-4">
+          <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+            </svg>
+            Скрытые ({hiddenColumns.length})
+          </h3>
+          {hiddenColumns.map((col) => {
+            const count = tasks.filter((t) => t.columnId === col.id).length;
+            return (
+              <div
+                key={col.id}
+                className="flex items-center gap-2 rounded-lg border border-edge bg-surface/60 px-2.5 py-2"
+              >
+                <span
+                  aria-hidden
+                  className="block h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: col.color }}
+                />
+                <span className="min-w-0 flex-1 truncate text-sm">{col.name}</span>
+                <span className="shrink-0 text-[11px] text-muted">{count}</span>
+                <button
+                  type="button"
+                  onClick={() => setColumnHidden(col.id, false)}
+                  data-tip={`Вернуть колонку «${col.name}» на доску`}
+                  aria-label={`Показать колонку «${col.name}»`}
+                  className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-accent-hover transition hover:bg-surface-2"
+                >
+                  Показать
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <ConfirmDialog
         open={colToRemove !== null}

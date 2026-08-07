@@ -8,6 +8,7 @@ import {
   requireProjectMember,
   requireTaskMember,
 } from "@/lib/access";
+import { ensureStatusColumn } from "@/lib/board";
 import { notifyTaskWatchers, notifyUsers } from "@/lib/notify";
 import { recordStatusChange } from "@/lib/statusHistory";
 import { STATUS_LABELS } from "@/lib/labels";
@@ -105,6 +106,12 @@ export async function createTaskAction(
       columnId = column.id;
       columnStatus = column.status ?? undefined;
     }
+  }
+  // Без явной колонки задача идёт в «К выполнению». Колонку могли скрыть или
+  // удалить — тогда восстанавливаем её и закрепляем задачу там: иначе задача
+  // осталась бы без колонки и пропала бы с доски.
+  if (!columnId) {
+    columnId = await ensureStatusColumn(d.projectId, "TODO");
   }
 
   const task = await prisma.task.create({

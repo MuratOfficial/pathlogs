@@ -13,6 +13,8 @@ import {
 } from "@/lib/labels";
 import { TypeBadge, PriorityBadge, TagChip } from "@/components/TaskBadges";
 import { TaskMetaPanel } from "@/components/task/TaskMetaPanel";
+import { TaskDoneButton } from "@/components/task/TaskDoneButton";
+import { ProjectBackdrop } from "@/components/ProjectBackdrop";
 import { TaskTags } from "@/components/task/TaskTags";
 import { TaskSectionNav, type TaskSectionDTO } from "@/components/task/TaskSectionNav";
 import { EditableText } from "@/components/task/EditableText";
@@ -57,6 +59,7 @@ export default async function TaskPage({
           id: true,
           key: true,
           name: true,
+          color: true,
           owner: { select: { id: true, name: true } },
           members: { select: { user: { select: { id: true, name: true } } } },
         },
@@ -191,6 +194,8 @@ export default async function TaskPage({
 
   return (
     <div className="mx-auto max-w-6xl">
+      <ProjectBackdrop color={task.project.color} />
+
       {/* Хлебные крошки */}
       <div className="mb-4 flex items-center gap-2 text-sm text-muted">
         <Link href="/dashboard" className="hover:text-foreground">Проекты</Link>
@@ -237,6 +242,10 @@ export default async function TaskPage({
                   ))}
                 </span>
               )}
+              {/* Отметить выполненной прямо здесь — не открывая «Параметры» */}
+              <span className="ml-auto">
+                <TaskDoneButton taskId={task.id} status={task.status} />
+              </span>
             </div>
             <EditableText
               value={task.title}

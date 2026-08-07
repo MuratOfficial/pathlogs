@@ -25,6 +25,13 @@ export default async function AppLayout({
     where: { userId: user.id, read: false },
   });
 
+  // Проекты, закреплённые пользователем (звёздочка) — быстрый переход в меню
+  const pinned = await prisma.projectPin.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "asc" },
+    select: { project: { select: { id: true, key: true, name: true, color: true } } },
+  });
+
   const sidebar = (
     <>
       <Link href="/dashboard" className="flex items-center gap-2.5 px-5 py-5">
@@ -75,6 +82,32 @@ export default async function AppLayout({
               </svg>
               Админка
             </Link>
+          )}
+
+          {pinned.length > 0 && (
+            <div className="space-y-1 pt-4">
+              <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
+                Закреплённые
+              </p>
+              {pinned.map(({ project: p }) => (
+                <Link
+                  key={p.id}
+                  href={`/projects/${p.id}`}
+                  data-tip={p.name}
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground/90 transition hover:bg-surface-2"
+                >
+                  <span
+                    aria-hidden
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: p.color ?? "var(--muted)" }}
+                  />
+                  <span className="shrink-0 font-mono text-[10px] font-bold text-muted">
+                    {p.key}
+                  </span>
+                  <span className="min-w-0 truncate">{p.name}</span>
+                </Link>
+              ))}
+            </div>
           )}
         </nav>
 
