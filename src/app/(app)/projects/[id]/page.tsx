@@ -31,6 +31,7 @@ import { PinProjectButton } from "@/components/PinProjectButton";
 import { ProjectBackdrop } from "@/components/ProjectBackdrop";
 import { PollsPanel } from "@/components/PollsPanel";
 import { ResourceLinks } from "@/components/ResourceLinks";
+import { DragScroll } from "@/components/DragScroll";
 import { getProjectPolls } from "@/lib/polls";
 import { getResourceLinks } from "@/lib/links";
 import { formatHours } from "@/lib/labels";
@@ -335,7 +336,7 @@ export default async function ProjectPage({
         </p>
       )}
 
-      <div className="no-scrollbar mb-4 flex w-fit max-w-full flex-nowrap gap-1 overflow-x-auto rounded-xl border border-edge bg-surface p-1">
+      <DragScroll className="no-scrollbar mb-4 flex w-fit max-w-full flex-nowrap gap-1 overflow-x-auto rounded-xl border border-edge bg-surface p-1">
         {VIEWS.map((v) => (
           <Link
             key={v.id}
@@ -349,7 +350,7 @@ export default async function ProjectPage({
             {v.label}
           </Link>
         ))}
-      </div>
+      </DragScroll>
 
       <div className="min-h-0 min-w-0 flex-1">
         {view === "board" && (

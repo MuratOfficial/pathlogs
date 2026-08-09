@@ -6,6 +6,7 @@ import type { TaskDTO, LinkDTO } from "@/lib/types";
 import { STATUS_COLORS, STATUS_LABELS } from "@/lib/labels";
 import { updateTaskFieldsAction } from "@/lib/actions/tasks";
 import { TypeBadge } from "./TaskBadges";
+import { useDragScroll } from "./useDragScroll";
 
 const DAY = 86400000;
 const ROW_H = 37; // фиксированная высота строки — для точного наложения SVG-связей
@@ -47,6 +48,10 @@ export function GanttChart({
   const [drag, setDrag] = useState<DragState | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const moved = useRef(false);
+
+  // Полотно листается протяжкой по обеим осям. Сами полосы задач гасят
+  // всплытие в своём onPointerDown, поэтому тянутся, а не двигают полотно.
+  const scrollRef = useDragScroll<HTMLDivElement>({ axis: "both" });
 
   const dated = tasks
     .map((t) => {
@@ -257,7 +262,10 @@ export function GanttChart({
           {edges.length > 0 && <span>Связей BLOCKS: {edges.length}</span>}
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-auto rounded-2xl border border-edge bg-surface">
+      <div
+        ref={scrollRef}
+        className="min-h-0 flex-1 overflow-auto rounded-2xl border border-edge bg-surface"
+      >
         <div style={{ width: labelW + chartW, minWidth: "100%" }}>
         <div className="sticky top-0 z-10 flex border-b border-edge bg-surface">
           <div

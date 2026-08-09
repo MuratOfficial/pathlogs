@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { activeSectionId, type SectionPosition } from "@/lib/sections";
+import { useDragScroll } from "../useDragScroll";
 
 export interface TaskSectionDTO {
   /** id элемента-секции на странице задачи. */
@@ -20,6 +21,9 @@ export interface TaskSectionDTO {
  */
 export function TaskSectionNav({ sections }: { sections: TaskSectionDTO[] }) {
   const navRef = useRef<HTMLDivElement>(null);
+  // Узкий экран: ряд разделов листается протяжкой, клик по пункту при этом
+  // продолжает работать — протяжка включается только после порога сдвига.
+  const stripRef = useDragScroll<HTMLElement>();
   const [active, setActive] = useState<string>(sections[0]?.id ?? "");
 
   function scrollOffset() {
@@ -70,6 +74,7 @@ export function TaskSectionNav({ sections }: { sections: TaskSectionDTO[] }) {
   return (
     <div ref={navRef} className="sticky top-16 z-20 mb-4 lg:top-3">
       <nav
+        ref={stripRef}
         aria-label="Разделы задачи"
         className="no-scrollbar flex flex-nowrap gap-1 overflow-x-auto rounded-xl border border-edge bg-surface/95 p-1 shadow-sm backdrop-blur"
       >

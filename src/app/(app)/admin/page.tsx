@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDate, initials } from "@/lib/labels";
 import { UserRow } from "@/components/admin/UserRow";
 import { CreateUserDialog } from "@/components/admin/CreateUserDialog";
+import { DragScroll } from "@/components/DragScroll";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -50,7 +51,7 @@ export default async function AdminPage() {
         ))}
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border border-edge bg-surface">
+      <DragScroll className="overflow-x-auto rounded-2xl border border-edge bg-surface">
         <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-surface-2/60 text-left text-xs text-muted">
             <tr>
@@ -87,7 +88,7 @@ export default async function AdminPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </DragScroll>
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { updateTaskStatusAction } from "@/lib/actions/tasks";
 import { BOARD_PALETTE, formatDate, formatHours } from "@/lib/labels";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { AssigneeAvatars, PriorityBadge, TagChips, TypeBadge } from "./TaskBadges";
+import { useDragScroll } from "./useDragScroll";
 
 // Размеры popover для расчёта позиции (ширина w-44 + переворот при нехватке места)
 const PALETTE_W = 176;
@@ -432,6 +433,10 @@ export function KanbanBoard({
   const [tasks, setTasks] = useState(initialTasks);
   const [columns, setColumns] = useState(initialColumns);
 
+  // Доску листаем протяжкой: карточки и ручки колонок остаются
+  // перетаскиваемыми — при их drag&drop протяжка отменяется.
+  const boardRef = useDragScroll<HTMLDivElement>();
+
   const [isPending, startTransition] = useTransition();
 
   // После ревалидации сервер присылает свежие props — сбрасываем локальное
@@ -615,7 +620,7 @@ export function KanbanBoard({
   }
 
   return (
-    <div className="flex h-full gap-4 overflow-x-auto pb-4">
+    <div ref={boardRef} className="flex h-full gap-4 overflow-x-auto pb-4">
       {sorted.map((col) => {
         const colTasks = tasksOf(col.id);
         const wipOver = col.wipLimit != null && colTasks.length > col.wipLimit;
