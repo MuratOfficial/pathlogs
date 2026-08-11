@@ -28,7 +28,7 @@ export default async function AdminPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-400">
+    <div className="mx-auto max-w-full">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Администрирование</h1>
@@ -52,7 +52,7 @@ export default async function AdminPage() {
       </div>
 
       <DragScroll className="overflow-x-auto rounded-2xl border border-edge bg-surface">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-180 text-sm">
           <thead className="bg-surface-2/60 text-left text-xs text-muted">
             <tr>
               <th className="px-5 py-3 font-medium">Пользователь</th>

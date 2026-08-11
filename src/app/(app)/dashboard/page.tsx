@@ -59,7 +59,7 @@ export default async function DashboardPage({
   );
 
   return (
-    <div className="mx-auto max-w-400">
+    <div className="mx-auto max-w-full">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Проекты</h1>

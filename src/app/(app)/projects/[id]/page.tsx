@@ -245,7 +245,7 @@ export default async function ProjectPage({
   ).length;
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-3rem)] min-w-0 max-w-400 flex-col">
+    <div className="mx-auto flex h-[calc(100vh-3rem)] min-w-0 max-w-full flex-col">
       <ProjectBackdrop color={project.color} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -331,7 +331,7 @@ export default async function ProjectPage({
       </div>
 
       {project.description && (
-        <p className="mb-4 max-w-3xl whitespace-pre-wrap break-words text-sm leading-relaxed text-muted">
+        <p className="mb-4 max-w-3xl whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-muted">
           {project.description}
         </p>
       )}
@@ -394,7 +394,7 @@ export default async function ProjectPage({
         )}
         {view === "links" && (
           <div className="h-full overflow-y-auto pb-4">
-            <div className="mx-auto max-w-400">
+            <div className="mx-auto max-w-full">
               <p className="mb-4 text-sm text-muted">
                 Общие материалы проекта: документация, макеты, дашборды, регламенты.
                 Ссылки, привязанные к конкретным задачам, живут в самих задачах.
