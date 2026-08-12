@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "PathLogs — задачи, ветки, патч-логи",
+    name: "PathLogs",
     short_name: "PathLogs",
     description:
       "Управление проектами с ветвлением задач, канбаном и патч-логами",

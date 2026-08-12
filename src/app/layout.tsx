@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PathLogs — задачи, ветки, патч-логи",
+  title: "PathLogs",
   description:
     "Система управления проектами с ветвлением задач, канбаном и патч-логами",
   appleWebApp: { capable: true, title: "PathLogs", statusBarStyle: "default" },
