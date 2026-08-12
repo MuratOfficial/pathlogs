@@ -63,6 +63,27 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 export const KANBAN_COLUMNS: TaskStatus[] = ["TODO", "IN_PROGRESS", "REVIEW", "DONE"];
 
+/**
+ * Палитра фона проекта — ярче, чем у карточек: фон полупрозрачный,
+ * приглушённые оттенки на нём просто не видны.
+ */
+export const PROJECT_BG_PALETTE = [
+  "#6366f1",
+  "#3b82f6",
+  "#06b6d4",
+  "#10b981",
+  "#84cc16",
+  "#eab308",
+  "#f97316",
+  "#ef4444",
+  "#f43f5e",
+  "#ec4899",
+  "#d946ef",
+  "#a855f7",
+  "#8b5cf6",
+  "#64748b",
+] as const;
+
 /** Палитра для перекраски карточек и колонок. */
 export const BOARD_PALETTE = [
   "#94a3b8",

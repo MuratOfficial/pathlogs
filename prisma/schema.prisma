@@ -97,6 +97,7 @@ model User {
   pollVotes     PollVote[]        @relation("PollVoter")
   resourceLinks ResourceLink[]    @relation("ResourceLinkAuthor")
   pinnedProjects ProjectPin[]
+  projectAppearances ProjectAppearance[]
 }
 
 model Project {
@@ -105,9 +106,6 @@ model Project {
   name        String
   description String?
   status      ProjectStatus   @default(ACTIVE)
-  /// Фоновый цвет проекта (hex). Тонирует фон страниц проекта и его задач.
-  /// null — обычный фон темы.
-  color       String?
   // Если задан — проект доступен публично только для чтения по /roadmap/<token>
   publicToken String?         @unique
   owner       User            @relation("ProjectOwner", fields: [ownerId], references: [id])
@@ -122,8 +120,29 @@ model Project {
   polls       Poll[]
   links       ResourceLink[]
   pins        ProjectPin[]
+  appearances ProjectAppearance[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+}
+
+/// Персональное оформление проекта: фон страниц проекта и его задач.
+/// У каждого пользователя свой — участники одного проекта видят разные фоны.
+model ProjectAppearance {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  /// Основной цвет фона (hex)
+  color     String
+  /// Второй цвет градиента; null — однотонный фон
+  colorTo   String?
+  /// Направление градиента в градусах
+  angle     Int      @default(160)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, projectId])
+  @@index([userId])
 }
 
 /// Проект, закреплённый пользователем в боковом меню (кнопка-звёздочка).

@@ -29,6 +29,9 @@ import { ExportMenu } from "@/components/ExportMenu";
 import { EditProjectDialog } from "@/components/EditProjectDialog";
 import { PinProjectButton } from "@/components/PinProjectButton";
 import { ProjectBackdrop } from "@/components/ProjectBackdrop";
+import { ProjectBackgroundDialog } from "@/components/ProjectBackgroundDialog";
+import { BackButton } from "@/components/BackButton";
+import { getProjectBackground } from "@/lib/appearance";
 import { PollsPanel } from "@/components/PollsPanel";
 import { ResourceLinks } from "@/components/ResourceLinks";
 import { DragScroll } from "@/components/DragScroll";
@@ -230,6 +233,8 @@ export default async function ProjectPage({
       select: { id: true },
     })
   );
+  // Фон проекта персональный: у каждого участника свой
+  const background = await getProjectBackground(id, user.id);
   // Кандидаты на добавление — только для тех, кто может управлять составом
   const candidates: MemberDTO[] = canManage
     ? await prisma.user.findMany({
@@ -246,14 +251,15 @@ export default async function ProjectPage({
 
   return (
     <div className="mx-auto flex h-[calc(100vh-3rem)] min-w-0 max-w-full flex-col">
-      <ProjectBackdrop color={project.color} />
+      <ProjectBackdrop background={background} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="text-muted transition hover:text-foreground">
+          <BackButton />
+          {/* <Link href="/dashboard" data-tip="Все проекты" className="text-muted transition hover:text-foreground">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>
-          </Link>
+          </Link> */}
           <span className="rounded-md bg-accent/15 px-2 py-1 font-mono text-xs font-bold text-accent-hover">
             {project.key}
           </span>
@@ -264,6 +270,7 @@ export default async function ProjectPage({
             </span>
           )}
           <PinProjectButton projectId={project.id} pinned={pinned} />
+          <ProjectBackgroundDialog projectId={project.id} background={background} />
           {canManage && (
             <>
               <EditProjectDialog
@@ -271,7 +278,6 @@ export default async function ProjectPage({
                 name={project.name}
                 projectKey={project.key}
                 description={project.description}
-                color={project.color}
               />
               <ArchiveProjectButton
                 projectId={project.id}

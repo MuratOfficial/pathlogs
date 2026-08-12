@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { TaskDTO, ColumnDTO, MemberDTO, TaskTemplateDTO, TagDTO } from "@/lib/types";
@@ -160,6 +160,21 @@ function AddColumn({
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Прозрачный слот на месте будущей карточки: при перетаскивании видно, куда
+ * именно она встанет. Высота равна высоте перетаскиваемой карточки, поэтому
+ * соседние карточки расступаются ровно на нужное место.
+ */
+function DropSlot({ height }: { height: number }) {
+  return (
+    <div
+      aria-hidden
+      style={{ height: height || 96 }}
+      className="rounded-xl border-2 border-dashed border-accent/70 bg-accent/10"
+    />
   );
 }
 
@@ -457,8 +472,13 @@ export function KanbanBoard({
   }
 
   const [dragId, setDragId] = useState<string | null>(null); // перетаскиваемая карточка
-  const [overTaskId, setOverTaskId] = useState<string | null>(null); // карточка-цель (вставить перед ней)
-  const [overCol, setOverCol] = useState<string | null>(null); // колонка-цель для карточки
+  // Место вставки: колонка и позиция в её списке (без перетаскиваемой карточки).
+  // Именно здесь рисуется прозрачный «слот» — как в Trello.
+  const [over, setOver] = useState<{ colId: string; index: number } | null>(null);
+  const [dragHeight, setDragHeight] = useState(0); // высота карточки — высота слота
+  // Что схватили: заполняется в dragstart, применяется в состояние на первом
+  // drag — иначе синхронный setState отменил бы начавшийся перенос
+  const dragMeta = useRef<{ id: string; height: number } | null>(null);
   const [dragColId, setDragColId] = useState<string | null>(null); // перетаскиваемая колонка
   const [overColDrag, setOverColDrag] = useState<string | null>(null); // колонка-цель при переносе колонки
   const [paletteFor, setPaletteFor] = useState<string | null>(null); // id задачи (цвет карточки)
@@ -510,24 +530,82 @@ export function KanbanBoard({
     return list.sort((a, b) => a.order - b.order);
   }
 
+  /** Список карточек колонки без перетаскиваемой — по нему считаются позиции. */
+  function tasksWithoutDragged(colId: string): TaskDTO[] {
+    const list = tasksOf(colId);
+    return dragId ? list.filter((t) => t.id !== dragId) : list;
+  }
+
+  /**
+   * Что рисуем в колонке: карточки без перетаскиваемой (для них важен индекс —
+   * по нему ставится слот) плюс сама перетаскиваемая карточка «призраком».
+   * Призрак скрыт через display:none: места не занимает, но остаётся в дереве,
+   * поэтому его onDragEnd сработает, даже если перенос отменили.
+   */
+  function renderList(
+    col: ColumnDTO,
+    visible: TaskDTO[],
+    slot: number
+  ): { task: TaskDTO; index: number; ghost: boolean }[] {
+    const items = visible.map((task, index) => ({ task, index, ghost: false }));
+    const dragged = tasks.find((t) => t.id === dragId);
+    if (dragged && columnOf(dragged) === col.id) {
+      items.push({ task: dragged, index: slot, ghost: true });
+    }
+    return items;
+  }
+
+  /**
+   * Позиция слота (и вставки) в колонке. При ручном порядке — там, где курсор.
+   * При сортировке по дате порядок задаёт дата создания, поэтому показываем
+   * слот там, где карточка действительно окажется, а не под курсором.
+   */
+  function dropSlotIndex(col: ColumnDTO, list: TaskDTO[], hovered: number): number {
+    if (col.sort === "MANUAL") return Math.min(hovered, list.length);
+    const dragged = tasks.find((t) => t.id === dragId);
+    if (!dragged) return list.length;
+    const desc = col.sort === "CREATED_DESC";
+    const idx = list.findIndex((t) => {
+      const cmp = t.createdAt.localeCompare(dragged.createdAt);
+      return desc ? cmp < 0 : cmp > 0;
+    });
+    return idx === -1 ? list.length : idx;
+  }
+
+  /**
+   * Куда встанет карточка при наведении на карточку `index`: выше или ниже
+   * неё — по тому, в какой половине карточки курсор (как в Trello).
+   */
+  function hoverCard(colId: string, index: number, e: React.DragEvent) {
+    e.preventDefault(); // разрешаем бросить карточку сюда
+    // Перенос ещё не зарегистрирован (или тащим колонку) — позицию выставит
+    // следующий dragover, они идут потоком
+    if (!dragId) return;
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const below = e.clientY > rect.top + rect.height / 2;
+    const next = index + (below ? 1 : 0);
+    setOver((prev) =>
+      prev && prev.colId === colId && prev.index === next ? prev : { colId, index: next }
+    );
+  }
+
   // ── Перенос карточки ──────────────────────────────────────────────
   function dropCard(col: ColumnDTO) {
     const id = dragId;
     if (!id) return;
-    const list = tasksOf(col.id).filter((t) => t.id !== id);
-    let insertIndex = list.length;
-    // В колонке с сортировкой по дате позиция вставки не имеет смысла —
-    // порядок всё равно задаёт дата создания
-    if (col.sort === "MANUAL" && overTaskId && overTaskId !== id) {
-      const idx = list.findIndex((t) => t.id === overTaskId);
-      if (idx >= 0) insertIndex = idx;
-    }
+    const list = tasksWithoutDragged(col.id);
+    // Карточка встаёт ровно туда, где показывали слот. Если слот не успел
+    // появиться (бросили мимо карточек) — в конец колонки.
+    const insertIndex =
+      over && over.colId === col.id
+        ? dropSlotIndex(col, list, over.index)
+        : list.length;
     const newIds = list.map((t) => t.id);
     newIds.splice(insertIndex, 0, id);
 
     setDragId(null);
-    setOverTaskId(null);
-    setOverCol(null);
+    setOver(null);
     setTasks((prev) =>
       prev.map((t) => {
         const oi = newIds.indexOf(t.id);
@@ -625,44 +703,66 @@ export function KanbanBoard({
         const colTasks = tasksOf(col.id);
         const wipOver = col.wipLimit != null && colTasks.length > col.wipLimit;
         const isColDropTarget = dragColId && overColDrag === col.id && dragColId !== col.id;
+        const isCardTarget = Boolean(dragId) && over?.colId === col.id;
+        // Карточки колонки без перетаскиваемой + позиция прозрачного слота:
+        // ровно то место, куда карточка встанет после отпускания
+        const visible = tasksWithoutDragged(col.id);
+        const slot = isCardTarget ? dropSlotIndex(col, visible, over!.index) : -1;
+        // Колонка окрашена своим цветом: заметно выделяется на фоне страницы
+        // (в т.ч. на цветном фоне проекта) и сразу читается как отдельный список
+        const tint = wipOver ? "#ef4444" : col.color;
+        const highlight = isCardTarget || isColDropTarget;
         return (
           <div
             key={col.id}
             onDragOver={(e) => {
               e.preventDefault();
-              if (dragColId) setOverColDrag(col.id);
-              else {
-                setOverCol(col.id);
-                setOverTaskId(null); // над пустым местом колонки — в конец
+              if (dragColId) {
+                setOverColDrag(col.id);
+              } else if (dragId) {
+                // Над пустым местом колонки позиция не сбрасывается в конец:
+                // держим ту, что показали над карточками. В конец — только при
+                // заходе в другую колонку.
+                setOver((prev) =>
+                  prev && prev.colId === col.id
+                    ? prev
+                    : { colId: col.id, index: tasksWithoutDragged(col.id).length }
+                );
               }
             }}
-            onDragLeave={() => {
-              setOverCol((c) => (c === col.id ? null : c));
+            onDragLeave={(e) => {
+              // Переход между карточками внутри колонки — это тоже dragleave;
+              // сбрасываем, только когда курсор реально покинул колонку
+              if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+              setOver((prev) => (prev?.colId === col.id ? null : prev));
               setOverColDrag((c) => (c === col.id ? null : c));
             }}
             onDrop={() => (dragColId ? dropColumn(col.id) : dropCard(col))}
-            className={`flex w-[85vw] max-w-[20rem] shrink-0 flex-col rounded-2xl border bg-surface/60 transition sm:w-80 ${
-              overCol === col.id && !dragColId
-                ? "border-accent/60 bg-accent/5"
-                : isColDropTarget
-                  ? "border-accent border-dashed"
-                  : wipOver
-                    ? "border-red-500/50 bg-red-500/[0.04]"
-                    : "border-edge"
+            className={`flex w-[85vw] max-w-[20rem] shrink-0 flex-col rounded-2xl border transition sm:w-80 ${
+              isColDropTarget ? "border-dashed" : ""
             }`}
-            style={
-              overCol === col.id && !dragColId
-                ? undefined
-                : {
-                    borderTopColor: (wipOver ? "#ef4444" : col.color) + "99",
-                    borderTopWidth: 2,
-                  }
-            }
+            // Каждая граница — отдельным свойством: смешивать сокращённое
+            // borderColor с borderTopColor нельзя, React обновляет их
+            // независимо и верхняя полоса «залипает» от прошлого состояния
+            style={{
+              backgroundColor: `color-mix(in srgb, ${tint} 18%, var(--surface))`,
+              borderTopColor: highlight ? "var(--accent)" : tint,
+              borderRightColor: highlight ? "var(--accent)" : tint + "80",
+              borderBottomColor: highlight ? "var(--accent)" : tint + "80",
+              borderLeftColor: highlight ? "var(--accent)" : tint + "80",
+              borderTopWidth: 3,
+            }}
           >
-            <div className="flex items-center gap-2 px-4 py-3">
+            <div
+              className="flex items-center gap-2 rounded-t-xl px-4 py-3"
+              style={{ backgroundColor: `color-mix(in srgb, ${tint} 16%, transparent)` }}
+            >
               <span
                 draggable
                 onDragStart={(e) => {
+                  // Без данных в dataTransfer Firefox перенос не начнёт
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", col.id);
                   setDragColId(col.id);
                   e.stopPropagation();
                 }}
@@ -712,26 +812,43 @@ export function KanbanBoard({
             </div>
 
             <div className="flex-1 space-y-2.5 overflow-y-auto px-3 pb-3">
-              {colTasks.map((t) => (
+              {/* Перетаскиваемая карточка остаётся в разметке, но скрыта
+                  (display:none): на её месте слот, а обработчик dragEnd жив —
+                  иначе отмена переноса оставила бы доску без этой карточки */}
+              {renderList(col, visible, slot).map(({ task: t, index: i, ghost }) => (
+                <Fragment key={t.id}>
+                  {i === slot && !ghost && <DropSlot height={dragHeight} />}
                 <div
-                  key={t.id}
+                  hidden={ghost}
                   draggable
                   role="button"
                   tabIndex={0}
                   aria-label={`${projectKey}-${t.number}: ${t.title}`}
-                  onDragStart={() => setDragId(t.id)}
+                  onDragStart={(e) => {
+                    // Firefox не начинает перенос без данных в dataTransfer
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", t.id);
+                    // Состояние здесь не трогаем: dragstart — дискретное событие,
+                    // React применил бы setState синхронно, карточка исчезла бы
+                    // прямо в момент старта и браузер отменил бы перенос.
+                    // Слот повторяет размер карточки — соседи не «прыгают».
+                    dragMeta.current = { id: t.id, height: e.currentTarget.offsetHeight };
+                  }}
+                  onDrag={() => {
+                    // Первый drag — перенос уже точно начался, прятать источник
+                    // безопасно (дальше срабатывает только один раз)
+                    const meta = dragMeta.current;
+                    if (meta && dragId !== meta.id) {
+                      setDragHeight(meta.height);
+                      setDragId(meta.id);
+                    }
+                  }}
                   onDragEnd={() => {
+                    dragMeta.current = null;
                     setDragId(null);
-                    setOverTaskId(null);
-                    setOverCol(null);
+                    setOver(null);
                   }}
-                  onDragOver={(e) => {
-                    if (!dragId) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setOverCol(col.id);
-                    setOverTaskId(t.id);
-                  }}
+                  onDragOver={(e) => hoverCard(col.id, i, e)}
                   onClick={() => router.push(`/tasks/${t.id}`)}
                   onKeyDown={(e) => {
                     // Клавиши обрабатываем только когда фокус на самой карточке,
@@ -748,14 +865,8 @@ export function KanbanBoard({
                   // Выполненные карточки приглушены (блёклый цвет и полупрозрачность),
                   // при наведении проявляются — сразу видно, что уже сделано
                   className={`group cursor-pointer rounded-xl border border-edge bg-surface p-3.5 outline-none transition hover:border-accent/50 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40 ${
-                    dragId === t.id ? "opacity-40" : ""
-                  } ${
                     t.status === "DONE" || t.status === "CLOSED"
                       ? "opacity-55 saturate-50 hover:opacity-100 hover:saturate-100 focus-visible:opacity-100"
-                      : ""
-                  } ${
-                    overTaskId === t.id && dragId && dragId !== t.id && col.sort === "MANUAL"
-                      ? "border-t-2 border-t-accent"
                       : ""
                   }`}
                   style={
@@ -883,8 +994,10 @@ export function KanbanBoard({
                     {t.dueDate && <span className="ml-auto">{formatDate(t.dueDate)}</span>}
                   </div>
                 </div>
+                </Fragment>
               ))}
-              {colTasks.length === 0 && (
+              {slot === visible.length && <DropSlot height={dragHeight} />}
+              {visible.length === 0 && slot < 0 && (
                 <div className="rounded-xl border border-dashed border-edge/60 py-8 text-center text-xs text-muted/60">
                   Перетащите задачу сюда
                 </div>

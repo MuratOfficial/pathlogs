@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { randomBytes } from "crypto";
 import { z } from "zod";
+import { HEX_COLOR, type ProjectBackgroundDTO } from "@/lib/background";
 
 const projectSchema = z.object({
   name: z.string().min(2, "Название — минимум 2 символа"),
@@ -16,11 +17,13 @@ const projectSchema = z.object({
     .max(6)
     .regex(/^[A-Za-z]+$/, "Ключ — только латинские буквы"),
   description: z.string().optional(),
-  /// Пустая строка — «без цвета», фон остаётся обычным
-  color: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/, "Цвет — в формате #rrggbb")
-    .optional(),
+});
+
+/** Персональный фон проекта: основной цвет, второй цвет градиента и угол. */
+const backgroundSchema = z.object({
+  color: z.string().regex(HEX_COLOR, "Цвет — в формате #rrggbb"),
+  colorTo: z.string().regex(HEX_COLOR, "Цвет — в формате #rrggbb").nullable(),
+  angle: z.coerce.number().int().min(0).max(360),
 });
 
 export async function createProjectAction(
@@ -56,7 +59,7 @@ export async function createProjectAction(
 }
 
 /**
- * Редактирует название, ключ, описание и фоновый цвет проекта.
+ * Редактирует название, ключ и описание проекта.
  * Доступно владельцу, админу и менеджеру проекта (см. requireProjectManager).
  */
 export async function updateProjectAction(
@@ -69,7 +72,6 @@ export async function updateProjectAction(
     name: formData.get("name"),
     key: formData.get("key"),
     description: formData.get("description") || undefined,
-    color: formData.get("color") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
@@ -88,13 +90,43 @@ export async function updateProjectAction(
       name: parsed.data.name,
       key,
       description: parsed.data.description ?? null,
-      color: parsed.data.color ?? null,
     },
   });
 
   revalidatePath("/dashboard");
   revalidatePath(`/projects/${projectId}`);
   return { ok: true };
+}
+
+/**
+ * Задаёт персональный фон проекта текущему пользователю (null — убрать фон).
+ * Фон личный: другие участники продолжают видеть свой, поэтому прав менеджера
+ * не требуется — достаточно быть участником проекта.
+ */
+export async function setProjectBackgroundAction(
+  projectId: string,
+  background: ProjectBackgroundDTO | null
+): Promise<{ error?: string }> {
+  const user = await requireProjectMember(projectId);
+
+  if (!background) {
+    await prisma.projectAppearance.deleteMany({ where: { userId: user.id, projectId } });
+  } else {
+    const parsed = backgroundSchema.safeParse(background);
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? "Некорректный цвет" };
+    }
+    const { color, colorTo, angle } = parsed.data;
+    await prisma.projectAppearance.upsert({
+      where: { userId_projectId: { userId: user.id, projectId } },
+      update: { color, colorTo, angle },
+      create: { userId: user.id, projectId, color, colorTo, angle },
+    });
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/projects/${projectId}`);
+  return {};
 }
 
 /**

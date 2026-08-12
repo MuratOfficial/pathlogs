@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getProjectBackgrounds } from "@/lib/appearance";
 import { logoutAction } from "@/lib/actions/auth";
 import { ROLE_LABELS, initials } from "@/lib/labels";
 import { Hotkeys } from "@/components/Hotkeys";
@@ -29,8 +30,13 @@ export default async function AppLayout({
   const pinned = await prisma.projectPin.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "asc" },
-    select: { project: { select: { id: true, key: true, name: true, color: true } } },
+    select: { project: { select: { id: true, key: true, name: true } } },
   });
+  // Точка у проекта — цвет его персонального фона
+  const backgrounds = await getProjectBackgrounds(
+    pinned.map((p) => p.project.id),
+    user.id
+  );
 
   const sidebar = (
     <>
@@ -99,7 +105,9 @@ export default async function AppLayout({
                   <span
                     aria-hidden
                     className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: p.color ?? "var(--muted)" }}
+                    style={{
+                      backgroundColor: backgrounds.get(p.id)?.color ?? "var(--muted)",
+                    }}
                   />
                   <span className="shrink-0 font-mono text-[10px] font-bold text-muted">
                     {p.key}

@@ -49,6 +49,7 @@ import {
   removeProjectMemberAction,
   toggleProjectArchiveAction,
   toggleProjectPinAction,
+  setProjectBackgroundAction,
 } from "@/lib/actions/projects";
 import { createTemplateAction, deleteTemplateAction } from "@/lib/actions/templates";
 import { saveFilterAction, deleteFilterAction } from "@/lib/actions/filters";
@@ -631,6 +632,80 @@ describe("закрепление проекта", () => {
   it("посторонний чужой проект не закрепляет", async () => {
     loginAs(fx.outsider);
     await expect(toggleProjectPinAction(fx.project.id)).rejects.toThrow(
+      "Нет доступа к проекту"
+    );
+  });
+});
+
+describe("персональный фон проекта", () => {
+  const bg = { color: "#6366f1", colorTo: null, angle: 160 };
+
+  it("у каждого участника свой фон", async () => {
+    loginAs(fx.member);
+    expect(await setProjectBackgroundAction(fx.project.id, bg)).toEqual({});
+
+    loginAs(fx.manager);
+    await setProjectBackgroundAction(fx.project.id, {
+      color: "#ec4899",
+      colorTo: "#f59e0b",
+      angle: 45,
+    });
+
+    const rows = await prisma.projectAppearance.findMany({
+      where: { projectId: fx.project.id },
+      orderBy: { color: "asc" },
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => [r.userId, r.color, r.colorTo, r.angle])).toEqual([
+      [fx.member.id, "#6366f1", null, 160],
+      [fx.manager.id, "#ec4899", "#f59e0b", 45],
+    ]);
+  });
+
+  it("повторный выбор перезаписывает свой фон, а не добавляет второй", async () => {
+    loginAs(fx.member);
+    await setProjectBackgroundAction(fx.project.id, bg);
+    await setProjectBackgroundAction(fx.project.id, {
+      color: "#10b981",
+      colorTo: null,
+      angle: 90,
+    });
+    const rows = await prisma.projectAppearance.findMany({
+      where: { userId: fx.member.id, projectId: fx.project.id },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.color).toBe("#10b981");
+  });
+
+  it("null убирает только свой фон", async () => {
+    loginAs(fx.member);
+    await setProjectBackgroundAction(fx.project.id, bg);
+    loginAs(fx.manager);
+    await setProjectBackgroundAction(fx.project.id, bg);
+
+    loginAs(fx.member);
+    await setProjectBackgroundAction(fx.project.id, null);
+
+    const rows = await prisma.projectAppearance.findMany({
+      where: { projectId: fx.project.id },
+    });
+    expect(rows.map((r) => r.userId)).toEqual([fx.manager.id]);
+  });
+
+  it("некорректный цвет отклоняется", async () => {
+    loginAs(fx.member);
+    const res = await setProjectBackgroundAction(fx.project.id, {
+      color: "red; background: url(evil)",
+      colorTo: null,
+      angle: 160,
+    });
+    expect(res.error).toBe("Цвет — в формате #rrggbb");
+    expect(await prisma.projectAppearance.count()).toBe(0);
+  });
+
+  it("посторонний фон чужому проекту не задаёт", async () => {
+    loginAs(fx.outsider);
+    await expect(setProjectBackgroundAction(fx.project.id, bg)).rejects.toThrow(
       "Нет доступа к проекту"
     );
   });

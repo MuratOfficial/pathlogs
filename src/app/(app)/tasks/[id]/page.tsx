@@ -15,6 +15,8 @@ import { TypeBadge, PriorityBadge, TagChip } from "@/components/TaskBadges";
 import { TaskMetaPanel } from "@/components/task/TaskMetaPanel";
 import { TaskDoneButton } from "@/components/task/TaskDoneButton";
 import { ProjectBackdrop } from "@/components/ProjectBackdrop";
+import { BackButton } from "@/components/BackButton";
+import { getProjectBackground } from "@/lib/appearance";
 import { TaskTags } from "@/components/task/TaskTags";
 import { TaskSectionNav, type TaskSectionDTO } from "@/components/task/TaskSectionNav";
 import { EditableText } from "@/components/task/EditableText";
@@ -59,7 +61,6 @@ export default async function TaskPage({
           id: true,
           key: true,
           name: true,
-          color: true,
           owner: { select: { id: true, name: true } },
           members: { select: { user: { select: { id: true, name: true } } } },
         },
@@ -121,6 +122,9 @@ export default async function TaskPage({
 
   // Полезные ссылки задачи (блок «Ссылки»)
   const resourceLinks = await getResourceLinks(task.projectId, user, task.id);
+
+  // Фон проекта — персональный, как и на самой странице проекта
+  const background = await getProjectBackground(task.projectId, user.id);
 
   // История статусов (машина времени)
   const statusEvents = (
@@ -193,11 +197,12 @@ export default async function TaskPage({
     user.role === "MANAGER";
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <ProjectBackdrop color={task.project.color} />
+    <div className="mx-auto max-w-full">
+      <ProjectBackdrop background={background} />
 
       {/* Хлебные крошки */}
       <div className="mb-4 flex items-center gap-2 text-sm text-muted">
+        <BackButton className="mr-1" />
         <Link href="/dashboard" className="hover:text-foreground">Проекты</Link>
         <span>/</span>
         <Link href={`/projects/${task.project.id}`} className="hover:text-foreground">
