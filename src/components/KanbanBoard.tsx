@@ -811,7 +811,7 @@ export function KanbanBoard({
               )}
             </div>
 
-            <div className="flex-1 space-y-2.5 overflow-y-auto px-3 pb-3">
+            <div className="flex-1 space-y-2.5 overflow-y-auto pt-1.5 px-3 pb-3">
               {/* Перетаскиваемая карточка остаётся в разметке, но скрыта
                   (display:none): на её месте слот, а обработчик dragEnd жив —
                   иначе отмена переноса оставила бы доску без этой карточки */}
