@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { STATUS_LABELS, STATUS_COLORS, TYPE_LABELS, TYPE_COLORS, formatDate } from "@/lib/labels";
 import type { TaskStatus } from "@prisma/client";
+import { AuthorLinks, DevelopedBy } from "@/components/AuthorCredits";
 
 // Колонки роадмапа (ARCHIVED/CLOSED не показываем как отдельную фазу)
 const PHASES: TaskStatus[] = ["TODO", "IN_PROGRESS", "REVIEW", "DONE"];
@@ -134,8 +135,12 @@ export default async function PublicRoadmapPage({
         })}
       </div>
 
-      <footer className="mt-10 text-center text-xs text-muted">
-        Сгенерировано в PathLogs
+      {/* Единственная страница, которую видят без входа, — здесь подпись
+          автора уместна: это витрина, а не интерфейс приложения */}
+      <footer className="mt-10 flex flex-col items-center gap-3">
+        <p className="text-xs text-muted">Сгенерировано в PathLogs</p>
+        <DevelopedBy />
+        <AuthorLinks className="text-center" />
       </footer>
     </div>
   );

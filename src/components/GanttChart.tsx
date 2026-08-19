@@ -51,7 +51,7 @@ export function GanttChart({
 
   // Полотно листается протяжкой по обеим осям. Сами полосы задач гасят
   // всплытие в своём onPointerDown, поэтому тянутся, а не двигают полотно.
-  const scrollRef = useDragScroll<HTMLDivElement>({ axis: "both" });
+  const scrollRef = useDragScroll<HTMLDivElement>({ axis: "both", keyboard: true });
 
   const dated = tasks
     .map((t) => {
@@ -264,6 +264,8 @@ export function GanttChart({
       )}
       <div
         ref={scrollRef}
+        role="region"
+        aria-label="Диаграмма Ганта: стрелки прокручивают, Home и End — к краям"
         className="min-h-0 flex-1 overflow-auto rounded-2xl border border-edge bg-surface"
       >
         <div style={{ width: labelW + chartW, minWidth: "100%" }}>

@@ -20,6 +20,7 @@ import { BOARD_PALETTE, formatDate, formatHours } from "@/lib/labels";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { AssigneeAvatars, PriorityBadge, TagChips, TypeBadge } from "./TaskBadges";
 import { useDragScroll } from "./useDragScroll";
+import { DragScroll } from "./DragScroll";
 
 // Размеры popover для расчёта позиции (ширина w-44 + переворот при нехватке места)
 const PALETTE_W = 176;
@@ -450,7 +451,7 @@ export function KanbanBoard({
 
   // Доску листаем протяжкой: карточки и ручки колонок остаются
   // перетаскиваемыми — при их drag&drop протяжка отменяется.
-  const boardRef = useDragScroll<HTMLDivElement>();
+  const boardRef = useDragScroll<HTMLDivElement>({ keyboard: true });
 
   const [isPending, startTransition] = useTransition();
 
@@ -698,7 +699,12 @@ export function KanbanBoard({
   }
 
   return (
-    <div ref={boardRef} className="flex h-full gap-4 overflow-x-auto pb-4">
+    <div
+      ref={boardRef}
+      role="region"
+      aria-label="Доска задач: стрелки прокручивают, Home и End — к краям"
+      className="flex h-full gap-4 overflow-x-auto pb-4"
+    >
       {sorted.map((col) => {
         const colTasks = tasksOf(col.id);
         const wipOver = col.wipLimit != null && colTasks.length > col.wipLimit;
@@ -811,7 +817,9 @@ export function KanbanBoard({
               )}
             </div>
 
-            <div className="flex-1 space-y-2.5 overflow-y-auto pt-1.5 px-3 pb-3">
+            {/* Тело колонки листается протяжкой по вертикали, а при переносе
+                карточки к её краю — подкручивается само (см. useDragScroll) */}
+            <DragScroll axis="y" className="flex-1 space-y-2.5 overflow-y-auto pt-1.5 px-3 pb-3">
               {/* Перетаскиваемая карточка остаётся в разметке, но скрыта
                   (display:none): на её месте слот, а обработчик dragEnd жив —
                   иначе отмена переноса оставила бы доску без этой карточки */}
@@ -1002,7 +1010,7 @@ export function KanbanBoard({
                   Перетащите задачу сюда
                 </div>
               )}
-            </div>
+            </DragScroll>
 
             {/* Создание задачи прямо в колонке: неброская строка внизу,
                 как в Trello — задача сразу попадает в эту колонку */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { createTaskAction } from "@/lib/actions/tasks";
 import { PRIORITY_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { TaskDTO, MemberDTO, TaskTemplateDTO, TagDTO } from "@/lib/types";
@@ -58,7 +59,9 @@ export function NewTaskDialog({
         {triggerLabel}
       </button>
 
-      {open && (
+      {/* Через портал в <body>: внутри доски диалог оказался бы в поддереве
+          с CSS-маской краёв ленты и подкрашивался бы её градиентом */}
+      {open && typeof document !== "undefined" && createPortal(
         <div
           className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           onClick={(e) => e.target === e.currentTarget && (setOpen(false), setTpl(null))}
@@ -250,7 +253,8 @@ export function NewTaskDialog({
               </button>
             </div>
           </form>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

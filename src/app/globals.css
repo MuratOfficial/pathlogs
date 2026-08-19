@@ -262,6 +262,63 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   user-select: none !important;
 }
 
+/* Подсказка «лента продолжается»: край, за которым спрятан контент, плавно
+   растворяется. Именно маска, а не градиент-накладка: не нужен лишний
+   элемент-обёртка и не нужно знать, что под лентой — цветные колонки,
+   персональный фон проекта или другая тема. Атрибуты ставит useDragScroll:
+   по горизонтали у доски и вкладок, по вертикали у колонок. */
+[data-scroll-edge],
+[data-scroll-edge-y] {
+  --edge-fade: 2rem;
+  /* По умолчанию маска непрозрачна: ось, где ничего не спрятано, ничего и не
+     растворяет. Слои пересекаются, поэтому Гант может растворить и бока,
+     и верх с низом одновременно. */
+  --edge-mask-x: linear-gradient(#000, #000);
+  --edge-mask-y: linear-gradient(#000, #000);
+  -webkit-mask-image: var(--edge-mask-x), var(--edge-mask-y);
+  mask-image: var(--edge-mask-x), var(--edge-mask-y);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+[data-scroll-edge="start"] {
+  --edge-mask-x: linear-gradient(to right, transparent 0, #000 var(--edge-fade));
+}
+[data-scroll-edge="end"] {
+  --edge-mask-x: linear-gradient(to left, transparent 0, #000 var(--edge-fade));
+}
+[data-scroll-edge="both"] {
+  --edge-mask-x: linear-gradient(
+    to right,
+    transparent 0,
+    #000 var(--edge-fade),
+    #000 calc(100% - var(--edge-fade)),
+    transparent 100%
+  );
+}
+[data-scroll-edge-y="start"] {
+  --edge-mask-y: linear-gradient(to bottom, transparent 0, #000 var(--edge-fade));
+}
+[data-scroll-edge-y="end"] {
+  --edge-mask-y: linear-gradient(to top, transparent 0, #000 var(--edge-fade));
+}
+[data-scroll-edge-y="both"] {
+  --edge-mask-y: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--edge-fade),
+    #000 calc(100% - var(--edge-fade)),
+    transparent 100%
+  );
+}
+
+/* Лента, которую можно листать с клавиатуры, показывает фокус — иначе
+   непонятно, куда поедут стрелки. */
+[data-scroll-keys]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 0.5rem;
+}
+
 /* Placeholder'ы полей: визуально отличаются от введённого текста,
    читаются как подсказка, а не как обычный текст. */
 input::placeholder,
