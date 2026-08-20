@@ -20,6 +20,8 @@ import { BOARD_PALETTE, formatDate, formatHours } from "@/lib/labels";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { AssigneeAvatars, PriorityBadge, TagChips, TypeBadge } from "./TaskBadges";
 import { useDragScroll } from "./useDragScroll";
+import { TaskFilterBar, type SavedFilterDTO } from "./TaskFilterBar";
+import { EMPTY_FILTER, isFilterActive, matchesTaskFilter, type TaskFilter } from "@/lib/taskFilter";
 import { DragScroll } from "./DragScroll";
 
 // Размеры popover для расчёта позиции (ширина w-44 + переворот при нехватке места)
@@ -433,6 +435,8 @@ export function KanbanBoard({
   members,
   templates = [],
   projectTags = [],
+  savedFilters = [],
+  toolbarExtra,
 }: {
   tasks: TaskDTO[];
   columns: ColumnDTO[];
@@ -444,6 +448,9 @@ export function KanbanBoard({
   members: MemberDTO[];
   templates?: TaskTemplateDTO[];
   projectTags?: TagDTO[];
+  savedFilters?: SavedFilterDTO[];
+  /** Индикатор живых обновлений — встаёт в ту же строку, что и фильтр. */
+  toolbarExtra?: React.ReactNode;
 }) {
   const router = useRouter();
   const [tasks, setTasks] = useState(initialTasks);
@@ -452,6 +459,14 @@ export function KanbanBoard({
   // Доску листаем протяжкой: карточки и ручки колонок остаются
   // перетаскиваемыми — при их drag&drop протяжка отменяется.
   const boardRef = useDragScroll<HTMLDivElement>({ keyboard: true });
+
+  // Фильтр доски: карточки не в фильтре прячутся, колонки остаются на месте —
+  // так видно и структуру доски, и сколько в ней осталось по фильтру
+  const [filter, setFilter] = useState<TaskFilter>(EMPTY_FILTER);
+  const filtering = isFilterActive(filter);
+  // Панель фильтров свёрнута: на доске дорог каждый пиксель высоты.
+  // Когда фильтр задан, строка-кнопка показывает это и в свёрнутом виде.
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const [isPending, startTransition] = useTransition();
 
@@ -537,6 +552,12 @@ export function KanbanBoard({
     return dragId ? list.filter((t) => t.id !== dragId) : list;
   }
 
+  /** То, что реально видно в колонке: список за вычетом отсеянных фильтром. */
+  function visibleInColumn(colId: string): TaskDTO[] {
+    const list = tasksWithoutDragged(colId);
+    return filtering ? list.filter((t) => matchesTaskFilter(t, filter)) : list;
+  }
+
   /**
    * Что рисуем в колонке: карточки без перетаскиваемой (для них важен индекс —
    * по нему ставится слот) плюс сама перетаскиваемая карточка «призраком».
@@ -562,6 +583,9 @@ export function KanbanBoard({
    * слот там, где карточка действительно окажется, а не под курсором.
    */
   function dropSlotIndex(col: ColumnDTO, list: TaskDTO[], hovered: number): number {
+    // При фильтре видно не все карточки, и «место под курсором» ничего не
+    // значит для настоящего порядка — кладём в конец колонки
+    if (filtering) return list.length;
     if (col.sort === "MANUAL") return Math.min(hovered, list.length);
     const dragged = tasks.find((t) => t.id === dragId);
     if (!dragged) return list.length;
@@ -599,7 +623,7 @@ export function KanbanBoard({
     // Карточка встаёт ровно туда, где показывали слот. Если слот не успел
     // появиться (бросили мимо карточек) — в конец колонки.
     const insertIndex =
-      over && over.colId === col.id
+      over && over.colId === col.id && !filtering
         ? dropSlotIndex(col, list, over.index)
         : list.length;
     const newIds = list.map((t) => t.id);
@@ -698,12 +722,66 @@ export function KanbanBoard({
     startTransition(() => updateTaskStatusAction(t.id, next));
   }
 
+  const boardTasks = tasks.filter((t) => columnOf(t) !== null);
+  const matched = filtering
+    ? boardTasks.filter((t) => matchesTaskFilter(t, filter)).length
+    : boardTasks.length;
+
   return (
+    <div className="flex h-full flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setFilterOpen((v) => !v)}
+          aria-expanded={filterOpen}
+          data-tip={filterOpen ? "Свернуть фильтр" : "Фильтр карточек"}
+          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+            filtering
+              ? "border-accent/60 bg-accent/10 text-accent-hover"
+              : "border-edge text-muted hover:bg-surface-2 hover:text-foreground"
+          }`}
+        >
+          <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6h16.5M7 12h10M10.5 18h3" />
+          </svg>
+          Фильтр
+          {filtering && <span className="tabular-nums">· {matched} из {boardTasks.length}</span>}
+        </button>
+
+        {/* Сбросить можно не разворачивая панель */}
+        {filtering && !filterOpen && (
+          <button
+            type="button"
+            onClick={() => setFilter(EMPTY_FILTER)}
+            className="rounded-lg border border-edge px-2.5 py-1.5 text-xs text-muted transition hover:bg-surface-2 hover:text-foreground"
+          >
+            Сбросить
+          </button>
+        )}
+        {toolbarExtra && <span className="ml-auto">{toolbarExtra}</span>}
+      </div>
+
+      {filterOpen && (
+        <div className="animate-fade-in rounded-xl border border-edge bg-surface/60 p-3">
+          <TaskFilterBar
+            compact
+            filter={filter}
+            onChange={setFilter}
+            members={members}
+            projectTags={projectTags}
+            projectId={projectId}
+            savedFilters={savedFilters}
+            matchedCount={matched}
+            totalCount={boardTasks.length}
+          />
+        </div>
+      )}
+
     <div
       ref={boardRef}
       role="region"
       aria-label="Доска задач: стрелки прокручивают, Home и End — к краям"
-      className="flex h-full gap-4 overflow-x-auto pb-4"
+      className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-4"
     >
       {sorted.map((col) => {
         const colTasks = tasksOf(col.id);
@@ -712,7 +790,7 @@ export function KanbanBoard({
         const isCardTarget = Boolean(dragId) && over?.colId === col.id;
         // Карточки колонки без перетаскиваемой + позиция прозрачного слота:
         // ровно то место, куда карточка встанет после отпускания
-        const visible = tasksWithoutDragged(col.id);
+        const visible = visibleInColumn(col.id);
         const slot = isCardTarget ? dropSlotIndex(col, visible, over!.index) : -1;
         // Колонка окрашена своим цветом: заметно выделяется на фоне страницы
         // (в т.ч. на цветном фоне проекта) и сразу читается как отдельный список
@@ -1085,6 +1163,7 @@ export function KanbanBoard({
         onConfirm={() => colToRemove && removeColumn(colToRemove.id)}
         onCancel={() => setColToRemove(null)}
       />
+    </div>
     </div>
   );
 }

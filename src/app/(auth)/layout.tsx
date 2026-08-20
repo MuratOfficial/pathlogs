@@ -3,7 +3,7 @@ import { AuthorLinks, DevelopedBy } from "@/components/AuthorCredits";
 const FEATURES = [
   { title: "Ветвление задач", desc: "Подзадачи-ветки и граф реализации как в git" },
   { title: "Канбан и Гант", desc: "Drag & drop, WIP-лимиты и сроки на временной шкале" },
-  { title: "Патч-логи и аналитика", desc: "История реализации, трудозатраты и стоимость" },
+  { title: "Патч-логи и аналитика", desc: "История реализации задач и трудозатраты" },
 ];
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {

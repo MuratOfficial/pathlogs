@@ -115,7 +115,6 @@ export async function GET(
     { header: "Сотрудник", key: "user", width: 22 },
     { header: "Часы", key: "hours", width: 8 },
     { header: "Ставка/ч", key: "rate", width: 10 },
-    { header: "Стоимость", key: "cost", width: 12 },
     { header: "Дата", key: "date", width: 12 },
     { header: "Комментарий", key: "note", width: 50 },
   ];
@@ -129,7 +128,6 @@ export async function GET(
         user: e.user.name,
         hours: e.hours,
         rate: rate ?? "",
-        cost: rate != null ? Math.round(e.hours * rate) : "",
         date: e.date,
         note: e.note ?? "",
       });

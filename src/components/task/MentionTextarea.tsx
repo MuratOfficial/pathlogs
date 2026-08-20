@@ -14,12 +14,15 @@ export function MentionTextarea({
   placeholder,
   rows = 2,
   className = "",
+  autoFocus,
 }: {
   name: string;
   members: MemberDTO[];
   placeholder?: string;
   rows?: number;
   className?: string;
+  /** Форма ответа открывается по клику — курсор сразу в поле. */
+  autoFocus?: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState("");
@@ -73,6 +76,7 @@ export function MentionTextarea({
         name={name}
         value={value}
         rows={rows}
+        autoFocus={autoFocus}
         onChange={onChange}
         onKeyDown={(e) => {
           if (query !== null && matches.length > 0 && (e.key === "Enter" || e.key === "Tab")) {

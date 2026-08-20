@@ -87,7 +87,7 @@ export function UserRow({
           onChange={(e) => setRate(e.target.value)}
           onBlur={commitRate}
           onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-          data-tip="Ставка в час для расчёта стоимости"
+          data-tip="Ставка в час"
           className="w-24 rounded-lg border border-edge bg-surface-2 px-2 py-1.5 text-xs outline-none focus:border-accent disabled:opacity-50"
         />
       </td>

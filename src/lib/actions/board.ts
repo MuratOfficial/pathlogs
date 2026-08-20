@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import { rulePatch } from "@/lib/boardRules";
 import {
   requireProjectMember,
   requireProjectManager,
@@ -234,6 +235,42 @@ export async function moveTaskAction(
         : prisma.task.update({ where: { id }, data: { order: i } })
     )
   );
+  // ── Правила доски ────────────────────────────────────────────────
+  // Применяем после переноса: правило может поменять статус, назначить
+  // исполнителя и повесить метку. Ошибка в правиле не должна отменять сам
+  // перенос — карточка уже лежит в новой колонке.
+  try {
+    const rules = await prisma.boardRule.findMany({
+      where: { projectId: column.projectId, columnId, active: true },
+      orderBy: { createdAt: "asc" },
+    });
+    const patch = rulePatch(rules, columnId);
+    if (patch.setStatus || patch.assignUserId || patch.addTagIds.length > 0) {
+      await prisma.task.update({
+        where: { id: taskId },
+        data: {
+          ...(patch.setStatus
+            ? {
+                status: patch.setStatus,
+                closedAt:
+                  patch.setStatus === "CLOSED" || patch.setStatus === "DONE"
+                    ? new Date()
+                    : null,
+              }
+            : {}),
+          ...(patch.assignUserId
+            ? { assignees: { connect: { id: patch.assignUserId } } }
+            : {}),
+          ...(patch.addTagIds.length > 0
+            ? { tags: { connect: patch.addTagIds.map((id) => ({ id })) } }
+            : {}),
+        },
+      });
+    }
+  } catch (e) {
+    console.error("Правила доски:", e);
+  }
+
   if (column.status && beforeStatus) {
     await recordStatusChange(taskId, user.id, beforeStatus, column.status);
   }

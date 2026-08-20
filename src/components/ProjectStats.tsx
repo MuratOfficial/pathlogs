@@ -94,23 +94,15 @@ function CompletionChart({
   );
 }
 
-/** Денежный формат стоимости. */
-function formatCost(n: number): string {
-  return new Intl.NumberFormat("ru-RU", {
-    maximumFractionDigits: 0,
-  }).format(Math.round(n));
-}
-
 export function ProjectStats({
   tasks,
   hoursByUser,
   completion,
 }: {
   tasks: TaskDTO[];
-  hoursByUser: { name: string; hours: number; cost: number | null }[];
+  hoursByUser: { name: string; hours: number }[];
   completion: { label: string; created: number; closed: number }[];
 }) {
-  const totalCost = hoursByUser.reduce((s, u) => s + (u.cost ?? 0), 0);
   const done = tasks.filter((t) => t.status === "DONE" || t.status === "CLOSED");
   const open = tasks.filter(
     (t) => t.status !== "DONE" && t.status !== "CLOSED" && t.status !== "ARCHIVED"
@@ -141,10 +133,7 @@ export function ProjectStats({
           value={String(overdue.length)}
           accent={overdue.length ? "#ef4444" : undefined}
         />
-        <Card
-          label={totalCost > 0 ? "Стоимость" : "Потрачено"}
-          value={totalCost > 0 ? formatCost(totalCost) : formatHours(spent)}
-        />
+        <Card label="Потрачено" value={formatHours(spent)} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -243,7 +232,7 @@ export function ProjectStats({
 
         <section className="rounded-2xl border border-edge bg-surface p-5">
           <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
-            {totalCost > 0 ? "Часы и стоимость по сотрудникам" : "Часы по сотрудникам"}
+            Часы по сотрудникам
           </h2>
           {hoursByUser.length === 0 ? (
             <p className="text-sm text-muted">Время ещё не списывалось.</p>
@@ -253,17 +242,9 @@ export function ProjectStats({
                 label: u.name,
                 value: u.hours,
                 color: "#6366f1",
-                hint:
-                  u.cost != null
-                    ? `${formatHours(u.hours)} · ${formatCost(u.cost)}`
-                    : formatHours(u.hours),
+                hint: formatHours(u.hours),
               }))}
             />
-          )}
-          {totalCost > 0 && (
-            <p className="mt-3 border-t border-edge pt-2 text-right text-xs text-muted">
-              Итого: <b className="text-foreground">{formatCost(totalCost)}</b>
-            </p>
           )}
         </section>
       </div>

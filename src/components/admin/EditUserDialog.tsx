@@ -51,7 +51,7 @@ function ProfileTab({
           </select>
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-sm text-muted">Ставка, ₽/ч</span>
+          <span className="mb-1.5 block text-sm text-muted">Ставка, ч</span>
           <input
             name="hourlyRate"
             type="number"

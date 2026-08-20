@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
 import {
+  canManageProject,
   filterProjectMembers,
   isManager,
   requireProjectMember,
@@ -338,6 +339,7 @@ export async function addCommentAction(
 ): Promise<{ error?: string }> {
   const taskId = String(formData.get("taskId") ?? "");
   const content = String(formData.get("content") ?? "").trim();
+  const parentId = String(formData.get("parentId") ?? "").trim() || null;
   const mentionIds = String(formData.get("mentions") ?? "")
     .split(",")
     .map((s) => s.trim())
@@ -345,8 +347,18 @@ export async function addCommentAction(
   if (!taskId || !content) return { error: "Комментарий не может быть пустым" };
 
   const { user, task } = await requireTaskMember(taskId);
+  // Отвечать можно только на комментарий этой же задачи — иначе ответ
+  // «переехал» бы в чужое обсуждение
+  const parent = parentId
+    ? await prisma.comment.findFirst({ where: { id: parentId, taskId }, select: { id: true } })
+    : null;
   await prisma.comment.create({
-    data: { taskId, authorId: user.id, content: content.slice(0, 5000) },
+    data: {
+      taskId,
+      authorId: user.id,
+      content: content.slice(0, 5000),
+      parentId: parent?.id ?? null,
+    },
   });
   const full = await prisma.task.findUniqueOrThrow({
     where: { id: taskId },
@@ -504,4 +516,120 @@ export async function deleteAttachmentAction(id: string) {
   }
   await prisma.attachment.delete({ where: { id } });
   if (att.taskId) revalidatePath(`/tasks/${att.taskId}`);
+}
+
+// ===== Массовые операции =====
+
+/** Что можно применить сразу к нескольким задачам списком. */
+export interface BulkTaskPatch {
+  status?: TaskStatus;
+  priority?: Priority;
+  type?: TaskType;
+  /** Заменяет исполнителей целиком; пустой список — снять всех. */
+  assigneeIds?: string[];
+  /** Метка добавляется к уже имеющимся, а не заменяет их. */
+  addTagId?: string;
+  removeTagId?: string;
+}
+
+/**
+ * Применяет одно изменение к пачке задач. Права проверяются по каждой задаче
+ * отдельно (requireTaskMember), поэтому чужая задача, случайно попавшая
+ * в список, просто пропускается — вся операция из-за неё не падает.
+ *
+ * Смена статуса идёт через updateTaskStatusAction: она пишет историю статусов
+ * и шлёт уведомления — дублировать это здесь означало бы разъехаться в поведении.
+ */
+export async function bulkUpdateTasksAction(
+  taskIds: string[],
+  patch: BulkTaskPatch
+): Promise<{ updated: number; skipped: number }> {
+  const ids = [...new Set(taskIds)].slice(0, 200);
+  let updated = 0;
+  let skipped = 0;
+  const projects = new Set<string>();
+
+  for (const id of ids) {
+    try {
+      const { task } = await requireTaskMember(id);
+      projects.add(task.projectId);
+
+      if (patch.status) {
+        await updateTaskStatusAction(id, patch.status);
+      }
+      const fields: { priority?: Priority; type?: TaskType } = {};
+      if (patch.priority) fields.priority = patch.priority;
+      if (patch.type) fields.type = patch.type;
+      if (Object.keys(fields).length > 0) {
+        await prisma.task.update({ where: { id }, data: fields });
+      }
+      if (patch.assigneeIds) {
+        const allowed = await filterProjectMembers(task.projectId, patch.assigneeIds);
+        await prisma.task.update({
+          where: { id },
+          data: { assignees: { set: allowed.map((userId) => ({ id: userId })) } },
+        });
+      }
+      if (patch.addTagId) {
+        // Метка обязана принадлежать тому же проекту — иначе она утащила бы
+        // задачу в чужую систему меток
+        const tag = await prisma.tag.findFirst({
+          where: { id: patch.addTagId, projectId: task.projectId },
+          select: { id: true },
+        });
+        if (tag) {
+          await prisma.task.update({
+            where: { id },
+            data: { tags: { connect: { id: tag.id } } },
+          });
+        }
+      }
+      if (patch.removeTagId) {
+        await prisma.task.update({
+          where: { id },
+          data: { tags: { disconnect: { id: patch.removeTagId } } },
+        });
+      }
+      updated += 1;
+    } catch {
+      skipped += 1;
+    }
+  }
+
+  for (const projectId of projects) revalidateTask(projectId);
+  return { updated, skipped };
+}
+
+export async function bulkDeleteTasksAction(
+  taskIds: string[]
+): Promise<{ deleted: number; skipped: number }> {
+  const user = await requireUser();
+  let deleted = 0;
+  let skipped = 0;
+  const projects = new Set<string>();
+
+  for (const id of [...new Set(taskIds)].slice(0, 200)) {
+    try {
+      const task = await prisma.task.findUniqueOrThrow({
+        where: { id },
+        select: { id: true, projectId: true, creatorId: true },
+      });
+      // Удаление — не рядовое изменение: только автор задачи или тот, кто
+      // управляет проектом
+      const mayDelete =
+        task.creatorId === user.id || (await canManageProject(task.projectId, user));
+      if (!mayDelete) {
+        skipped += 1;
+        continue;
+      }
+      await prisma.task.delete({ where: { id } });
+      projects.add(task.projectId);
+      deleted += 1;
+    } catch {
+      skipped += 1;
+    }
+  }
+
+  for (const projectId of projects) revalidateTask(projectId);
+  return { deleted, skipped };
 }

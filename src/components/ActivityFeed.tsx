@@ -48,7 +48,11 @@ export function ActivityFeed({
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    // Та же обёртка, что у остальных вкладок проекта: своя прокрутка внутри
+    // и общая ширина — иначе при переключении на «Активность» контент
+    // заметно сужался
+    <div className="h-full overflow-y-auto pb-4">
+      <div className="mx-auto max-w-400">
       <ol className="relative space-y-1 border-l border-edge pl-6">
         {items.map((a) => {
           const m = META[a.kind];
@@ -80,6 +84,7 @@ export function ActivityFeed({
           );
         })}
       </ol>
+      </div>
     </div>
   );
 }

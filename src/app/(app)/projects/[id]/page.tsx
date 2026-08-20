@@ -24,6 +24,10 @@ import { GanttChart } from "@/components/GanttChart";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { getProjectActivity } from "@/lib/activity";
 import { ShareRoadmapDialog } from "@/components/ShareRoadmapDialog";
+import { IntakeDialog } from "@/components/IntakeDialog";
+import { BoardRulesDialog } from "@/components/BoardRulesDialog";
+import { LiveBoard } from "@/components/LiveBoard";
+import { MoreMenu } from "@/components/MoreMenu";
 import { WebhooksDialog } from "@/components/WebhooksDialog";
 import { ExportMenu } from "@/components/ExportMenu";
 import { EditProjectDialog } from "@/components/EditProjectDialog";
@@ -33,30 +37,27 @@ import { ProjectBackgroundDialog } from "@/components/ProjectBackgroundDialog";
 import { BackButton } from "@/components/BackButton";
 import { getProjectBackground } from "@/lib/appearance";
 import { PollsPanel } from "@/components/PollsPanel";
+import { WorkloadPanel } from "@/components/WorkloadPanel";
+import { SprintPanel } from "@/components/SprintPanel";
+import { buildWorkload, unassignedCount } from "@/lib/workload";
 import { ResourceLinks } from "@/components/ResourceLinks";
 import { DragScroll } from "@/components/DragScroll";
 import { getProjectPolls } from "@/lib/polls";
 import { getResourceLinks } from "@/lib/links";
 import { formatHours } from "@/lib/labels";
 
-/** Суммарные часы и стоимость по сотрудникам для вкладки «Аналитика». */
+/** Суммарные часы по сотрудникам для вкладки «Аналитика». */
 async function getHoursByUser(projectId: string) {
   const entries = await prisma.timeEntry.findMany({
     where: { task: { projectId } },
-    select: { hours: true, user: { select: { name: true, hourlyRate: true } } },
+    select: { hours: true, user: { select: { name: true } } },
   });
-  const map = new Map<string, { hours: number; rate: number | null }>();
+  const map = new Map<string, number>();
   for (const e of entries) {
-    const cur = map.get(e.user.name) ?? { hours: 0, rate: e.user.hourlyRate };
-    cur.hours += e.hours;
-    map.set(e.user.name, cur);
+    map.set(e.user.name, (map.get(e.user.name) ?? 0) + e.hours);
   }
   return [...map.entries()]
-    .map(([name, v]) => ({
-      name,
-      hours: v.hours,
-      cost: v.rate != null ? v.hours * v.rate : null,
-    }))
+    .map(([name, hours]) => ({ name, hours }))
     .sort((a, b) => b.hours - a.hours);
 }
 
@@ -102,6 +103,8 @@ const VIEWS = [
   { id: "graph", label: "Граф веток" },
   { id: "list", label: "Список" },
   { id: "gantt", label: "Гант" },
+  { id: "sprint", label: "Спринт" },
+  { id: "workload", label: "Нагрузка" },
   { id: "polls", label: "Опрос" },
   { id: "links", label: "Ссылки" },
   { id: "activity", label: "Активность" },
@@ -144,6 +147,9 @@ export default async function ProjectPage({
       columns: { orderBy: { order: "asc" } },
       templates: { orderBy: { createdAt: "asc" } },
       webhooks: { orderBy: { createdAt: "asc" } },
+      intakeForm: { select: { token: true, columnId: true, active: true } },
+      sprints: { orderBy: { startsAt: "desc" } },
+      boardRules: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!project) notFound();
@@ -201,6 +207,14 @@ export default async function ProjectPage({
     childrenDoneCount: doneChildren.get(t.id) ?? 0,
     checklistCount: t.checklist.length,
     checklistDoneCount: t.checklist.filter((c) => c.done).length,
+  }));
+
+  // Спринтовые поля держим рядом с задачами: панель спринта считает по ним
+  // сгорание, а тащить их в общий TaskDTO незачем — они нужны только ей
+  const sprintTasks = project.tasks.map((t, i) => ({
+    ...tasks[i]!,
+    sprintId: t.sprintId,
+    closedAt: t.closedAt?.toISOString() ?? null,
   }));
 
   const projectTags: TagDTO[] = project.tags;
@@ -293,36 +307,63 @@ export default async function ProjectPage({
             <span>Всего: <b className="text-foreground">{tasks.length}</b></span>
             <span>Затрачено: <b className="text-foreground">{formatHours(totalSpent)}</b></span>
           </div>
-          <ExportMenu projectId={project.id} />
-          {canManage && (
-            <ShareRoadmapDialog
+          {/* В шапке — только то, чем пользуются каждый день; остальное
+              спрятано в «Ещё», чтобы панель не превращалась в частокол */}
+          <MoreMenu count={canManage ? 7 : 4}>
+            <ExportMenu projectId={project.id} />
+            <TemplatesDialog
               projectId={project.id}
-              initialToken={project.publicToken}
+              templates={templates}
+              canManage={canManage}
             />
-          )}
-          <TemplatesDialog
-            projectId={project.id}
-            templates={templates}
-            canManage={canManage}
-          />
-          <WebhooksDialog
-            projectId={project.id}
-            webhooks={project.webhooks.map((w) => ({
-              id: w.id,
-              kind: w.kind,
-              url: w.url,
-              target: w.target,
-              active: w.active,
-            }))}
-            canManage={canManage}
-          />
-          <ProjectMembersDialog
-            projectId={project.id}
-            ownerId={project.ownerId}
-            members={members}
-            candidates={candidates}
-            canManage={canManage}
-          />
+            <ProjectMembersDialog
+              projectId={project.id}
+              members={members}
+              candidates={candidates}
+              ownerId={project.ownerId}
+              canManage={canManage}
+            />
+            {canManage && (
+              <ShareRoadmapDialog
+                projectId={project.id}
+                initialToken={project.publicToken}
+              />
+            )}
+            {canManage && (
+              <BoardRulesDialog
+                projectId={project.id}
+                columns={columns}
+                members={members}
+                tags={projectTags}
+                rules={project.boardRules.map((r) => ({
+                  id: r.id,
+                  columnId: r.columnId,
+                  setStatus: r.setStatus,
+                  assignUserId: r.assignUserId,
+                  addTagId: r.addTagId,
+                  active: r.active,
+                }))}
+              />
+            )}
+            {canManage && (
+              <IntakeDialog
+                projectId={project.id}
+                columns={columns}
+                initial={project.intakeForm}
+              />
+            )}
+            <WebhooksDialog
+              projectId={project.id}
+              webhooks={project.webhooks.map((w) => ({
+                id: w.id,
+                kind: w.kind,
+                url: w.url,
+                target: w.target,
+                active: w.active,
+              }))}
+              canManage={canManage}
+            />
+          </MoreMenu>
           {/* На канбане задачи создаются кнопкой внутри колонки — здесь дубль не нужен */}
           {view !== "board" && (
             <NewTaskDialog
@@ -369,6 +410,8 @@ export default async function ProjectPage({
             members={members}
             templates={templates}
             projectTags={projectTags}
+            savedFilters={savedFilters}
+            toolbarExtra={<LiveBoard projectId={project.id} />}
           />
         )}
         {view === "graph" && (
@@ -387,10 +430,39 @@ export default async function ProjectPage({
             projectId={project.id}
             savedFilters={savedFilters}
             projectTags={projectTags}
+            toolbarExtra={<LiveBoard projectId={project.id} />}
           />
         )}
         {view === "gantt" && (
           <GanttChart tasks={tasks} projectKey={project.key} links={linkDtos} />
+        )}
+        {view === "sprint" && (
+          <SprintPanel
+            projectId={project.id}
+            projectKey={project.key}
+            canManage={canManage}
+            sprints={project.sprints.map((s) => ({
+              id: s.id,
+              name: s.name,
+              goal: s.goal,
+              startsAt: s.startsAt.toISOString(),
+              endsAt: s.endsAt.toISOString(),
+              closedAt: s.closedAt?.toISOString() ?? null,
+            }))}
+            tasks={sprintTasks}
+          />
+        )}
+        {view === "workload" && (
+          <WorkloadPanel
+            rows={buildWorkload(
+              tasks,
+              [
+                { id: project.owner.id, name: project.owner.name },
+                ...project.members.map((m) => ({ id: m.user.id, name: m.user.name })),
+              ]
+            )}
+            unassigned={unassignedCount(tasks)}
+          />
         )}
         {view === "polls" && (
           <PollsPanel

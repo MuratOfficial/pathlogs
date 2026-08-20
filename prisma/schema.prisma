@@ -98,6 +98,7 @@ model User {
   resourceLinks ResourceLink[]    @relation("ResourceLinkAuthor")
   pinnedProjects ProjectPin[]
   projectAppearances ProjectAppearance[]
+  boardRules    BoardRule[]  @relation("RuleAssignee")
 }
 
 model Project {
@@ -123,6 +124,9 @@ model Project {
   appearances ProjectAppearance[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+  intakeForm    IntakeForm?
+  sprints       Sprint[]
+  boardRules    BoardRule[]
 }
 
 /// Персональное оформление проекта: фон страниц проекта и его задач.
@@ -171,6 +175,7 @@ model Tag {
 
   @@unique([projectId, name])
   @@index([projectId])
+  boardRules    BoardRule[]
 }
 
 /// Колонка канбан-доски. Колонки со status — стандартные (перенос задачи меняет её статус),
@@ -190,9 +195,12 @@ model BoardColumn {
   /// Скрытая колонка не показывается на доске; задачи в ней сохраняются
   hidden    Boolean     @default(false)
   tasks     Task[]
+  updatedAt     DateTime    @updatedAt @default(now())
   createdAt DateTime    @default(now())
 
   @@index([projectId])
+  intakeForms   IntakeForm[]
+  rules         BoardRule[]
 }
 
 model ProjectMember {
@@ -244,6 +252,8 @@ model Task {
   gitCommits    GitCommitRef[]
   tags          Tag[]        @relation("TaskTags")
   links         ResourceLink[]
+  sprint        Sprint?      @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  sprintId      String?
 
   @@index([projectId, status])
   @@index([parentId])
@@ -272,8 +282,14 @@ model Comment {
   authorId  String
   content   String
   createdAt DateTime @default(now())
+  /// Ответ в треде. Ветка всегда одноуровневая: ответ на ответ крепится
+  /// к тому же корню — так обсуждение не превращается в лестницу.
+  parent    Comment? @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId  String?
+  replies   Comment[] @relation("CommentThread")
 
   @@index([taskId])
+  @@index([parentId])
 }
 
 enum NotificationType {
@@ -534,4 +550,61 @@ model GitCommitRef {
   createdAt    DateTime  @default(now())
 
   @@unique([taskId, sha])
+}
+
+/// Публичная форма приёма заявок: по ссылке с токеном сторонний человек
+/// создаёт задачу в проекте, не имея доступа к самому проекту.
+model IntakeForm {
+  id          String       @id @default(cuid())
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   String       @unique
+  token       String       @unique
+  /// Заголовок и подсказка, которые видит заполняющий
+  title       String       @default("Оставить заявку")
+  hint        String?
+  /// Куда попадают заявки; колонки нет — задача уходит в колонку своего статуса
+  column      BoardColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
+  columnId    String?
+  /// Выключенная форма отдаёт 404, но ссылка и настройки сохраняются
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+}
+
+/// Итерация с фиксированными датами: по ней строится burndown и скорость команды.
+model Sprint {
+  id        String    @id @default(cuid())
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  name      String
+  goal      String?
+  startsAt  DateTime
+  endsAt    DateTime
+  /// Закрытый спринт больше не принимает задачи, но остаётся в истории
+  closedAt  DateTime?
+  tasks     Task[]
+  createdAt DateTime  @default(now())
+
+  @@index([projectId, startsAt])
+}
+
+/// Правило доски: карточка попала в колонку — с ней автоматически что-то
+/// происходит. Локальный аналог автоматизаций Trello.
+model BoardRule {
+  id           String      @id @default(cuid())
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId    String
+  /// Триггер — попадание в эту колонку
+  column       BoardColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  columnId     String
+  /// Действия (любое подмножество)
+  setStatus    TaskStatus?
+  assignUser   User?       @relation("RuleAssignee", fields: [assignUserId], references: [id], onDelete: SetNull)
+  assignUserId String?
+  addTag       Tag?        @relation(fields: [addTagId], references: [id], onDelete: SetNull)
+  addTagId     String?
+  active       Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+
+  @@index([projectId])
+  @@index([columnId])
 }

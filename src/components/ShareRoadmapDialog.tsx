@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { togglePublicRoadmapAction } from "@/lib/actions/projects";
 
 export function ShareRoadmapDialog({
@@ -49,7 +50,12 @@ export function ShareRoadmapDialog({
         <span className="hidden sm:inline">Поделиться</span>
       </button>
 
-      {open && (
+      {/* Через портал в <body>: у меню «Ещё» анимация на transform, а такой
+          предок становится containing block для position: fixed — окно
+          сжималось до ширины выпадающей панели */}
+      {open &&
+        typeof document !== "undefined" &&
+        createPortal(
         <div
           className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           onClick={(e) => e.target === e.currentTarget && setOpen(false)}
@@ -118,8 +124,9 @@ export function ShareRoadmapDialog({
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
     </>
   );
 }

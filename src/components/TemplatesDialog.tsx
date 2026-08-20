@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { createPortal } from "react-dom";
 import { createTemplateAction, deleteTemplateAction } from "@/lib/actions/templates";
 import { PRIORITY_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { TaskTemplateDTO } from "@/lib/types";
@@ -47,7 +48,12 @@ export function TemplatesDialog({
         )}
       </button>
 
-      {open && (
+      {/* Через портал в <body>: у меню «Ещё» анимация на transform, а такой
+          предок становится containing block для position: fixed — окно
+          сжималось до ширины выпадающей панели */}
+      {open &&
+        typeof document !== "undefined" &&
+        createPortal(
         <div
           className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           onClick={(e) => e.target === e.currentTarget && setOpen(false)}
@@ -173,8 +179,9 @@ export function TemplatesDialog({
                 </button>
               ))}
           </div>
-        </div>
-      )}
+        </div>,
+          document.body
+        )}
     </>
   );
 }

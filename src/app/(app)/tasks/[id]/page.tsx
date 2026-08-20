@@ -29,6 +29,7 @@ import { AddLinkForm } from "@/components/task/AddLinkForm";
 import { ConfirmActionButton } from "@/components/task/ConfirmActionButton";
 import { Checklist } from "@/components/task/Checklist";
 import { CommentForm } from "@/components/task/CommentForm";
+import { CommentThreads } from "@/components/task/CommentThreads";
 import { Markdown } from "@/components/Markdown";
 import { ResourceLinks } from "@/components/ResourceLinks";
 import { getResourceLinks } from "@/lib/links";
@@ -36,7 +37,6 @@ import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { googleCalendarUrl } from "@/lib/calendar";
 import {
   deletePatchLogAction,
-  deleteCommentAction,
   deleteTimeEntryAction,
   deleteAttachmentAction,
   removeTaskLinkAction,
@@ -379,37 +379,20 @@ export default async function TaskPage({
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
               Обсуждение ({task.comments.length})
             </h2>
-            <div className="mb-4 space-y-3">
-              {task.comments.map((c) => (
-                <article
-                  key={c.id}
-                  className="rounded-xl border border-edge bg-surface-2/50 p-4"
-                >
-                  <div className="mb-1.5 flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/25 text-[9px] font-bold text-accent-hover">
-                      {initials(c.author.name)}
-                    </span>
-                    <span className="text-sm font-semibold">{c.author.name}</span>
-                    <span className="ml-auto text-xs text-muted">
-                      {formatDateTime(c.createdAt)}
-                    </span>
-                    {(c.authorId === user.id || user.role === "ADMIN") && (
-                      <ConfirmActionButton
-                        action={deleteCommentAction.bind(null, c.id)}
-                        confirmText="Удалить комментарий?"
-                        small
-                      />
-                    )}
-                  </div>
-                  <Markdown text={c.content} mentions={projectMembers.map((m) => m.name)} />
-                </article>
-              ))}
-              {task.comments.length === 0 && (
-                <p className="text-sm text-muted">
-                  Комментариев нет — начните обсуждение.
-                </p>
-              )}
-            </div>
+            <CommentThreads
+              taskId={task.id}
+              comments={task.comments.map((c) => ({
+                id: c.id,
+                parentId: c.parentId,
+                content: c.content,
+                createdAt: c.createdAt.toISOString(),
+                authorId: c.authorId,
+                authorName: c.author.name,
+              }))}
+              members={projectMembers}
+              currentUserId={user.id}
+              canModerate={user.role === "ADMIN"}
+            />
             <CommentForm taskId={task.id} members={projectMembers} />
           </section>
 
