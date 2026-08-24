@@ -1,0 +1,6 @@
+{
+  "componentsDir": "src/components/ui",
+  "alias": "@/components/ui",
+  "css": "src/app/globals.css",
+  "tailwind": true
+}

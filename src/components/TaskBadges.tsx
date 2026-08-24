@@ -3,24 +3,18 @@ import {
   PRIORITY_LABELS,
   TYPE_COLORS,
   TYPE_LABELS,
-  initials,
 } from "@/lib/labels";
 import type { Priority, TaskType } from "@prisma/client";
 import type { TagDTO } from "@/lib/types";
+import { Badge, LevelMeter, AvatarStack } from "@toimetdev/pathlogs-core";
 
+/** Тип задачи меткой-«пилюлей» в цвете типа (Badge из @toimetdev/pathlogs-core). */
 export function TypeBadge({ type }: { type: TaskType }) {
-  return (
-    <span
-      className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
-      style={{ backgroundColor: `${TYPE_COLORS[type]}26`, color: TYPE_COLORS[type] }}
-    >
-      {TYPE_LABELS[type]}
-    </span>
-  );
+  return <Badge color={TYPE_COLORS[type]}>{TYPE_LABELS[type]}</Badge>;
 }
 
-// Приоритет как «шкала уровня»: 1–4 возрастающих столбика, заполненных
-// по уровню и цветом приоритета — заметнее и нагляднее точки.
+// Приоритет как «шкала уровня»: 1–4 возрастающих столбика (LevelMeter) —
+// заметнее и нагляднее точки, и смысл несёт не только цвет.
 const PRIORITY_LEVEL: Record<Priority, number> = {
   LOW: 1,
   MEDIUM: 2,
@@ -29,27 +23,12 @@ const PRIORITY_LEVEL: Record<Priority, number> = {
 };
 
 export function PriorityBadge({ priority }: { priority: Priority }) {
-  const level = PRIORITY_LEVEL[priority];
-  const color = PRIORITY_COLORS[priority];
   return (
-    <span
-      data-tip={`Приоритет: ${PRIORITY_LABELS[priority]}`}
-      aria-label={`Приоритет: ${PRIORITY_LABELS[priority]}`}
-      role="img"
-      className="inline-flex shrink-0 items-end gap-[2px]"
-      style={{ height: 13 }}
-    >
-      {[1, 2, 3, 4].map((i) => (
-        <span
-          key={i}
-          className="w-[3px] rounded-[1px]"
-          style={{
-            height: 4 + i * 2.5,
-            backgroundColor: i <= level ? color : "var(--border)",
-          }}
-        />
-      ))}
-    </span>
+    <LevelMeter
+      level={PRIORITY_LEVEL[priority]}
+      color={PRIORITY_COLORS[priority]}
+      label={`Приоритет: ${PRIORITY_LABELS[priority]}`}
+    />
   );
 }
 
@@ -107,34 +86,12 @@ export function TagChips({
   );
 }
 
+/** Стопка аватаров исполнителей (AvatarStack из @toimetdev/pathlogs-core):
+ *  инициалы с нахлёстом, остаток «+N» с именами в подсказке. */
 export function AssigneeAvatars({
   assignees,
-  size = 6,
 }: {
   assignees: { id: string; name: string }[];
-  size?: number;
 }) {
-  if (assignees.length === 0) return null;
-  return (
-    <span className="flex -space-x-1.5">
-      {assignees.slice(0, 3).map((a) => (
-        <span
-          key={a.id}
-          data-tip={a.name}
-          className={`flex h-${size} w-${size} items-center justify-center rounded-full border border-surface bg-accent/30 text-[9px] font-bold text-accent-hover`}
-          style={{ width: size * 4, height: size * 4 }}
-        >
-          {initials(a.name)}
-        </span>
-      ))}
-      {assignees.length > 3 && (
-        <span
-          className="flex items-center justify-center rounded-full border border-surface bg-surface-2 text-[9px] text-muted"
-          style={{ width: size * 4, height: size * 4 }}
-        >
-          +{assignees.length - 3}
-        </span>
-      )}
-    </span>
-  );
+  return <AvatarStack people={assignees} max={3} size="sm" />;
 }

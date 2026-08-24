@@ -1,26 +1,38 @@
 "use client";
 
-import { useState, useTransition } from "react";
+// Обёртка над реестровым FilterBar (@/components/ui/filter-bar). Панель фильтров
+// теперь собирается из описания полей, а доменная модель фильтра осталась в
+// lib/taskFilter.ts (её же используют доска, список и тесты). TaskFilter
+// структурно совпадает с FilterState реестра (Record<string,string> с "ALL"),
+// поэтому значение прокидывается напрямую, а onChange добивается EMPTY_FILTER:
+// в compact-режиме доски поля status/tag не рендерятся, и без добивки reset
+// вернул бы фильтр без этих ключей — matchesTaskFilter сломался бы на undefined.
 import type { TaskStatus, TaskType, Priority } from "@prisma/client";
 import type { MemberDTO, TagDTO } from "@/lib/types";
 import { PRIORITY_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import { saveFilterAction, deleteFilterAction } from "@/lib/actions/filters";
+import { FilterBar, type SavedFilter } from "@/components/ui/filter-bar/FilterBar";
 import {
-  EMPTY_FILTER,
-  isFilterActive,
-  parseTaskFilter,
-  serializeTaskFilter,
-  type TaskFilter,
-} from "@/lib/taskFilter";
+  textMatcher,
+  equalsMatcher,
+  includesMatcher,
+  type FilterField,
+  type FilterState,
+} from "@/components/ui/filter-bar/filterModel";
+import { EMPTY_FILTER, type TaskFilter } from "@/lib/taskFilter";
 
-export interface SavedFilterDTO {
-  id: string;
-  name: string;
-  query: string;
+export type SavedFilterDTO = SavedFilter;
+
+/** Минимум, по которому поля отбирают задачу (FilterField требует matches). */
+interface FilterableItem {
+  number: number;
+  title: string;
+  status: string;
+  type: string;
+  priority: string;
+  assignees: { id: string }[];
+  tags: { id: string }[];
 }
-
-const selectCls =
-  "rounded-lg border border-edge bg-surface-2 px-2.5 py-1.5 text-sm outline-none focus:border-accent";
 
 /**
  * Панель фильтров задач — одна на список и на доску, поэтому фильтр,
@@ -48,184 +60,96 @@ export function TaskFilterBar({
   /** На доске панель уже — статус там задаёт сама колонка. */
   compact?: boolean;
 }) {
-  const [naming, setNaming] = useState(false);
-  const [name, setName] = useState("");
-  const [, startTransition] = useTransition();
-
-  const active = isFilterActive(filter);
-  const set = (patch: Partial<TaskFilter>) => onChange({ ...filter, ...patch });
-
-  function saveCurrent() {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    setNaming(false);
-    setName("");
-    startTransition(() => saveFilterAction(projectId, trimmed, serializeTaskFilter(filter)));
-  }
+  const fields: FilterField<FilterableItem>[] = [
+    {
+      key: "q",
+      label: "Поиск",
+      kind: "text",
+      placeholder: "Название или номер…",
+      matches: textMatcher((t) => [t.title, t.number]),
+    },
+    // На доске статус читается по колонке — селект только в списке.
+    ...(compact
+      ? []
+      : [
+          {
+            key: "status",
+            label: "Статус",
+            kind: "select" as const,
+            anyLabel: "Все статусы",
+            options: (Object.keys(STATUS_LABELS) as TaskStatus[]).map((s) => ({
+              value: s,
+              label: STATUS_LABELS[s],
+            })),
+            matches: equalsMatcher<FilterableItem>((t) => t.status),
+          },
+        ]),
+    {
+      key: "type",
+      label: "Тип",
+      kind: "select",
+      anyLabel: "Все типы",
+      options: (Object.keys(TYPE_LABELS) as TaskType[]).map((t) => ({
+        value: t,
+        label: TYPE_LABELS[t],
+      })),
+      matches: equalsMatcher((t) => t.type),
+    },
+    {
+      key: "priority",
+      label: "Приоритет",
+      kind: "select",
+      anyLabel: "Любой приоритет",
+      options: (Object.keys(PRIORITY_LABELS) as Priority[]).map((p) => ({
+        value: p,
+        label: PRIORITY_LABELS[p],
+      })),
+      matches: equalsMatcher((t) => t.priority),
+    },
+    {
+      key: "assignee",
+      label: "Исполнитель",
+      kind: "select",
+      anyLabel: "Все исполнители",
+      options: members.map((m) => ({ value: m.id, label: m.name })),
+      matches: includesMatcher((t) => t.assignees),
+    },
+    ...(projectTags.length > 0
+      ? [
+          {
+            key: "tag",
+            label: "Метка",
+            kind: "select" as const,
+            anyLabel: "Все метки",
+            options: projectTags.map((t) => ({ value: t.id, label: t.name })),
+            matches: includesMatcher<FilterableItem>((t) => t.tags),
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          value={filter.q}
-          onChange={(e) => set({ q: e.target.value })}
-          placeholder="Поиск по названию или номеру…"
-          className="w-56 rounded-lg border border-edge bg-surface-2 px-3 py-1.5 text-sm outline-none focus:border-accent"
-        />
-
-        {/* На доске статус читается по колонке — селект только в списке */}
-        {!compact && (
-          <select
-            value={filter.status}
-            onChange={(e) => set({ status: e.target.value as TaskStatus | "ALL" })}
-            className={selectCls}
-          >
-            <option value="ALL">Все статусы</option>
-            {(Object.keys(STATUS_LABELS) as TaskStatus[]).map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        )}
-
-        <select
-          value={filter.type}
-          onChange={(e) => set({ type: e.target.value as TaskType | "ALL" })}
-          className={selectCls}
-        >
-          <option value="ALL">Все типы</option>
-          {(Object.keys(TYPE_LABELS) as TaskType[]).map((t) => (
-            <option key={t} value={t}>
-              {TYPE_LABELS[t]}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={filter.priority}
-          onChange={(e) => set({ priority: e.target.value as Priority | "ALL" })}
-          className={selectCls}
-        >
-          <option value="ALL">Любой приоритет</option>
-          {(Object.keys(PRIORITY_LABELS) as Priority[]).map((p) => (
-            <option key={p} value={p}>
-              {PRIORITY_LABELS[p]}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={filter.assignee}
-          onChange={(e) => set({ assignee: e.target.value })}
-          className={selectCls}
-        >
-          <option value="ALL">Все исполнители</option>
-          {members.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-
-        {projectTags.length > 0 && (
-          <select
-            value={filter.tag}
-            onChange={(e) => set({ tag: e.target.value })}
-            className={selectCls}
-          >
-            <option value="ALL">Все метки</option>
-            {projectTags.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        )}
-
-        {active && (
-          <button
-            type="button"
-            onClick={() => onChange(EMPTY_FILTER)}
-            className="rounded-lg border border-edge px-2.5 py-1.5 text-sm text-muted transition hover:bg-surface-2 hover:text-foreground"
-          >
-            Сбросить
-          </button>
-        )}
-
-        {naming ? (
-          <span className="flex items-center gap-1.5">
-            <input
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") saveCurrent();
-                if (e.key === "Escape") setNaming(false);
-              }}
-              placeholder="Название фильтра"
-              className="w-40 rounded-lg border border-accent bg-surface-2 px-3 py-1.5 text-sm outline-none"
-            />
-            <button
-              type="button"
-              onClick={saveCurrent}
-              disabled={!name.trim()}
-              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold transition hover:bg-accent-hover disabled:opacity-50"
-            >
-              ОК
-            </button>
-            <button
-              type="button"
-              onClick={() => setNaming(false)}
-              className="rounded-lg border border-edge px-2.5 py-1.5 text-sm text-muted transition hover:text-foreground"
-            >
-              ✕
-            </button>
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setNaming(true)}
-            disabled={!active}
-            data-tip={active ? "Сохранить текущие фильтры" : "Задайте фильтры, чтобы сохранить"}
-            className="rounded-lg border border-edge px-3 py-1.5 text-sm text-muted transition hover:bg-surface-2 hover:text-foreground disabled:opacity-40"
-          >
-            ★ Сохранить
-          </button>
-        )}
-
-        <span className="ml-auto text-xs text-muted">
-          {active ? `${matchedCount} из ${totalCount}` : `${totalCount} задач`}
-        </span>
-      </div>
-
-      {savedFilters.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted">Сохранённые:</span>
-          {savedFilters.map((f) => (
-            <span
-              key={f.id}
-              className="flex items-center gap-1 rounded-full border border-edge bg-surface-2 px-2.5 py-1 text-xs"
-            >
-              <button
-                type="button"
-                onClick={() => onChange(parseTaskFilter(f.query))}
-                className="transition hover:text-accent-hover"
-              >
-                {f.name}
-              </button>
-              <button
-                type="button"
-                data-tip="Удалить фильтр"
-                onClick={() => startTransition(() => deleteFilterAction(f.id))}
-                className="text-muted/60 transition hover:text-red-400"
-              >
-                ✕
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-    </div>
+    <FilterBar<FilterableItem>
+      fields={fields}
+      value={filter as unknown as FilterState}
+      onChange={(next) => onChange({ ...EMPTY_FILTER, ...(next as Partial<TaskFilter>) })}
+      savedFilters={savedFilters}
+      onSaveFilter={(name, query) => saveFilterAction(projectId, name, query)}
+      onDeleteFilter={(id) => deleteFilterAction(id)}
+      matchedCount={matchedCount}
+      totalCount={totalCount}
+      compact={compact}
+      labels={{
+        reset: "Сбросить",
+        save: "Сохранить",
+        presets: "Сохранённые",
+        matched: "{matched} из {total}",
+        cancel: "Отмена",
+        savePrompt: "Название фильтра",
+        saveTitle: "Сохранить фильтр",
+        deleteTitle: "Удалить сохранённый фильтр?",
+        deletePreset: "Удалить фильтр",
+      }}
+    />
   );
 }

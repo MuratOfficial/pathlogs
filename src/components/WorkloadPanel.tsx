@@ -1,6 +1,7 @@
 import { formatHours, initials } from "@/lib/labels";
 import type { WorkloadRow } from "@/lib/workload";
 import { DragScroll } from "./DragScroll";
+import { PageHint } from "@toimetdev/pathlogs-core";
 
 /**
  * Кто чем занят: открытые задачи, часы и просрочки по каждому участнику.
@@ -27,10 +28,10 @@ export function WorkloadPanel({
   return (
     <div className="h-full overflow-y-auto pb-4">
       <div className="mx-auto max-w-400 space-y-4">
-        <p className="page-hint">
+        <PageHint>
           Часы задачи с несколькими исполнителями делятся между ними поровну — сумма
           по команде совпадает с реальной.
-        </p>
+        </PageHint>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[

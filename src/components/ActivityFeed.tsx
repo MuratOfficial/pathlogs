@@ -1,14 +1,12 @@
-import Link from "next/link";
-import type { Activity, ActivityKind } from "@/lib/activity";
+"use client";
 
-function relative(at: Date): string {
-  const diff = (Date.now() - at.getTime()) / 1000;
-  if (diff < 60) return "только что";
-  if (diff < 3600) return `${Math.floor(diff / 60)} мин назад`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} ч назад`;
-  if (diff < 7 * 86400) return `${Math.floor(diff / 86400)} дн назад`;
-  return at.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
-}
+// Лента активности на ActivityTimeline из @toimetdev/pathlogs-core: события
+// группируются по дням, серии однотипных сворачиваются (раскрываются кликом).
+// Домен задаёт иконку по типу события и содержимое строки (кто, что, ссылка
+// на задачу). Группировка и относительное время — внутри пакета, под тестами.
+import Link from "next/link";
+import { ActivityTimeline } from "@toimetdev/pathlogs-core";
+import type { Activity, ActivityKind } from "@/lib/activity";
 
 const META: Record<ActivityKind, { color: string; path: string }> = {
   task: {
@@ -49,41 +47,46 @@ export function ActivityFeed({
 
   return (
     // Та же обёртка, что у остальных вкладок проекта: своя прокрутка внутри
-    // и общая ширина — иначе при переключении на «Активность» контент
-    // заметно сужался
+    // и общая ширина.
     <div className="h-full overflow-y-auto pb-4">
       <div className="mx-auto max-w-400">
-      <ol className="relative space-y-1 border-l border-edge pl-6">
-        {items.map((a) => {
-          const m = META[a.kind];
-          return (
-            <li key={a.id} className="relative py-2">
-              <span
-                className="absolute -left-[31px] flex h-5 w-5 items-center justify-center rounded-full border-2 border-background"
-                style={{ backgroundColor: m.color + "22" }}
+        <ActivityTimeline
+          events={items}
+          locale="ru-RU"
+          renderIcon={(a) => {
+            const m = META[a.kind as ActivityKind];
+            return (
+              <svg
+                className="h-3 w-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke={m.color}
+                strokeWidth={2}
+                style={{ backgroundColor: m.color + "22", borderRadius: 9999 }}
               >
-                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke={m.color} strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d={m.path} />
-                </svg>
-              </span>
-              <div className="flex flex-wrap items-baseline gap-x-1.5 text-sm">
+                <path strokeLinecap="round" strokeLinejoin="round" d={m.path} />
+              </svg>
+            );
+          }}
+          renderBurst={(events) => `${events.length} событий: ${events[0]!.actor}`}
+          renderEvent={(a) => (
+            <span className="flex flex-col gap-0.5">
+              <span className="flex flex-wrap items-baseline gap-x-1.5 text-sm">
                 <span className="font-medium">{a.actor}</span>
                 <span className="text-muted">{a.detail}</span>
-                <span className="ml-auto shrink-0 text-xs text-muted">{relative(a.at)}</span>
-              </div>
+              </span>
               <Link
                 href={`/tasks/${a.taskId}`}
-                className="mt-0.5 flex items-baseline gap-1.5 text-xs text-muted transition hover:text-accent-hover"
+                className="flex items-baseline gap-1.5 text-xs text-muted transition hover:text-accent-hover"
               >
                 <span className="font-mono font-semibold">
                   {projectKey}-{a.taskNumber}
                 </span>
                 <span className="truncate">{a.taskTitle}</span>
               </Link>
-            </li>
-          );
-        })}
-      </ol>
+            </span>
+          )}
+        />
       </div>
     </div>
   );

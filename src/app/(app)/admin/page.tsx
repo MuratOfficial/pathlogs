@@ -5,6 +5,7 @@ import { formatDate, initials } from "@/lib/labels";
 import { UserRow } from "@/components/admin/UserRow";
 import { CreateUserDialog } from "@/components/admin/CreateUserDialog";
 import { DragScroll } from "@/components/DragScroll";
+import { PageHint } from "@toimetdev/pathlogs-core";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -32,7 +33,7 @@ export default async function AdminPage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Администрирование</h1>
-          <p className="page-hint">Пользователи, роли и статистика системы</p>
+          <PageHint>Пользователи, роли и статистика системы</PageHint>
         </div>
         <CreateUserDialog />
       </div>

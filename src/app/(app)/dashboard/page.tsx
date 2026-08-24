@@ -7,6 +7,7 @@ import { ImportTrelloDialog } from "@/components/ImportTrelloDialog";
 import { ImportFileDialog } from "@/components/ImportFileDialog";
 import { ArchiveProjectButton } from "@/components/ArchiveProjectButton";
 import { PinProjectButton } from "@/components/PinProjectButton";
+import { PageHint } from "@toimetdev/pathlogs-core";
 
 export default async function DashboardPage({
   searchParams,
@@ -63,9 +64,9 @@ export default async function DashboardPage({
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Проекты</h1>
-          <p className="page-hint">
+          <PageHint>
             {showArchived ? "Архивные проекты" : "Активные проекты и их прогресс"}
-          </p>
+          </PageHint>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Link
