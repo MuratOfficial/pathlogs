@@ -12,6 +12,7 @@ import {
 import { ensureStatusColumn } from "@/lib/board";
 import { notifyTaskWatchers, notifyUsers } from "@/lib/notify";
 import { recordStatusChange } from "@/lib/statusHistory";
+import { deleteStoredFiles } from "@/lib/storage";
 import { STATUS_LABELS } from "@/lib/labels";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -266,7 +267,14 @@ export async function deleteTaskAction(taskId: string) {
   if (!allowed) {
     throw new Error("Удалять задачу может её автор, менеджер или владелец проекта");
   }
+  // Каскад (onDelete: Cascade) снесёт строки Attachment вместе с задачей,
+  // поэтому ключи забираем до удаления — иначе файлы осиротеют в хранилище.
+  const files = await prisma.attachment.findMany({
+    where: { taskId },
+    select: { key: true, storage: true },
+  });
   await prisma.task.delete({ where: { id: taskId } });
+  await deleteStoredFiles(files);
   revalidateTask(task.projectId);
 }
 
@@ -515,6 +523,8 @@ export async function deleteAttachmentAction(id: string) {
     throw new Error("Можно удалять только свои файлы");
   }
   await prisma.attachment.delete({ where: { id } });
+  // Сам объект тоже убираем, иначе он вечно занимает место в R2 и тратит квоту
+  await deleteStoredFiles([{ key: att.key, storage: att.storage }]);
   if (att.taskId) revalidatePath(`/tasks/${att.taskId}`);
 }
 
@@ -622,7 +632,12 @@ export async function bulkDeleteTasksAction(
         skipped += 1;
         continue;
       }
+      const files = await prisma.attachment.findMany({
+        where: { taskId: id },
+        select: { key: true, storage: true },
+      });
       await prisma.task.delete({ where: { id } });
+      await deleteStoredFiles(files);
       projects.add(task.projectId);
       deleted += 1;
     } catch {

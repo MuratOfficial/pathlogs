@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { canAccessProject } from "@/lib/access";
-import { storeFile } from "@/lib/storage";
+import { isS3Configured, storeFile } from "@/lib/storage";
+import {
+  fitsInQuota,
+  formatBytes,
+  quotaLimitBytes,
+  usedStorageBytes,
+} from "@/lib/storageQuota";
 
 const MAX_SIZE = 25 * 1024 * 1024; // 25 MB
 
@@ -30,6 +36,21 @@ export async function POST(req: NextRequest) {
     });
     if (!task || !(await canAccessProject(task.projectId, session.user))) {
       return NextResponse.json({ error: "Нет доступа к задаче" }, { status: 403 });
+    }
+  }
+
+  // Квота проверяется только для облака: локальный диск на счёт Cloudflare
+  // не влияет. Иначе файл уедет в R2 и уже там начнёт стоить денег.
+  if (isS3Configured()) {
+    const limit = quotaLimitBytes();
+    const used = await usedStorageBytes();
+    if (!fitsInQuota(used, file.size, limit)) {
+      return NextResponse.json(
+        {
+          error: `Хранилище заполнено: занято ${formatBytes(used)} из ${formatBytes(limit)}. Удалите ненужные вложения и повторите.`,
+        },
+        { status: 507 }
+      );
     }
   }
 
