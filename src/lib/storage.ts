@@ -1,4 +1,10 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
@@ -19,8 +25,8 @@ function makeS3Client(): S3Client {
   return new S3Client({
     region: process.env.S3_REGION || "auto",
     ...(process.env.S3_ENDPOINT ? { endpoint: process.env.S3_ENDPOINT } : {}),
-    // R2 документирует path-style (endpoint/bucket/key); с ним же согласована
-    // сборка публичного URL ниже.
+    // R2 документирует path-style: endpoint/bucket/key. В S3_ENDPOINT должен
+    // быть только хост — имя бакета клиент подставляет сам.
     forcePathStyle: true,
     credentials: {
       accessKeyId: process.env.S3_ACCESS_KEY_ID!,
@@ -33,6 +39,36 @@ export interface StoredFile {
   key: string;
   url: string;
   storage: StorageType;
+}
+
+/** Единственная точка, где собирается ссылка на файл. */
+function fileUrl(key: string): string {
+  return `/api/files/${encodeURIComponent(key)}`;
+}
+
+/** Сколько живёт подписанная ссылка. Хватает, чтобы браузер начал скачивание. */
+const SIGNED_URL_TTL_SECONDS = 300;
+
+/**
+ * Временная прямая ссылка в R2. Отдаётся только после проверки прав — роут
+ * редиректит на неё, дальше браузер качает мимо приложения (исходящий
+ * трафик у R2 бесплатный).
+ */
+export async function presignedFileUrl(
+  key: string,
+  filename: string,
+  mime: string
+): Promise<string> {
+  return getSignedUrl(
+    makeS3Client(),
+    new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET!,
+      Key: key,
+      ResponseContentType: mime,
+      ResponseContentDisposition: `inline; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    }),
+    { expiresIn: SIGNED_URL_TTL_SECONDS }
+  );
 }
 
 /**
@@ -58,11 +94,9 @@ export async function storeFile(
           ContentType: mime,
         })
       );
-      const base = process.env.S3_PUBLIC_URL?.replace(/\/$/, "");
-      const url = base
-        ? `${base}/${key}`
-        : `${process.env.S3_ENDPOINT?.replace(/\/$/, "")}/${process.env.S3_BUCKET}/${key}`;
-      return { key, url, storage: "S3" };
+      // Ссылка ведёт на свой роут, а не напрямую в бакет: бакет остаётся
+      // приватным, а права на файл проверяются на каждом скачивании.
+      return { key, url: fileUrl(key), storage: "S3" };
     } catch (err) {
       console.error("S3 upload failed, falling back to local storage:", err);
     }
@@ -70,7 +104,7 @@ export async function storeFile(
 
   await mkdir(LOCAL_DIR, { recursive: true });
   await writeFile(path.join(LOCAL_DIR, key), buffer);
-  return { key, url: `/api/files/${encodeURIComponent(key)}`, storage: "LOCAL" };
+  return { key, url: fileUrl(key), storage: "LOCAL" };
 }
 
 /**

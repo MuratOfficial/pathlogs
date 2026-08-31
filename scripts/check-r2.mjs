@@ -1,7 +1,16 @@
 // Проверка подключения S3-совместимого хранилища (Cloudflare R2).
 // Локально:  node --env-file=.env scripts/check-r2.mjs
 // Прод-креды: node --env-file=.env.production scripts/check-r2.mjs
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+//
+// Бакет должен оставаться приватным: приложение отдаёт файлы через
+// /api/files/[key], подписывая ссылку после проверки прав.
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const need = ["S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_ENDPOINT"];
 const missing = need.filter((k) => !process.env[k]);
@@ -9,8 +18,11 @@ if (missing.length) {
   console.error("Не заданы переменные:", missing.join(", "));
   process.exit(1);
 }
-if (!process.env.S3_PUBLIC_URL) {
-  console.warn("S3_PUBLIC_URL пуст — ссылки на файлы будут отдавать 403.");
+if (/\.com\/./.test(process.env.S3_ENDPOINT)) {
+  console.error(
+    "В S3_ENDPOINT попал путь. Нужен только хост: https://<ACCOUNT_ID>.r2.cloudflarestorage.com"
+  );
+  process.exit(1);
 }
 
 const client = new S3Client({
@@ -23,26 +35,34 @@ const client = new S3Client({
   },
 });
 
-const key = `_healthcheck-${Date.now()}.txt`;
+const Bucket = process.env.S3_BUCKET;
+const Key = `_healthcheck-${Date.now()}.txt`;
+const body = "pathlogs r2 check";
+
 await client.send(
-  new PutObjectCommand({
-    Bucket: process.env.S3_BUCKET,
-    Key: key,
-    Body: "pathlogs r2 check",
-    ContentType: "text/plain",
-  })
+  new PutObjectCommand({ Bucket, Key, Body: body, ContentType: "text/plain" })
 );
-console.log("PUT ok:", key);
+console.log("PUT ok:", Key);
 
-const base = process.env.S3_PUBLIC_URL?.replace(/\/$/, "");
-if (base) {
-  const res = await fetch(`${base}/${key}`);
-  console.log(
-    res.ok
-      ? `Публичный доступ ok: ${base}/${key}`
-      : `Публичный URL вернул ${res.status} — включите Public access (r2.dev или свой домен) и проверьте S3_PUBLIC_URL`
-  );
-}
+// Тот же путь, которым пользуется /api/files/[key]
+const signed = await getSignedUrl(client, new GetObjectCommand({ Bucket, Key }), {
+  expiresIn: 60,
+});
+const res = await fetch(signed);
+const text = res.ok ? await res.text() : "";
+console.log(
+  res.ok && text === body
+    ? "Подписанная ссылка ok — файл скачался"
+    : `Подписанная ссылка вернула ${res.status} — проверьте права токена (Object Read & Write)`
+);
 
-await client.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key }));
+// Бакет не должен отдавать объект без подписи
+const bare = await fetch(`${process.env.S3_ENDPOINT.replace(/\/$/, "")}/${Bucket}/${Key}`);
+console.log(
+  bare.ok
+    ? `ВНИМАНИЕ: объект доступен без подписи (${bare.status}) — бакет публичный`
+    : `Без подписи доступа нет (${bare.status}) — так и должно быть`
+);
+
+await client.send(new DeleteObjectCommand({ Bucket, Key }));
 console.log("DELETE ok — хранилище настроено верно.");
