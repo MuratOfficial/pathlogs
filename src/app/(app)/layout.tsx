@@ -89,6 +89,17 @@ export default async function AppLayout({
               Админка
             </Link>
           )}
+          {(user.role === "ADMIN" || user.role === "MANAGER") && (
+            <Link
+              href="/admin/companies"
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-foreground/90 transition hover:bg-surface-2"
+            >
+              <svg className="h-4 w-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+              </svg>
+              Компании
+            </Link>
+          )}
 
           {pinned.length > 0 && (
             <div className="space-y-1 pt-4">

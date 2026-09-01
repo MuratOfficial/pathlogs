@@ -2,7 +2,11 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
-import { requireProjectManager, requireProjectMember } from "@/lib/access";
+import {
+  getUserCompanyId,
+  requireProjectManager,
+  requireProjectMember,
+} from "@/lib/access";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { randomBytes } from "crypto";
@@ -44,12 +48,15 @@ export async function createProjectAction(
   const exists = await prisma.project.findUnique({ where: { key } });
   if (exists) return { error: `Ключ «${key}» уже занят` };
 
+  // Проект наследует компанию создателя: так он сразу попадает в её контур
+  // видимости. У пользователя без компании проект остаётся вне контуров.
   const project = await prisma.project.create({
     data: {
       name: parsed.data.name,
       key,
       description: parsed.data.description,
       ownerId: user.id,
+      companyId: await getUserCompanyId(user.id),
       members: { create: { userId: user.id } },
     },
   });
@@ -183,13 +190,26 @@ export async function togglePublicRoadmapAction(
   return { token };
 }
 
+/**
+ * Добавляет участника. Из чужой компании человека в проект не пустить —
+ * иначе через состав проекта можно было бы обойти разделение по компаниям.
+ */
 export async function addProjectMemberAction(projectId: string, userId: string) {
   await requireProjectManager(projectId);
-  const target = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { active: true },
-  });
+  const [target, project] = await Promise.all([
+    prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { active: true, companyId: true },
+    }),
+    prisma.project.findUniqueOrThrow({
+      where: { id: projectId },
+      select: { companyId: true },
+    }),
+  ]);
   if (!target.active) throw new Error("Пользователь деактивирован");
+  if (project.companyId && project.companyId !== target.companyId) {
+    throw new Error("Пользователь из другой компании");
+  }
   await prisma.projectMember.upsert({
     where: { projectId_userId: { projectId, userId } },
     update: {},

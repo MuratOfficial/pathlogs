@@ -253,6 +253,7 @@ export function KanbanBoard({
       columns={columns}
       palette={BOARD_PALETTE}
       canManageColumns={canManageBoard}
+      scrollKey={`project:${projectId}`}
       filter={filtering ? (t) => matchesTaskFilter(t, filter) : undefined}
       toolbar={toolbar}
       aria-label="Доска задач: стрелки прокручивают, Home и End — к краям"

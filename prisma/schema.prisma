@@ -11,6 +11,16 @@ datasource db {
   directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
+/// Компания: контур видимости. Пользователь состоит максимум в одной,
+/// проекты компании видны только её сотрудникам (см. src/lib/access.ts).
+model Company {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  users     User[]
+  projects  Project[]
+}
+
 enum Role {
   ADMIN
   MANAGER
@@ -79,6 +89,10 @@ model User {
   active        Boolean         @default(true)
   /// Ставка в час для расчёта стоимости трудозатрат (задаёт админ)
   hourlyRate    Float?
+  /// Компания сотрудника: один пользователь — не более одной компании.
+  /// null — ещё не распределён (распределяют в админке «Компании»).
+  company       Company?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  companyId     String?
   createdAt     DateTime        @default(now())
   ownedProjects Project[]       @relation("ProjectOwner")
   memberships   ProjectMember[]
@@ -99,6 +113,8 @@ model User {
   pinnedProjects ProjectPin[]
   projectAppearances ProjectAppearance[]
   boardRules    BoardRule[]  @relation("RuleAssignee")
+
+  @@index([companyId])
 }
 
 model Project {
@@ -127,6 +143,14 @@ model Project {
   intakeForm    IntakeForm?
   sprints       Sprint[]
   boardRules    BoardRule[]
+  /// Компания-владелец: проект виден только её сотрудникам.
+  /// null — проект вне компаний (создан до разделения; виден по участию).
+  company       Company?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  companyId     String?
+  /// Задачи, к которым проект привязан как подзадача
+  parentTasks   TaskProjectLink[]
+
+  @@index([companyId])
 }
 
 /// Персональное оформление проекта: фон страниц проекта и его задач.
@@ -254,6 +278,8 @@ model Task {
   links         ResourceLink[]
   sprint        Sprint?      @relation(fields: [sprintId], references: [id], onDelete: SetNull)
   sprintId      String?
+  /// Проекты, привязанные к задаче как подзадачи
+  subProjects   TaskProjectLink[]
 
   @@index([projectId, status])
   @@index([parentId])
@@ -607,4 +633,19 @@ model BoardRule {
 
   @@index([projectId])
   @@index([columnId])
+}
+
+/// Проект, привязанный к задаче как подзадача: крупная ветка работы выносится
+/// в отдельный проект, но остаётся видна в карточке родительской задачи.
+/// Прогресс такой «подзадачи» считается по задачам самого проекта.
+model TaskProjectLink {
+  id        String   @id @default(cuid())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId    String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  createdAt DateTime @default(now())
+
+  @@unique([taskId, projectId])
+  @@index([projectId])
 }

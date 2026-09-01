@@ -19,6 +19,8 @@ export function UserRow({
     name: string;
     email: string;
     role: Role;
+    /** Название компании сотрудника; null — не распределён. */
+    company: string | null;
     active: boolean;
     initials: string;
     createdAt: string;
@@ -75,6 +77,9 @@ export function UserRow({
             <option key={r} value={r}>{ROLE_LABELS[r]}</option>
           ))}
         </select>
+      </td>
+      <td className="px-5 py-3 text-xs">
+        {user.company ?? <span className="text-muted">—</span>}
       </td>
       <td className="px-5 py-3">
         <input

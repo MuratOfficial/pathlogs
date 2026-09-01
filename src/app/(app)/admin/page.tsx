@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDate, initials } from "@/lib/labels";
 import { UserRow } from "@/components/admin/UserRow";
+import Link from "next/link";
 import { CreateUserDialog } from "@/components/admin/CreateUserDialog";
 import { DragScroll } from "@/components/DragScroll";
 import { PageHint } from "@toimetdev/pathlogs-core";
@@ -14,6 +15,7 @@ export default async function AdminPage() {
 
   const users = await prisma.user.findMany({
     include: {
+      company: { select: { name: true } },
       _count: {
         select: { assignedTasks: true, patchLogs: true, timeEntries: true },
       },
@@ -35,7 +37,15 @@ export default async function AdminPage() {
           <h1 className="text-2xl font-bold tracking-tight">Администрирование</h1>
           <PageHint>Пользователи, роли и статистика системы</PageHint>
         </div>
-        <CreateUserDialog />
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <Link
+            href="/admin/companies"
+            className="rounded-lg border border-edge px-4 py-2 text-sm text-muted transition hover:bg-surface-2 hover:text-foreground"
+          >
+            Компании
+          </Link>
+          <CreateUserDialog />
+        </div>
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -58,6 +68,7 @@ export default async function AdminPage() {
             <tr>
               <th className="px-5 py-3 font-medium">Пользователь</th>
               <th className="px-5 py-3 font-medium">Роль</th>
+              <th className="px-5 py-3 font-medium">Компания</th>
               <th className="px-5 py-3 font-medium">Ставка/ч</th>
               <th className="px-5 py-3 font-medium">Задач</th>
               <th className="px-5 py-3 font-medium">Патч-логов</th>
@@ -77,6 +88,7 @@ export default async function AdminPage() {
                   name: u.name,
                   email: u.email,
                   role: u.role,
+                  company: u.company?.name ?? null,
                   active: u.active,
                   initials: initials(u.name),
                   createdAt: formatDate(u.createdAt),

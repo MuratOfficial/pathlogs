@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
+import { projectScope } from "@/lib/access";
 
 export type SearchResult = {
   projects: { id: string; key: string; name: string }[];
@@ -21,16 +22,8 @@ export async function searchAction(query: string): Promise<SearchResult> {
   const user = await requireUser();
   const q = query.trim();
 
-  // Фильтр доступа к проектам: админ видит всё, остальные — свои/участие
-  const access =
-    user.role === "ADMIN"
-      ? {}
-      : {
-          OR: [
-            { ownerId: user.id },
-            { members: { some: { userId: user.id } } },
-          ],
-        };
+  // Фильтр доступа к проектам: участие плюс контур компании (админ видит всё)
+  const access = await projectScope(user);
 
   const projects = await prisma.project.findMany({
     where: {

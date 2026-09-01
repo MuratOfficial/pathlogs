@@ -1,8 +1,15 @@
 "use client";
 
-import { Fragment, useRef, useState, useTransition, type ReactNode } from "react";
+import {
+  Fragment,
+  useCallback,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { useDragScroll } from "@toimetdev/pathlogs-hooks";
-import { ConfirmDialog, DragScroll } from "@toimetdev/pathlogs-core";
+import { ConfirmDialog } from "@toimetdev/pathlogs-core";
 import {
   applyOrder,
   columnItems,
@@ -18,6 +25,7 @@ import {
   type KanbanSort,
 } from "@/components/ui/kanban/kanbanOrder";
 import { ColumnEditor } from "@/components/ui/kanban/ColumnEditor";
+import { composeRefs, useScrollMemory } from "@/components/ui/useScrollMemory";
 
 export type { KanbanSort };
 
@@ -102,6 +110,12 @@ export interface KanbanProps<I extends KanbanItem, C extends KanbanColumn> {
   palette?: readonly string[];
   /** Полоса над доской: фильтр, индикатор живых обновлений. */
   toolbar?: ReactNode;
+  /**
+   * Ключ памяти прокрутки: под ним доска и её колонки запоминают, куда были
+   * промотаны, и возвращаются туда после перехода на другую страницу.
+   * Не задан — прокрутка не запоминается.
+   */
+  scrollKey?: string;
   labels?: KanbanLabels;
   /** Доступное описание области доски для скринридера. */
   "aria-label"?: string;
@@ -119,6 +133,33 @@ const DEFAULT_PALETTE = [
   "#4ade80",
   "#14b8a6",
 ] as const;
+
+/**
+ * Тело колонки: список карточек. Листается протяжкой по вертикали, а при
+ * переносе карточки к краю подкручивается само (см. useDragScroll).
+ * Вынесено в компонент ради хуков — колонки рендерятся списком.
+ */
+function ColumnBody({
+  scrollKey,
+  children,
+}: {
+  /** Ключ памяти прокрутки колонки; не задан — не запоминаем. */
+  scrollKey?: string;
+  children: ReactNode;
+}) {
+  const dragRef = useDragScroll<HTMLDivElement>({ axis: "y" });
+  const memoryRef = useScrollMemory<HTMLDivElement>(scrollKey, "y");
+  const ref = useCallback(
+    (node: HTMLDivElement | null) => composeRefs(dragRef, memoryRef)(node),
+    [dragRef, memoryRef]
+  );
+
+  return (
+    <div ref={ref} className="flex-1 space-y-2.5 overflow-y-auto px-3 pb-3 pt-1.5">
+      {children}
+    </div>
+  );
+}
 
 /** Прозрачное место, куда встанет карточка. Высота — от самой карточки. */
 function DropSlot({ height }: { height: number }) {
@@ -305,6 +346,7 @@ export function Kanban<I extends KanbanItem, C extends KanbanColumn>({
   palette = DEFAULT_PALETTE,
   toolbar,
   labels = {},
+  scrollKey,
   ...rest
 }: KanbanProps<I, C>) {
   const [items, setItems] = useState(initialItems);
@@ -313,7 +355,17 @@ export function Kanban<I extends KanbanItem, C extends KanbanColumn>({
 
   // Доску листаем протяжкой; карточки и ручки колонок остаются
   // перетаскиваемыми — при их drag&drop протяжка отменяется сама.
-  const boardRef = useDragScroll<HTMLDivElement>({ keyboard: true });
+  const boardDragRef = useDragScroll<HTMLDivElement>({ keyboard: true });
+  // Положение доски переживает уход на другую страницу: без этого возврат из
+  // задачи каждый раз отматывал колонки в самое начало
+  const boardMemoryRef = useScrollMemory<HTMLDivElement>(
+    scrollKey ? `${scrollKey}:board` : undefined,
+    "x"
+  );
+  const boardRef = useCallback(
+    (node: HTMLDivElement | null) => composeRefs(boardDragRef, boardMemoryRef)(node),
+    [boardDragRef, boardMemoryRef]
+  );
 
   /**
    * Свежие props с сервера заменяют локальное (оптимистичное) состояние —
@@ -636,9 +688,7 @@ export function Kanban<I extends KanbanItem, C extends KanbanColumn>({
                 )}
               </div>
 
-              {/* Тело колонки листается протяжкой по вертикали, а при переносе
-                  карточки к её краю подкручивается само (см. useDragScroll) */}
-              <DragScroll axis="y" className="flex-1 space-y-2.5 overflow-y-auto px-3 pb-3 pt-1.5">
+              <ColumnBody scrollKey={scrollKey ? `${scrollKey}:col:${col.id}` : undefined}>
                 {renderList(col, visible, slot).map(({ item, index, ghost }) => (
                   <Fragment key={item.id}>
                     {index === slot && !ghost && <DropSlot height={dragHeight} />}
@@ -695,7 +745,7 @@ export function Kanban<I extends KanbanItem, C extends KanbanColumn>({
 
                 {/* Слот в конце списка: бросок под последнюю карточку */}
                 {slot === visible.length && slot >= 0 && <DropSlot height={dragHeight} />}
-              </DragScroll>
+              </ColumnBody>
 
               {/* Подвал колонки: домен обычно ставит сюда «добавить карточку» */}
               {renderColumnFooter && <div className="px-3 pb-3">{renderColumnFooter(col)}</div>}

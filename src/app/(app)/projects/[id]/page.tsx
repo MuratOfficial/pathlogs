@@ -11,7 +11,11 @@ import type {
   TagDTO,
 } from "@/lib/types";
 import { ensureDefaultColumns } from "@/lib/board";
-import { canAccessProject, canManageProject } from "@/lib/access";
+import {
+  canAccessProject,
+  canManageProject,
+  projectCandidateFilter,
+} from "@/lib/access";
 import { ProjectMembersDialog } from "@/components/ProjectMembersDialog";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { TaskGraph } from "@/components/TaskGraph";
@@ -44,6 +48,7 @@ import { ResourceLinks } from "@/components/ResourceLinks";
 import { DragScroll } from "@/components/DragScroll";
 import { getProjectPolls } from "@/lib/polls";
 import { getResourceLinks } from "@/lib/links";
+import { getParentTasks } from "@/lib/subprojects";
 import { formatHours } from "@/lib/labels";
 
 /** Суммарные часы по сотрудникам для вкладки «Аналитика». */
@@ -247,12 +252,18 @@ export default async function ProjectPage({
       select: { id: true },
     })
   );
+  // Задачи, к которым проект привязан как подзадача — путь «наверх»
+  const parentTasks = await getParentTasks(id);
   // Фон проекта персональный: у каждого участника свой
   const background = await getProjectBackground(id, user.id);
-  // Кандидаты на добавление — только для тех, кто может управлять составом
+  // Кандидаты на добавление — только для тех, кто может управлять составом.
+  // Из чужой компании в проект никого не добавить (см. projectCandidateFilter)
   const candidates: MemberDTO[] = canManage
     ? await prisma.user.findMany({
-        where: { active: true, id: { notIn: members.map((m) => m.id) } },
+        where: {
+          ...(await projectCandidateFilter(id)),
+          id: { notIn: members.map((m) => m.id) },
+        },
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       })
@@ -376,6 +387,24 @@ export default async function ProjectPage({
           )}
         </div>
       </div>
+
+      {parentTasks.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted">
+          <span>Подзадача задачи:</span>
+          {parentTasks.map((t) => (
+            <Link
+              key={t.id}
+              href={`/tasks/${t.id}`}
+              className="rounded-lg border border-edge px-2 py-1 transition hover:bg-surface-2 hover:text-foreground"
+            >
+              <span className="font-mono font-semibold">
+                {t.projectKey}-{t.number}
+              </span>{" "}
+              {t.title}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {project.description && (
         <p className="mb-4 max-w-3xl whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-muted">

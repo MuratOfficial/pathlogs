@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
+import { projectScope } from "@/lib/access";
 import { formatDate, initials } from "@/lib/labels";
 import { NewProjectDialog } from "@/components/NewProjectDialog";
 import { ImportTrelloDialog } from "@/components/ImportTrelloDialog";
@@ -28,15 +29,8 @@ export default async function DashboardPage({
   const projects = await prisma.project.findMany({
     where: {
       status: showArchived ? "ARCHIVED" : "ACTIVE",
-      // Не-админ видит только проекты, где он владелец или участник
-      ...(user.role !== "ADMIN"
-        ? {
-            OR: [
-              { ownerId: user.id },
-              { members: { some: { userId: user.id } } },
-            ],
-          }
-        : {}),
+      // Видимость: участие плюс контур компании (админ видит всё)
+      ...(await projectScope(user)),
     },
     include: {
       owner: true,

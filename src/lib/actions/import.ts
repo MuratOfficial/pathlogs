@@ -4,6 +4,7 @@ import type { Prisma, TaskStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
 import { parseImportFile, type ParsedImport } from "@/lib/import";
+import { getUserCompanyId } from "@/lib/access";
 import {
   BOARD_PALETTE,
   KANBAN_COLUMNS,
@@ -163,6 +164,9 @@ export async function importFileAction(
           ? "Импортировано из Excel"
           : "Импортировано из MS Project",
       ownerId: user.id,
+      // Импортированный проект попадает в компанию импортирующего — как и любой
+      // созданный вручную (см. createProjectAction)
+      companyId: await getUserCompanyId(user.id),
       members: { create: { userId: user.id } },
     },
   });

@@ -34,6 +34,8 @@ import { Markdown } from "@/components/Markdown";
 import { ResourceLinks } from "@/components/ResourceLinks";
 import { getResourceLinks } from "@/lib/links";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
+import { SubProjects } from "@/components/task/SubProjects";
+import { getAttachableProjects, getSubProjects } from "@/lib/subprojects";
 import { googleCalendarUrl } from "@/lib/calendar";
 import {
   deletePatchLogAction,
@@ -120,6 +122,10 @@ export default async function TaskPage({
   });
   const canManageTags = await canManageProject(task.projectId, user);
 
+  // Проекты, привязанные к задаче как подзадачи, и что ещё можно привязать
+  const subProjects = await getSubProjects(task.id);
+  const attachableProjects = await getAttachableProjects(task.id, task.projectId, user);
+
   // Полезные ссылки задачи (блок «Ссылки»)
   const resourceLinks = await getResourceLinks(task.projectId, user, task.id);
 
@@ -168,7 +174,11 @@ export default async function TaskPage({
   const sections: TaskSectionDTO[] = [
     { id: "task-overview", label: "Описание" },
     { id: "task-checklist", label: "Чек-лист", count: task.checklist.length },
-    { id: "task-subtasks", label: "Подзадачи", count: task.children.length },
+    {
+      id: "task-subtasks",
+      label: "Подзадачи",
+      count: task.children.length + subProjects.length,
+    },
     { id: "task-patchlog", label: "Патч-лог", count: task.patchLogs.length },
     { id: "task-comments", label: "Обсуждение", count: task.comments.length },
     { id: "task-links", label: "Ссылки", count: resourceLinks.length },
@@ -289,7 +299,7 @@ export default async function TaskPage({
           <section id="task-subtasks" className="rounded-2xl border border-edge bg-surface p-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-                Подзадачи · ветки ({task.children.length})
+                Подзадачи · ветки ({task.children.length + subProjects.length})
               </h2>
               <NewTaskDialog
                 projectId={task.projectId}
@@ -335,6 +345,18 @@ export default async function TaskPage({
                 ))}
               </ul>
             )}
+
+            {/* Проекты-подзадачи: ветка, выросшая до отдельного проекта */}
+            <div className="mt-5 border-t border-edge pt-5">
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+                Проекты ({subProjects.length})
+              </h3>
+              <SubProjects
+                taskId={task.id}
+                projects={subProjects}
+                attachable={attachableProjects}
+              />
+            </div>
           </section>
 
           {/* Патч-лог */}

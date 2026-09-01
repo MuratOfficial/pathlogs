@@ -9,6 +9,7 @@ import {
   type TrelloAuth,
 } from "@/lib/trello";
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
+import { getUserCompanyId } from "@/lib/access";
 import { BOARD_PALETTE } from "@/lib/labels";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -189,6 +190,9 @@ export async function importTrelloBoardAction(
       key: projKey,
       description: "Импортировано из Trello",
       ownerId: user.id,
+      // Импортированный проект попадает в компанию импортирующего — как и любой
+      // созданный вручную (см. createProjectAction)
+      companyId: await getUserCompanyId(user.id),
       members: { create: { userId: user.id } },
     },
   });

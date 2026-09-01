@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
+import { projectScope } from "@/lib/access";
 import {
   STATUS_COLORS,
   STATUS_LABELS,
@@ -20,7 +21,8 @@ export default async function MyTasksPage() {
     where: {
       assignees: { some: { id: user.id } },
       status: { in: ["TODO", "IN_PROGRESS", "REVIEW"] },
-      project: { status: "ACTIVE" },
+      // Проект вне контура компании не показываем даже исполнителю задачи
+      project: { is: { status: "ACTIVE", ...(await projectScope(user)) } },
     },
     include: {
       project: { select: { id: true, key: true, name: true } },
