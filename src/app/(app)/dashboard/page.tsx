@@ -87,7 +87,7 @@ export default async function DashboardPage({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-[var(--app-grid-gap)] md:grid-cols-2 xl:grid-cols-3">
           {projects.map((p, i) => {
             const done = p.tasks.length;
             const total = p._count.tasks;
@@ -100,7 +100,7 @@ export default async function DashboardPage({
               <div
                 key={p.id}
                 style={{ animationDelay: `${Math.min(i, 9) * 0.05}s` }}
-                className="hover-lift animate-fade-up group relative flex flex-col rounded-2xl border border-edge bg-surface p-5 hover:border-accent/50"
+                className="hover-lift animate-fade-up group relative flex flex-col rounded-2xl border border-edge bg-surface p-[var(--app-card-p)] hover:border-accent/50"
               >
                 <Link href={`/projects/${p.id}`} className="absolute inset-0 z-0" />
                 <div className="relative z-10 flex flex-1 flex-col pointer-events-none">

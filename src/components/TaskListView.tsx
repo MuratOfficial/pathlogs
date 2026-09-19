@@ -134,7 +134,7 @@ export function TaskListView({
                   selected.has(t.id) ? "bg-accent/10" : "hover:bg-surface-2/50"
                 }`}
               >
-                <td className="px-3 py-3">
+                <td className="px-3 py-[var(--app-row-py)]">
                   <input
                     type="checkbox"
                     checked={selected.has(t.id)}
@@ -143,24 +143,24 @@ export function TaskListView({
                     className="h-4 w-4 accent-[var(--accent)]"
                   />
                 </td>
-                <td className="px-4 py-3 font-mono text-xs text-muted">
+                <td className="px-4 py-[var(--app-row-py)] font-mono text-xs text-muted">
                   {projectKey}-{t.number}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-[var(--app-row-py)]">
                   <Link href={`/tasks/${t.id}`} className="flex items-center gap-2 font-medium hover:text-accent-hover">
                     <PriorityBadge priority={t.priority} />
                     {t.title}
                   </Link>
                 </td>
-                <td className="px-4 py-3"><TypeBadge type={t.type} /></td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-[var(--app-row-py)]"><TypeBadge type={t.type} /></td>
+                <td className="px-4 py-[var(--app-row-py)]">
                   {t.tags.length > 0 ? (
                     <TagChips tags={t.tags} max={2} small />
                   ) : (
                     <span className="text-xs text-muted">—</span>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-4 py-[var(--app-row-py)]">
                   <span
                     className="rounded px-2 py-0.5 text-xs font-medium"
                     style={{ backgroundColor: STATUS_COLORS[t.status] + "26", color: STATUS_COLORS[t.status] }}
@@ -168,9 +168,9 @@ export function TaskListView({
                     {STATUS_LABELS[t.status]}
                   </span>
                 </td>
-                <td className="px-4 py-3"><AssigneeAvatars assignees={t.assignees} /></td>
-                <td className="px-4 py-3 text-xs text-muted">{formatDate(t.dueDate)}</td>
-                <td className="px-4 py-3 text-xs text-muted">
+                <td className="px-4 py-[var(--app-row-py)]"><AssigneeAvatars assignees={t.assignees} /></td>
+                <td className="px-4 py-[var(--app-row-py)] text-xs text-muted">{formatDate(t.dueDate)}</td>
+                <td className="px-4 py-[var(--app-row-py)] text-xs text-muted">
                   {t.spentHours > 0 ? formatHours(t.spentHours) : "—"}
                   {t.estimateHours ? ` / ${formatHours(t.estimateHours)}` : ""}
                 </td>

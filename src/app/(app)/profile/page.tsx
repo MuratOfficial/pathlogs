@@ -4,6 +4,9 @@ import { ROLE_LABELS, formatDate, formatDateTime, formatHours, initials } from "
 import { ProfileNameForm, PasswordForm } from "@/components/ProfileForms";
 import { ApiTokens } from "@/components/ApiTokens";
 import { TrelloConnection } from "@/components/TrelloConnection";
+import { SkinPicker } from "@/components/SkinPicker";
+import { ContributionCalendar } from "@/components/ContributionCalendar";
+import { getContributions } from "@/lib/contributions";
 
 export default async function ProfilePage() {
   const sessionUser = await requireUser();
@@ -21,6 +24,7 @@ export default async function ProfilePage() {
     where: { userId: user.id },
     orderBy: { createdAt: "asc" },
   });
+  const contributions = await getContributions(user.id);
   const trelloConnected = Boolean(
     await prisma.trelloCredential.findUnique({
       where: { userId: user.id },
@@ -29,7 +33,7 @@ export default async function ProfilePage() {
   );
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-full space-y-6">
       <div className="flex items-center gap-4">
         <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/20 text-lg font-bold text-accent-hover">
           {initials(user.name)}
@@ -58,10 +62,37 @@ export default async function ProfilePage() {
       </div>
 
       <section className="rounded-2xl border border-edge bg-surface p-6">
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
+          Активность за год
+        </h2>
+        <p className="mb-4 text-xs text-muted">
+          Патч-логи, комментарии, созданные задачи, списанное время и переводы
+          статуса — всё, что и так записывается, просто собрано по дням.
+        </p>
+        <ContributionCalendar
+          values={contributions.values}
+          from={contributions.from.toISOString()}
+          to={contributions.to.toISOString()}
+        />
+      </section>
+
+      <section className="rounded-2xl border border-edge bg-surface p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
           Данные
         </h2>
         <ProfileNameForm name={user.name} />
+      </section>
+
+      <section className="rounded-2xl border border-edge bg-surface p-6">
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
+          Оформление
+        </h2>
+        <p className="mb-4 text-xs text-muted">
+          Палитра, скругления и шрифт интерфейса. Выбор хранится в браузере —
+          на каждом устройстве свой. Светлая и тёмная тема переключаются
+          отдельно, значком внизу бокового меню.
+        </p>
+        <SkinPicker />
       </section>
 
       <section className="rounded-2xl border border-edge bg-surface p-6">

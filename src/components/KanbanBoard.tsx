@@ -25,6 +25,8 @@ import { BOARD_PALETTE, formatDate, formatHours } from "@/lib/labels";
 import { AssigneeAvatars, PriorityBadge, TagChips, TypeBadge } from "./TaskBadges";
 import { TaskFilterBar, type SavedFilterDTO } from "./TaskFilterBar";
 import { EMPTY_FILTER, isFilterActive, matchesTaskFilter, type TaskFilter } from "@/lib/taskFilter";
+import { UndoToaster } from "@toimetdev/pathlogs-core";
+import { shouldOfferUndo, snapshotMove, type TaskMove } from "@/lib/boardUndo";
 import { Kanban } from "@/components/ui/kanban/Kanban";
 
 export type { SavedFilterDTO };
@@ -248,6 +250,15 @@ export function KanbanBoard({
   );
 
   return (
+    <UndoToaster<TaskMove>
+      undoLabelText="Вернуть"
+      onUndo={(action) => {
+        const move = action.payload;
+        if (!move) return;
+        startOptimistic(() => moveTaskAction(move.taskId, move.columnId, move.orderedIds));
+      }}
+    >
+      {(undo) => (
     <Kanban<BoardItem, ColumnDTO>
       items={items}
       columns={columns}
@@ -257,7 +268,18 @@ export function KanbanBoard({
       filter={filtering ? (t) => matchesTaskFilter(t, filter) : undefined}
       toolbar={toolbar}
       aria-label="Доска задач: стрелки прокручивают, Home и End — к краям"
-      onMoveItem={(id, columnId, orderedIds) => moveTaskAction(id, columnId, orderedIds)}
+      onMoveItem={async (id, columnId, orderedIds) => {
+        // Снимок берём до действия: после него items уже перестроятся.
+        const before = snapshotMove(items, id);
+        await moveTaskAction(id, columnId, orderedIds);
+        if (shouldOfferUndo(before, columnId)) {
+          undo.notify({
+            id: `move:${id}`,
+            label: `«${before.title}» перенесена`,
+            payload: before,
+          });
+        }
+      }}
       onReorderColumns={(ids) => reorderColumnsAction(projectId, ids)}
       onCreateColumn={(name, color) => createBoardColumnAction(projectId, name, color)}
       onUpdateColumn={(id, fields) => updateBoardColumnAction(id, fields)}
@@ -425,5 +447,7 @@ export function KanbanBoard({
         );
       }}
     />
+      )}
+    </UndoToaster>
   );
 }

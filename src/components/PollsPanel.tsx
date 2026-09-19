@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import { TagInput } from "@toimetdev/pathlogs-core";
 import type { PollDTO } from "@/lib/types";
 import {
   createPollAction,
@@ -10,6 +11,9 @@ import {
 } from "@/lib/actions/polls";
 import { formatDateTime, initials, plural } from "@/lib/labels";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+
+/** Столько же, сколько принимает createPollAction: лишнее там отрезается молча. */
+const MAX_POLL_OPTIONS = 20;
 
 function NewPollForm({
   projectId,
@@ -26,6 +30,11 @@ function NewPollForm({
     },
     undefined
   );
+
+  // Варианты живут в состоянии: TagInput управляемый, а сервер ждёт их
+  // строками через перенос — его контракт не трогаем.
+  const [options, setOptions] = useState<string[]>([]);
+  const [rejected, setRejected] = useState<string | null>(null);
 
   const inputCls =
     "w-full rounded-lg border border-edge bg-surface-2 px-3 py-2 text-sm outline-none transition focus:border-accent";
@@ -60,18 +69,38 @@ function NewPollForm({
         />
       </label>
 
-      <label className="mb-4 block">
+      <div className="mb-4">
         <span className="mb-1.5 block text-sm text-muted">
-          Варианты ответа * <span className="text-xs">· по варианту на строку, минимум два</span>
+          Варианты ответа *{" "}
+          <span className="text-xs">
+            · Enter или запятая — отдельный вариант, минимум два
+          </span>
         </span>
-        <textarea
-          name="options"
-          rows={4}
-          required
-          placeholder={"Вариант А\nВариант Б\nВариант В"}
-          className={`${inputCls} resize-y`}
+        {/* Сервер принимает варианты строками через перенос, а собственное
+            скрытое поле TagInput склеивает запятыми — поэтому пишем его сами.
+            Иначе вариант с запятой внутри развалился бы уже на сервере. */}
+        <input type="hidden" name="options" value={options.join("\n")} />
+        <TagInput
+          value={options}
+          onChange={(next) => {
+            setOptions(next);
+            setRejected(null);
+          }}
+          max={MAX_POLL_OPTIONS}
+          caseInsensitive
+          placeholder="Вариант А, вариант Б…"
+          onReject={(value, reason) =>
+            setRejected(
+              reason === "duplicate"
+                ? `«${value}» уже есть в списке`
+                : reason === "limit"
+                  ? `Больше ${MAX_POLL_OPTIONS} вариантов не поместится`
+                  : `«${value}» не подходит`
+            )
+          }
         />
-      </label>
+        {rejected && <p className="mt-1.5 text-xs text-warning">{rejected}</p>}
+      </div>
 
       <div className="mb-5 flex flex-wrap gap-5">
         <label className="flex cursor-pointer items-center gap-2 text-sm">

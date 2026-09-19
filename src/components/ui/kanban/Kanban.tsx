@@ -155,7 +155,7 @@ function ColumnBody({
   );
 
   return (
-    <div ref={ref} className="flex-1 space-y-2.5 overflow-y-auto px-3 pb-3 pt-1.5">
+    <div ref={ref} className="flex-1 space-y-[var(--app-stack-gap)] overflow-y-auto px-3 pb-3 pt-1.5">
       {children}
     </div>
   );
@@ -593,7 +593,7 @@ export function Kanban<I extends KanbanItem, C extends KanbanColumn>({
                 setOverColDrag((c) => (c === col.id ? null : c));
               }}
               onDrop={() => (dragColId ? dropColumn(col.id) : dropCard(col))}
-              className={`flex w-[85vw] max-w-[20rem] shrink-0 flex-col rounded-2xl border transition sm:w-80 ${
+              className={`flex w-[85vw] max-w-[20rem] shrink-0 flex-col rounded-2xl border transition sm:w-[var(--app-column-w)] ${
                 isColTarget ? "border-dashed" : ""
               }`}
               // Каждая граница отдельным свойством: сокращённое borderColor
@@ -731,7 +731,7 @@ export function Kanban<I extends KanbanItem, C extends KanbanColumn>({
                         // Прочие клавиши отдаём домену (у задач «d» — «готово»)
                         onItemKeyDown?.(item, e);
                       }}
-                      className="group cursor-pointer rounded-xl border border-edge bg-surface p-3.5 outline-none transition hover:border-accent/50 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
+                      className="group cursor-pointer rounded-xl border border-edge bg-surface p-[var(--app-panel-p)] outline-none transition hover:border-accent/50 focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
                       style={
                         item.color
                           ? { backgroundColor: `${item.color}1f`, borderColor: `${item.color}66` }

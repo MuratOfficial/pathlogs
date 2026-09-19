@@ -123,7 +123,7 @@ export function ProjectStats({
     .slice(0, 10);
 
   return (
-    <div className="h-full space-y-4 overflow-y-auto pb-6 pr-1">
+    <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Card label="Всего задач" value={String(tasks.length)} />
         <Card label="Открыто" value={String(open.length)} />

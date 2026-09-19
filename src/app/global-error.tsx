@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { themeScript } from "@toimetdev/pathlogs-tokens";
+import { skinScript } from "@/lib/skin";
 import { ErrorAction, ErrorScreen } from "@/components/ErrorScreen";
 import "./globals.css";
 
@@ -10,9 +11,10 @@ import "./globals.css";
  * error.tsx отрисовать уже не на чем.
  *
  * Этот файл заменяет собой корневой layout, поэтому html и body объявляет сам,
- * сам подключает globals.css и сам ставит тему — до неё иначе не дотянуться,
- * и страница светила бы белым у тех, кто сидит в тёмной. Шрифты проекта не
- * тянем намеренно: на аварийной странице системный шрифт надёжнее и быстрее.
+ * сам подключает globals.css и сам ставит тему со скином — до них иначе не
+ * дотянуться, и страница светила бы белым у тех, кто сидит в тёмной. Шрифты
+ * проекта не тянем намеренно: на аварийной странице системный шрифт надёжнее
+ * и быстрее.
  *
  * Метаданные здесь не поддерживаются (клиентский компонент) — заголовок
  * ставится тегом title прямо в разметке.
@@ -33,6 +35,7 @@ export default function GlobalError({
       <head>
         <title>Сбой приложения — PathLogs</title>
         <script dangerouslySetInnerHTML={{ __html: themeScript() }} />
+        <script dangerouslySetInnerHTML={{ __html: skinScript() }} />
       </head>
       <body className="min-h-full flex flex-col">
         <ErrorScreen

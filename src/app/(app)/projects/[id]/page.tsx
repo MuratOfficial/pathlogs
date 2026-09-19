@@ -23,6 +23,8 @@ import { TaskListView } from "@/components/TaskListView";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { ArchiveProjectButton } from "@/components/ArchiveProjectButton";
 import { ProjectStats } from "@/components/ProjectStats";
+import { FlowPanel } from "@/components/FlowPanel";
+import { ProjectStatusBar } from "@/components/ProjectStatusBar";
 import { TemplatesDialog } from "@/components/TemplatesDialog";
 import { GanttChart } from "@/components/GanttChart";
 import { ActivityFeed } from "@/components/ActivityFeed";
@@ -49,7 +51,12 @@ import { DragScroll } from "@/components/DragScroll";
 import { getProjectPolls } from "@/lib/polls";
 import { getResourceLinks } from "@/lib/links";
 import { getParentTasks } from "@/lib/subprojects";
-import { formatHours } from "@/lib/labels";
+import {
+  cycleTimeMs,
+  flowSummary,
+  weeklyFlow,
+  type FlowTask,
+} from "@/lib/flow";
 
 /** Суммарные часы по сотрудникам для вкладки «Аналитика». */
 async function getHoursByUser(projectId: string) {
@@ -64,6 +71,68 @@ async function getHoursByUser(projectId: string) {
   return [...map.entries()]
     .map(([name, hours]) => ({ name, hours }))
     .sort((a, b) => b.hours - a.hours);
+}
+
+/**
+ * Сколько открытых задач просрочено. Отдельной функцией, а не строкой в
+ * компоненте: «сейчас» — значение непостоянное, и внутри рендера его читать
+ * нельзя (react-hooks/purity).
+ */
+function countOverdue(tasks: { dueDate: Date | string | null }[]): number {
+  const now = Date.now();
+  return tasks.filter((t) => t.dueDate && new Date(t.dueDate).getTime() < now).length;
+}
+
+/** Сколько недель показывают графики потока. */
+const FLOW_WEEKS = 10;
+
+/**
+ * Задачи с историей переходов для метрик потока.
+ *
+ * Берём только toStatus и время: остальное в TaskStatusEvent (кто двигал)
+ * нужно ленте задачи, а не агрегату, и тянуть его на каждую задачу проекта
+ * значило бы возить по сети лишнее.
+ */
+async function getFlow(projectId: string, projectKey: string) {
+  const rows = await prisma.task.findMany({
+    where: { projectId },
+    select: {
+      id: true,
+      number: true,
+      title: true,
+      createdAt: true,
+      statusEvents: {
+        select: { toStatus: true, at: true },
+        orderBy: { at: "asc" },
+      },
+    },
+  });
+
+  const tasks: FlowTask[] = rows.map((t) => ({
+    id: t.id,
+    key: `${projectKey}-${t.number}`,
+    title: t.title,
+    createdAt: t.createdAt,
+    events: t.statusEvents,
+  }));
+
+  const slowest = tasks
+    .map((t) => ({ task: t, ms: cycleTimeMs(t) }))
+    .filter((r): r is { task: FlowTask; ms: number } => r.ms !== null)
+    .sort((a, b) => b.ms - a.ms)
+    .slice(0, 6)
+    .map((r) => ({
+      id: r.task.id,
+      key: r.task.key,
+      title: r.task.title,
+      hours: r.ms / 3600_000,
+    }));
+
+  return {
+    summary: flowSummary(tasks, FLOW_WEEKS),
+    weeks: weeklyFlow(tasks, FLOW_WEEKS),
+    slowest,
+  };
 }
 
 /** Создано vs закрыто по неделям (последние 10 недель) для графика динамики. */
@@ -270,9 +339,11 @@ export default async function ProjectPage({
     : [];
 
   const totalSpent = tasks.reduce((s, t) => s + t.spentHours, 0);
-  const open = tasks.filter(
+  const openTasks = tasks.filter(
     (t) => t.status !== "DONE" && t.status !== "CLOSED" && t.status !== "ARCHIVED"
-  ).length;
+  );
+  const open = openTasks.length;
+  const overdue = countOverdue(openTasks);
 
   return (
     <div className="mx-auto flex h-[calc(100vh-3rem)] min-w-0 max-w-full flex-col">
@@ -313,11 +384,6 @@ export default async function ProjectPage({
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <div className="mr-1 hidden items-center gap-4 text-xs text-muted md:flex">
-            <span>Открыто: <b className="text-foreground">{open}</b></span>
-            <span>Всего: <b className="text-foreground">{tasks.length}</b></span>
-            <span>Затрачено: <b className="text-foreground">{formatHours(totalSpent)}</b></span>
-          </div>
           {/* В шапке — только то, чем пользуются каждый день; остальное
               спрятано в «Ещё», чтобы панель не превращалась в частокол */}
           <MoreMenu count={canManage ? 7 : 4}>
@@ -520,13 +586,26 @@ export default async function ProjectPage({
           />
         )}
         {view === "stats" && (
-          <ProjectStats
-            tasks={tasks}
-            hoursByUser={await getHoursByUser(project.id)}
-            completion={await getCompletionSeries(project.id)}
-          />
+          <div className="h-full space-y-4 overflow-y-auto pb-6 pr-1">
+            <FlowPanel {...(await getFlow(project.id, project.key))} />
+            <ProjectStats
+              tasks={tasks}
+              hoursByUser={await getHoursByUser(project.id)}
+              completion={await getCompletionSeries(project.id)}
+            />
+          </div>
         )}
       </div>
+
+      <ProjectStatusBar
+        projectId={project.id}
+        open={open}
+        total={tasks.length}
+        overdue={overdue}
+        spentHours={totalSpent}
+        members={members.length}
+        tags={projectTags.length}
+      />
     </div>
   );
 }

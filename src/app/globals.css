@@ -9,10 +9,239 @@
 /* Мост токен → Tailwind-утилита (bg-surface, text-muted, border-edge …). */
 @import "@toimetdev/pathlogs-tokens/styles/tailwind.css";
 
-/* Шрифты проекта — фреймворковый tailwind.css мост цветов не трогает шрифты. */
+/* Шрифты проекта — фреймворковый tailwind.css мост цветов не трогает шрифты.
+   Через промежуточную переменную, чтобы шрифт можно было сменить скином
+   (см. ниже): сам мост в @theme объявляется один раз и не пересобирается. */
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--app-font-sans);
+  --font-mono: var(--app-font-mono);
+}
+
+/* ═════════════════════ Оформление (скины) ═════════════════════
+   Второй переключатель вида, независимый от светлой/тёмной темы: он
+   подменяет только значения токенов. Ни один компонент об этом не знает —
+   и цветовые утилиты (bg-surface, border-edge), и радиусы (rounded-lg),
+   и шрифт собраны через var(), поэтому меняются вместе с токенами.
+
+   Атрибут [data-skin] ставит на <html> скрипт skinScript() из src/lib/skin.ts
+   — до первой отрисовки, иначе страница мигнёт чужой палитрой.
+
+   Специфичность: правила тёмного варианта — [data-skin=…] (0,1,0), ровно
+   как [data-theme="light"] в tokens.css, но объявлены позже и потому
+   выигрывают. Светлый вариант поэтому пишем парой [data-skin][data-theme]
+   (0,2,0) — он должен побеждать собственный тёмный. */
+
+:root {
+  --app-font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --app-font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* ── Плотность ──
+     Скин меняет не только цвет, но и то, сколько влезает на экран. Значения
+     ниже — нынешние отступы приложения; их подставляют через произвольные
+     значения Tailwind (p-[var(--app-card-p)]) там, где плотность заметна
+     глазом: боковое меню, карточки, колонки доски, строки таблицы.
+
+     Список намеренно короткий: это не полная шкала отступов, а те несколько
+     мест, которые решают, выглядит интерфейс плотным или просторным. */
+  --app-sidebar-w: 15rem;
+  --app-nav-py: 0.5rem;
+  --app-brand-py: 1.25rem;
+  --app-card-p: 1.25rem;
+  --app-panel-p: 0.875rem;
+  --app-grid-gap: 1rem;
+  --app-column-w: 20rem;
+  --app-stack-gap: 0.625rem;
+  --app-row-py: 0.75rem;
+}
+
+/* Календарь активности шире любой колонки: год — это 53 недели. Внутри у него
+   есть своя горизонтальная прокрутка (.pl-heatmap__scroll), но она не
+   включалась: корень объявлен display: inline-flex, то есть растягивается по
+   содержимому, и прокручиваемый блок получал те же 825px вместо ширины
+   карточки. Результат — сетка вылезала за карточку, а страница ехала вбок.
+   max-width возвращает корень в границы контейнера, и прокрутка наконец
+   срабатывает. Правильное место правки — сам пакет. */
+.pl-heatmap {
+  max-width: 100%;
+}
+
+/* Ширину оболочки задаёт CSS пакета pathlogs-core (.pl-shell__*, 15rem
+   жёстким числом). Переопределяем её здесь, из приложения: пакет не трогаем,
+   релиз не нужен. Правильное место для этого — токен в самом фреймворке;
+   пока его нет, держим переопределение тут, рядом со шкалой. */
+.pl-shell__sidebar {
+  width: var(--app-sidebar-w);
+}
+@media (min-width: 1024px) {
+  .pl-shell__main {
+    margin-left: var(--app-sidebar-w);
+  }
+}
+
+/* ── Linear: почти чёрный фон, границы на грани видимости, малые радиусы ── */
+[data-skin="linear"] {
+  --background: #08090b;
+  --surface: #0f1011;
+  --surface-2: #17181a;
+  --border: #1f2023;
+
+  --foreground: #e6e6e6;
+  --muted: #8a8f98;
+
+  --accent: #5e6ad2;
+  --accent-hover: #737cdb;
+  --accent-2: #8b7fd9;
+  --accent-3: #4ea7c9;
+  --accent-pink: #c77fd9;
+
+  --danger: #eb5757;
+  --danger-hover: #d94a4a;
+  --success: #4cb782;
+  --warning: #f2994a;
+  --info: #4ea7c9;
+
+  /* Скругления Linear почти не читаются: один и тот же мелкий радиус
+     от кнопки до диалога. Имена --radius-* совпадают со шкалой Tailwind,
+     поэтому rounded-lg и rounded-2xl меняются заодно. */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius: 0.375rem;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
+
+  --app-font-sans: var(--font-inter), system-ui, sans-serif;
+  --app-font-mono: var(--font-inter), ui-monospace, monospace;
+
+  /* Главное, чем Linear отличается от нынешнего вида, — не цвет, а плотность:
+     узкое меню, строки почти без воздуха, компактные карточки. */
+  --app-sidebar-w: 13rem;
+  --app-nav-py: 0.3125rem;
+  --app-brand-py: 0.875rem;
+  --app-card-p: 0.875rem;
+  --app-panel-p: 0.625rem;
+  --app-grid-gap: 0.625rem;
+  --app-column-w: 17.5rem;
+  --app-stack-gap: 0.375rem;
+  --app-row-py: 0.4375rem;
+}
+
+[data-skin="linear"][data-theme="light"] {
+  --background: #fbfbfb;
+  --surface: #ffffff;
+  --surface-2: #f4f5f8;
+  --border: #e4e5e8;
+
+  --foreground: #1c1d20;
+  --muted: #6b6f76;
+
+  --accent: #5e6ad2;
+  --accent-hover: #4d58c0;
+  --accent-2: #7c6ad2;
+  --accent-3: #2f8fb5;
+  --accent-pink: #b55fc9;
+
+  --danger: #d64545;
+  --danger-hover: #bd3838;
+  --success: #3a9e6e;
+  --warning: #d9822b;
+  --info: #2f8fb5;
+}
+
+/* ── Railway: фиолетовый фон, крупные скругления, мягкий свет ── */
+[data-skin="railway"] {
+  --background: #13111c;
+  --surface: #1b1825;
+  --surface-2: #241f31;
+  --border: #2c2839;
+
+  --foreground: #eae6f5;
+  --muted: #9b93b4;
+
+  --accent: #a855f7;
+  --accent-hover: #c084fc;
+  --accent-2: #8b5cf6;
+  --accent-3: #22d3ee;
+  --accent-pink: #ec4899;
+
+  --danger: #ef4444;
+  --danger-hover: #dc2626;
+  --success: #4ade80;
+  --warning: #f59e0b;
+  --info: #38bdf8;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius: 0.625rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+
+  --app-font-sans: var(--font-inter), system-ui, sans-serif;
+  --app-font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+[data-skin="railway"][data-theme="light"] {
+  --background: #faf8ff;
+  --surface: #ffffff;
+  --surface-2: #f3f0fa;
+  --border: #e4dff0;
+
+  --foreground: #1e1a2b;
+  --muted: #6b6385;
+
+  --accent: #9333ea;
+  --accent-hover: #7e22ce;
+  --accent-2: #7c3aed;
+  --accent-3: #0891b2;
+  --accent-pink: #db2777;
+
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --success: #16a34a;
+  --warning: #d97706;
+  --info: #0284c7;
+}
+
+/* Системная тема: [data-theme="system"] отдаёт решение медиазапросу, и
+   светлый вариант скина должен включаться там же. Пара селекторов даёт
+   ту же специфичность (0,2,0), что и явный выбор светлой. */
+@media (prefers-color-scheme: light) {
+  [data-skin="linear"][data-theme="system"] {
+    --background: #fbfbfb;
+    --surface: #ffffff;
+    --surface-2: #f4f5f8;
+    --border: #e4e5e8;
+    --foreground: #1c1d20;
+    --muted: #6b6f76;
+    --accent-hover: #4d58c0;
+    --accent-2: #7c6ad2;
+    --accent-3: #2f8fb5;
+    --accent-pink: #b55fc9;
+    --danger: #d64545;
+    --danger-hover: #bd3838;
+    --success: #3a9e6e;
+    --warning: #d9822b;
+    --info: #2f8fb5;
+  }
+  [data-skin="railway"][data-theme="system"] {
+    --background: #faf8ff;
+    --surface: #ffffff;
+    --surface-2: #f3f0fa;
+    --border: #e4dff0;
+    --foreground: #1e1a2b;
+    --muted: #6b6385;
+    --accent: #9333ea;
+    --accent-hover: #7e22ce;
+    --accent-2: #7c3aed;
+    --accent-3: #0891b2;
+    --accent-pink: #db2777;
+    --danger: #dc2626;
+    --danger-hover: #b91c1c;
+    --success: #16a34a;
+    --warning: #d97706;
+    --info: #0284c7;
+  }
 }
 
 /* React Flow под тёмную тему */
@@ -88,7 +317,7 @@
 }
 .hover-lift:hover {
   transform: translateY(-3px);
-  box-shadow: 0 14px 34px -16px rgba(99, 102, 241, 0.55);
+  box-shadow: 0 14px 34px -16px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 /* Анимированный градиентный текст */
@@ -108,9 +337,9 @@
   background-position: 0% 50%;
   color: #fff;
   transition: background-position 0.5s ease, transform 0.12s ease, box-shadow 0.25s ease, opacity 0.2s ease;
-  box-shadow: 0 8px 24px -10px rgba(168, 85, 247, 0.6);
+  box-shadow: 0 8px 24px -10px color-mix(in srgb, var(--accent-2) 60%, transparent);
 }
-.btn-gradient:hover:not(:disabled) { background-position: 100% 50%; box-shadow: 0 12px 30px -8px rgba(168, 85, 247, 0.7); }
+.btn-gradient:hover:not(:disabled) { background-position: 100% 50%; box-shadow: 0 12px 30px -8px color-mix(in srgb, var(--accent-2) 70%, transparent); }
 .btn-gradient:active:not(:disabled) { transform: scale(0.98); }
 
 /* Адаптивный сайдбар: на десктопе всегда виден (перекрывает инлайн-transform),
@@ -185,3 +414,4 @@ textarea::placeholder {
   }
   .aurora-blob { animation: none !important; }
 }
+
