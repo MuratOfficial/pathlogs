@@ -8,6 +8,7 @@ import { ROLE_LABELS, initials } from "@/lib/labels";
 import { Hotkeys } from "@/components/Hotkeys";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AppShell } from "@/components/AppShell";
+import { BrandMark } from "@/components/BrandMark";
 import { TooltipLayer } from "@/components/TooltipLayer";
 import { UnreadBadge } from "@/components/UnreadBadge";
 import { CommandPalette } from "@/components/CommandPalette";
@@ -41,9 +42,7 @@ export default async function AppLayout({
   const sidebar = (
     <>
       <Link href="/dashboard" className="flex items-center gap-2.5 px-5 py-5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-accent via-accent-2 to-accent-pink text-base font-bold text-white">
-          P
-        </span>
+        <BrandMark className="h-8 w-8 rounded-lg" />
         <span className="text-base font-bold tracking-tight">PathLogs</span>
       </Link>
 

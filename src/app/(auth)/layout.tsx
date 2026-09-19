@@ -1,3 +1,4 @@
+import { BrandMark } from "@/components/BrandMark";
 import { AuthorLinks, DevelopedBy } from "@/components/AuthorCredits";
 
 const FEATURES = [
@@ -34,9 +35,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* Брендовая панель (десктоп) */}
       <aside className="relative z-10 hidden flex-col justify-between p-12 lg:flex lg:w-[46%]">
         <div className="flex items-center gap-3 animate-fade-up">
-          <span className="flex h-11 w-11 animate-float items-center justify-center rounded-2xl bg-gradient-to-br from-accent via-accent-2 to-accent-pink text-xl font-bold text-white shadow-lg shadow-accent/30">
-            P
-          </span>
+          <BrandMark className="h-11 w-11 animate-float rounded-2xl shadow-lg shadow-accent/30" />
           <span className="text-lg font-bold tracking-tight">PathLogs</span>
         </div>
 
@@ -83,9 +82,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="w-full max-w-md">
           {/* Компактный логотип на мобильных */}
           <div className="mb-8 flex flex-col items-center text-center lg:hidden">
-            <span className="mb-3 flex h-12 w-12 animate-float items-center justify-center rounded-2xl bg-gradient-to-br from-accent via-accent-2 to-accent-pink text-2xl font-bold text-white shadow-lg shadow-accent/30">
-              P
-            </span>
+            <BrandMark className="mb-3 h-12 w-12 animate-float rounded-2xl shadow-lg shadow-accent/30" />
             <h1 className="text-2xl font-bold tracking-tight">PathLogs</h1>
             <p className="mt-1 text-sm text-muted">Задачи · ветки · патч-логи</p>
           </div>

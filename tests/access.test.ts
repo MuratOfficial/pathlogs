@@ -57,6 +57,16 @@ describe("canAccessProject", () => {
   it("участник одного проекта не видит другой", async () => {
     expect(await canAccessProject(fx.otherProject.id, fx.member)).toBe(false);
   });
+
+  // Раньше для админа проверка возвращала true не глядя, и эндпоинты отвечали
+  // на выдуманный id не «не найдено», а успехом про пустой проект.
+  it("несуществующего проекта нет и для админа", async () => {
+    expect(await canAccessProject("нет-такого-проекта", fx.admin)).toBe(false);
+  });
+
+  it("несуществующего проекта нет и для обычного пользователя", async () => {
+    expect(await canAccessProject("нет-такого-проекта", fx.member)).toBe(false);
+  });
 });
 
 describe("requireProjectMember", () => {

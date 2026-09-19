@@ -75,9 +75,19 @@ export async function canAccessProject(
   projectId: string,
   user: SessionUser
 ): Promise<boolean> {
-  if (user.role === "ADMIN") return true;
+  // Админу открыт любой проект — но только существующий. Иначе на выдуманный
+  // id он получал бы не «не найдено», а вполне успешный ответ про пустоту.
+  if (user.role === "ADMIN") return projectExists(projectId);
   const m = await membershipInfo(projectId, user.id);
   return m.isMember;
+}
+
+async function projectExists(projectId: string): Promise<boolean> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { id: true },
+  });
+  return project !== null;
 }
 
 /** Требует участия в проекте (или роль админа). Бросает ошибку для server actions. */

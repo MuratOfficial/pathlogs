@@ -16,8 +16,20 @@ describe("localFilePath", () => {
     expect(() => localFilePath("../../etc/passwd")).toThrow("Недопустимый путь");
   });
 
+  // Абсолютный путь строим через path.resolve, а не записываем строкой: на
+  // Windows абсолютное начинается с C:\, на Linux — с /, и жёстко вписанный
+  // "C:\Windows\win.ini" в CI оказывался просто именем файла с обратными
+  // слэшами — то есть законным ключом внутри uploads.
   it("абсолютный путь не подменяет хранилище", () => {
-    expect(() => localFilePath("C:\\Windows\\win.ini")).toThrow("Недопустимый путь");
+    const outside = path.resolve(UPLOADS, "..", "секрет.txt");
+    expect(path.isAbsolute(outside)).toBe(true);
+    expect(() => localFilePath(outside)).toThrow("Недопустимый путь");
+  });
+
+  it("корневой путь отклоняется на любой ОС", () => {
+    // На Linux это /etc/passwd, на Windows — C:\etc\passwd: и то и другое
+    // лежит вне хранилища.
+    expect(() => localFilePath("/etc/passwd")).toThrow("Недопустимый путь");
   });
 
   // Регрессия: голый startsWith("…/uploads") пропускал соседнюю папку, которая
