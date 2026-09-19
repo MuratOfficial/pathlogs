@@ -25,7 +25,7 @@ export interface WorkloadRow {
 
 const CLOSED: TaskStatus[] = ["DONE", "CLOSED", "ARCHIVED"];
 
-export function isOpen(status: TaskStatus): boolean {
+function isOpen(status: TaskStatus): boolean {
   return !CLOSED.includes(status);
 }
 

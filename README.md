@@ -159,7 +159,8 @@ npm run dev
 | `AUTH_SECRET` | Секрет Auth.js |
 | `AUTH_TRUST_HOST` | `true` для прод-деплоя |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google OAuth (опционально) |
-| `S3_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` / `S3_PUBLIC_URL` | Хранилище файлов (опционально) |
+| `S3_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | Хранилище файлов (опционально) |
+| `STORAGE_QUOTA_BYTES` | Порог, после которого загрузка блокируется. По умолчанию 10 ГБ — бесплатная квота Cloudflare R2 (опционально) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | Почта для отчётов (опционально) |
 
 Все интеграции опциональны: без `S3_*` файлы сохраняются локально, без `SMTP_*` письма пишутся в консоль, без `AUTH_GOOGLE_*` скрывается кнопка входа через Google.

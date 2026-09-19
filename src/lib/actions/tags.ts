@@ -49,43 +49,6 @@ export async function createTagAction(
   return { tag };
 }
 
-/** Переименование / перекраска метки. Только менеджер проекта. */
-export async function updateTagAction(
-  tagId: string,
-  fields: { name?: string; color?: string }
-): Promise<{ error?: string }> {
-  const tag = await prisma.tag.findUniqueOrThrow({
-    where: { id: tagId },
-    select: { projectId: true },
-  });
-  await requireProjectManager(tag.projectId);
-
-  const name = fields.name !== undefined ? normalizeName(fields.name) : undefined;
-  if (name !== undefined && name.length < 1) {
-    return { error: "Название метки не может быть пустым" };
-  }
-  if (fields.color !== undefined && !HEX.test(fields.color)) {
-    return { error: "Некорректный цвет" };
-  }
-  if (name !== undefined) {
-    const clash = await prisma.tag.findUnique({
-      where: { projectId_name: { projectId: tag.projectId, name } },
-      select: { id: true },
-    });
-    if (clash && clash.id !== tagId) return { error: `Метка «${name}» уже есть` };
-  }
-
-  await prisma.tag.update({
-    where: { id: tagId },
-    data: {
-      ...(name !== undefined ? { name } : {}),
-      ...(fields.color !== undefined ? { color: fields.color } : {}),
-    },
-  });
-  revalidatePath(`/projects/${tag.projectId}`);
-  return {};
-}
-
 /** Удаляет метку из проекта и со всех его задач. Только менеджер проекта. */
 export async function deleteTagAction(tagId: string) {
   const tag = await prisma.tag.findUniqueOrThrow({

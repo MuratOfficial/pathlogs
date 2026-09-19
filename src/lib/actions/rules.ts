@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
-import { canManageProject } from "@/lib/access";
+import { canManageProject, filterProjectMembers } from "@/lib/access";
 import { ruleHasAction } from "@/lib/boardRules";
 import { revalidatePath } from "next/cache";
 import type { TaskStatus } from "@prisma/client";
@@ -40,6 +40,11 @@ export async function createBoardRuleAction(
       select: { id: true },
     });
     if (!tag) throw new Error("Метка не найдена в этом проекте");
+  }
+
+  if (rule.assignUserId) {
+    const [allowed] = await filterProjectMembers(projectId, [rule.assignUserId]);
+    if (!allowed) throw new Error("Исполнитель не участвует в этом проекте");
   }
 
   await prisma.boardRule.create({

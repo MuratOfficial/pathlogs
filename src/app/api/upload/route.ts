@@ -29,14 +29,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Файл больше 25 МБ" }, { status: 413 });
   }
 
-  if (typeof taskId === "string" && taskId) {
-    const task = await prisma.task.findUnique({
-      where: { id: taskId },
-      select: { projectId: true },
-    });
-    if (!task || !(await canAccessProject(task.projectId, session.user))) {
-      return NextResponse.json({ error: "Нет доступа к задаче" }, { status: 403 });
-    }
+  // Задача обязательна: по ней проверяются права и на загрузку, и на скачивание.
+  // Вложение без задачи не принадлежало бы ни одному проекту — проверять у него
+  // было бы нечего, и файл достался бы любому, кто знает ключ.
+  if (typeof taskId !== "string" || !taskId) {
+    return NextResponse.json({ error: "Не указана задача" }, { status: 400 });
+  }
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { projectId: true },
+  });
+  if (!task || !(await canAccessProject(task.projectId, session.user))) {
+    return NextResponse.json({ error: "Нет доступа к задаче" }, { status: 403 });
   }
 
   // Квота проверяется только для облака: локальный диск на счёт Cloudflare
@@ -59,7 +63,7 @@ export async function POST(req: NextRequest) {
 
   const attachment = await prisma.attachment.create({
     data: {
-      taskId: typeof taskId === "string" && taskId ? taskId : null,
+      taskId,
       filename: file.name,
       key: stored.key,
       url: stored.url,

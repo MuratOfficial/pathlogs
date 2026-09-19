@@ -30,9 +30,12 @@ export async function GET(
     return NextResponse.json({ error: "Файл не найден" }, { status: 404 });
   }
 
-  // Файл задачи доступен только участникам её проекта
+  // Файл доступен только участникам проекта его задачи. Вложение без задачи
+  // проверять не на чем, поэтому его не отдаём вовсе: загрузка такие больше не
+  // создаёт, а те, что могли остаться от прежней версии, ни на одной странице
+  // не показываются.
   if (
-    attachment.task &&
+    !attachment.task ||
     !(await canAccessProject(attachment.task.projectId, session.user))
   ) {
     return NextResponse.json({ error: "Нет доступа" }, { status: 403 });

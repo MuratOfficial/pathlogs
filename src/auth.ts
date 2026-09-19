@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { currentSessionUser } from "@/lib/session";
 import type { Role } from "@prisma/client";
 
 declare module "next-auth" {
@@ -20,6 +21,7 @@ declare module "next-auth" {
 export const googleAuthEnabled = Boolean(
   process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
 );
+
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   session: { strategy: "jwt" },
@@ -79,10 +81,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.name = dbUser.name;
           token.role = dbUser.role;
         }
-      } else if (user) {
+        return token;
+      }
+      if (user) {
         token.id = (user as { id: string }).id;
         token.role = (user as { role: Role }).role;
+        return token;
       }
+
+      // Дальше — каждый следующий запрос с уже выданным токеном. Роль и признак
+      // активности перечитываем из БД, а не доверяем тому, что зашито в токен
+      // при входе: иначе деактивация никого бы не выгнала, а разжалованный
+      // админ сохранял бы админские права до истечения токена (30 дней).
+      // Цена — один SELECT по первичному ключу; ровно столько же стоит
+      // getUserCompanyId, который ходит в БД по этой же причине.
+      const id = typeof token.id === "string" ? token.id : null;
+      const current = id ? await currentSessionUser(id) : null;
+      // Пользователя удалили или отключили — null завершает сессию
+      if (!current) return null;
+      token.name = current.name;
+      token.role = current.role;
       return token;
     },
     session({ session, token }) {

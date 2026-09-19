@@ -405,6 +405,10 @@ model Attachment {
   uploadedBy   User        @relation(fields: [uploadedById], references: [id])
   uploadedById String
   createdAt    DateTime    @default(now())
+
+  /// По key ищет каждое скачивание файла (/api/files/[key])
+  @@index([key])
+  @@index([taskId])
 }
 
 /// Шаблон задачи: предзаполняет форму создания (тип, приоритет, описание, чек-лист).

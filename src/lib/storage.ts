@@ -112,7 +112,7 @@ export async function storeFile(
  * не всплывает — удаление вложения в БД не должно падать из-за недоступного R2.
  * Возвращает true, если объект действительно удалён.
  */
-export async function deleteStoredFile(
+async function deleteStoredFile(
   key: string,
   storage: StorageType
 ): Promise<boolean> {
@@ -140,9 +140,12 @@ export async function deleteStoredFiles(
 }
 
 export function localFilePath(key: string): string {
-  // Защита от path traversal
-  const resolved = path.resolve(LOCAL_DIR, key);
-  if (!resolved.startsWith(path.resolve(LOCAL_DIR))) {
+  // Защита от path traversal. Сравниваем с базой вместе с разделителем: голый
+  // startsWith пропустил бы соседнюю папку `uploads-чужое`, которая начинается
+  // с того же префикса, но лежит уже вне хранилища.
+  const base = path.resolve(LOCAL_DIR);
+  const resolved = path.resolve(base, key);
+  if (resolved === base || !resolved.startsWith(base + path.sep)) {
     throw new Error("Недопустимый путь к файлу");
   }
   return resolved;

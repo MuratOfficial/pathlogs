@@ -62,6 +62,3 @@ export async function usedStorageBytes(): Promise<number> {
   return agg._sum.size ?? 0;
 }
 
-export async function storageQuotaState(): Promise<QuotaState> {
-  return quotaState(await usedStorageBytes(), quotaLimitBytes());
-}

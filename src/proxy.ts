@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-const PUBLIC_PATHS = ["/login", "/register", "/roadmap"];
+// /roadmap и /intake открыты снаружи: по ссылке с токеном их смотрит и
+// заполняет человек без учётной записи. Сами страницы отдают 404, если токен
+// неизвестен или форма выключена, — доступа к проекту ссылка не даёт.
+const PUBLIC_PATHS = ["/login", "/register", "/roadmap", "/intake"];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
