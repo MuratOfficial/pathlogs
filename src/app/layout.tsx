@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Inter, JetBrains_Mono } from "next/font/google";
 import { themeScript } from "@toimetdev/pathlogs-tokens";
 import { skinScript } from "@/lib/skin";
+import { sidebarScript } from "@/lib/sidebar";
 import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { ThemeColorMeta } from "@/components/ThemeColorMeta";
@@ -59,6 +60,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript() }} />
         <script dangerouslySetInnerHTML={{ __html: skinScript() }} />
+        <script dangerouslySetInnerHTML={{ __html: sidebarScript() }} />
       </head>
       <body className="min-h-full flex flex-col">
         <ServiceWorkerRegister />

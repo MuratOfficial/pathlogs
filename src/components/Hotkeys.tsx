@@ -7,6 +7,7 @@
 import { useRouter } from "next/navigation";
 import { HotkeysHelp } from "@toimetdev/pathlogs-core";
 import type { Hotkey } from "@toimetdev/pathlogs-hooks";
+import { toggleSidebar } from "@/lib/sidebar";
 
 /** Глобальные горячие клавиши с «лидером» g (g d, g m, …) и помощью по «?». */
 export function Hotkeys() {
@@ -23,6 +24,13 @@ export function Hotkeys() {
       group: "Навигация",
       allowInInput: true,
       handler: () => window.dispatchEvent(new Event("cmdk:open")),
+    },
+    {
+      keys: "mod+b",
+      label: "Свернуть или показать боковое меню",
+      group: "Навигация",
+      allowInInput: true,
+      handler: () => toggleSidebar(),
     },
     // Клавиши доски обрабатывает сам KanbanBoard по карточке в фокусе —
     // здесь они только для справки (enabled: false, глобально не срабатывают).

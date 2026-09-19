@@ -9,6 +9,7 @@ import { Hotkeys } from "@/components/Hotkeys";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AppShell } from "@/components/AppShell";
 import { BrandMark } from "@/components/BrandMark";
+import { SidebarToggle } from "@/components/SidebarToggle";
 import { TooltipLayer } from "@/components/TooltipLayer";
 import { UnreadBadge } from "@/components/UnreadBadge";
 import { CommandPalette } from "@/components/CommandPalette";
@@ -41,10 +42,13 @@ export default async function AppLayout({
 
   const sidebar = (
     <>
-      <Link href="/dashboard" className="flex items-center gap-2.5 px-5 py-[var(--app-brand-py)]">
-        <BrandMark className="h-8 w-8 rounded-lg" />
-        <span className="text-base font-bold tracking-tight">PathLogs</span>
-      </Link>
+      <div className="flex items-center gap-2 px-5 py-[var(--app-brand-py)]">
+        <Link href="/dashboard" className="flex min-w-0 flex-1 items-center gap-2.5">
+          <BrandMark className="h-8 w-8 rounded-lg" />
+          <span className="text-base font-bold tracking-tight">PathLogs</span>
+        </Link>
+        <SidebarToggle variant="inline" />
+      </div>
 
       <SearchTrigger />
 
@@ -166,6 +170,7 @@ export default async function AppLayout({
       <Hotkeys />
       <TooltipLayer />
       <CommandPalette />
+      <SidebarToggle variant="floating" />
       <AppShell sidebar={sidebar}>{children}</AppShell>
     </>
   );

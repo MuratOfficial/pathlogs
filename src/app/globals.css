@@ -75,6 +75,24 @@
 @media (min-width: 1024px) {
   .pl-shell__main {
     margin-left: var(--app-sidebar-w);
+    /* Те же 0.3s ease, что у самого меню в CSS фреймворка: разъехавшиеся
+       длительности читаются как подтормаживание, а не как анимация. */
+    transition: margin-left 0.3s ease;
+  }
+
+  /* Свёрнутое меню: уезжает за левый край, содержимое занимает его место.
+     Только на широком экране — на узком меню и так выезжающее, и прятать
+     его там нечего. Состояние ставит sidebarScript() до первой отрисовки. */
+  [data-sidebar="hidden"] .pl-shell__sidebar {
+    transform: translateX(-100%);
+  }
+  [data-sidebar="hidden"] .pl-shell__main {
+    margin-left: 0;
+  }
+  /* Развернуть меню нечем, пока его не видно, — поэтому вторая кнопка
+     появляется ровно тогда, когда исчезает первая. */
+  [data-sidebar="hidden"] .app-sidebar-expand {
+    display: flex;
   }
 }
 
@@ -414,4 +432,5 @@ textarea::placeholder {
   }
   .aurora-blob { animation: none !important; }
 }
+
 
