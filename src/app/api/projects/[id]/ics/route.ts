@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { canAccessProject } from "@/lib/access";
 import { buildIcsCalendar } from "@/lib/calendar";
+import { stripFileEmbeds } from "@/lib/attachments";
 
 /** Выгрузка всех задач проекта (у которых есть даты) одним файлом .ics. */
 export async function GET(
@@ -44,7 +45,7 @@ export async function GET(
       uid: t.id,
       event: {
         title: `${project.key}-${t.number}: ${t.title}`,
-        details: t.description ?? "",
+        details: stripFileEmbeds(t.description ?? ""),
         start: t.startDate,
         due: t.dueDate,
         url: `${origin}/tasks/${t.id}`,

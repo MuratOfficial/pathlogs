@@ -136,6 +136,7 @@ model Project {
   tags        Tag[]
   polls       Poll[]
   links       ResourceLink[]
+  attachments Attachment[]
   pins        ProjectPin[]
   appearances ProjectAppearance[]
   createdAt   DateTime        @default(now())
@@ -396,6 +397,13 @@ model Attachment {
   id           String      @id @default(cuid())
   task         Task?       @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskId       String?
+  /// Проект, к которому файл относится. Заполнен всегда — и у вложения
+  /// задачи, и у черновика, загруженного в форме создания, когда задачи
+  /// ещё нет: по нему проверяются права на файл без taskId. Черновик
+  /// (taskId == null) привязывается к задаче при её создании, а брошенный
+  /// удаляется уборкой через сутки.
+  project      Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId    String?
   filename     String
   key          String
   url          String
@@ -409,6 +417,8 @@ model Attachment {
   /// По key ищет каждое скачивание файла (/api/files/[key])
   @@index([key])
   @@index([taskId])
+  /// Черновики автора в форме создания задачи + каскад при удалении проекта
+  @@index([projectId, taskId])
 }
 
 /// Шаблон задачи: предзаполняет форму создания (тип, приоритет, описание, чек-лист).

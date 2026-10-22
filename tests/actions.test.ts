@@ -82,7 +82,10 @@ function taskForm(projectId: string, extra: Record<string, string> = {}) {
 describe("createTaskAction", () => {
   it("участник создаёт задачу", async () => {
     loginAs(fx.member);
-    await expect(createTaskAction(undefined, taskForm(fx.project.id))).resolves.toEqual({});
+    // Создание возвращает id задачи: по нему форма прикладывает черновые файлы
+    const res = await createTaskAction(undefined, taskForm(fx.project.id));
+    expect(res.error).toBeUndefined();
+    expect(res.taskId).toBeTruthy();
     const count = await prisma.task.count({ where: { projectId: fx.project.id } });
     expect(count).toBe(2);
   });

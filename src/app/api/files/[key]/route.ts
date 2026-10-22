@@ -30,13 +30,17 @@ export async function GET(
     return NextResponse.json({ error: "Файл не найден" }, { status: 404 });
   }
 
-  // Файл доступен только участникам проекта его задачи. Вложение без задачи
-  // проверять не на чем, поэтому его не отдаём вовсе: загрузка такие больше не
-  // создаёт, а те, что могли остаться от прежней версии, ни на одной странице
-  // не показываются.
+  // Файл вложения доступен участникам проекта его задачи. Черновик (задачи
+  // ещё нет, форма создания открыта) — только тому, кто его загрузил: это
+  // незаконченная работа одного человека, остальным её видеть незачем.
+  // Вложение без задачи и без проекта проверять не на чем — такие остались
+  // от прежних версий и не отдаются вовсе.
+  const projectId = attachment.task?.projectId ?? attachment.projectId;
+  const ownDraft = !attachment.task && attachment.uploadedById === session.user.id;
   if (
-    !attachment.task ||
-    !(await canAccessProject(attachment.task.projectId, session.user))
+    !projectId ||
+    (!attachment.task && !ownDraft) ||
+    !(await canAccessProject(projectId, session.user))
   ) {
     return NextResponse.json({ error: "Нет доступа" }, { status: 403 });
   }

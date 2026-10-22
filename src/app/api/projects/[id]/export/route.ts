@@ -8,6 +8,7 @@ import {
   STATUS_LABELS,
   TYPE_LABELS,
 } from "@/lib/labels";
+import { stripFileEmbeds } from "@/lib/attachments";
 
 /** Выгрузка проекта в XLSX: листы «Задачи» и «Трудозатраты». */
 export async function GET(
@@ -97,7 +98,7 @@ export async function GET(
       checklist: t.checklist.length ? `${doneItems}/${t.checklist.length}` : "",
       logs: t._count.patchLogs || "",
       created: t.createdAt,
-      description: t.description ?? "",
+      description: stripFileEmbeds(t.description ?? ""),
     });
   }
   for (const col of ["start", "due", "created"]) {

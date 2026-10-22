@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { canAccessProject } from "@/lib/access";
 import { buildIcs } from "@/lib/calendar";
+import { stripFileEmbeds } from "@/lib/attachments";
 
 /** Выгрузка задачи событием .ics (Google / Outlook / Apple Calendar). */
 export async function GET(
@@ -27,7 +28,8 @@ export async function GET(
   const ics = buildIcs(
     {
       title: `${code}: ${task.title}`,
-      details: task.description ?? "",
+      // Вложение в календаре не покажешь — вставки убираем
+      details: stripFileEmbeds(task.description ?? ""),
       start: task.startDate,
       due: task.dueDate,
       url: new URL(`/tasks/${task.id}`, req.nextUrl.origin).toString(),

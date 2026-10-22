@@ -2,6 +2,7 @@ import type {
   ColumnSort,
   LinkType,
   Priority,
+  StorageType,
   TaskStatus,
   TaskType,
 } from "@prisma/client";
@@ -66,6 +67,27 @@ export interface LinkDTO {
 export interface MemberDTO {
   id: string;
   name: string;
+}
+
+/**
+ * Вложение — для загрузчика, галереи превью и вставок в описание.
+ *
+ * Черновик (файл загружен в форме создания, задачи ещё нет) отличается
+ * пустым taskId: его показывает только тот, кто загрузил.
+ */
+export interface AttachmentDTO {
+  id: string;
+  taskId: string | null;
+  filename: string;
+  /** Адрес в /api/files/… — права проверяются на каждом скачивании. */
+  url: string;
+  mime: string;
+  size: number;
+  storage: StorageType;
+  createdAt: string;
+  uploadedBy: MemberDTO;
+  /** Текущий пользователь может удалить файл. */
+  canDelete: boolean;
 }
 
 /** Полезная ссылка проекта или задачи. */

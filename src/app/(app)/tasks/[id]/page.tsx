@@ -24,7 +24,8 @@ import { PatchLogForm } from "@/components/task/PatchLogForm";
 import { TimeEntryForm } from "@/components/task/TimeEntryForm";
 import { TaskStatusTimeline } from "@/components/task/TaskStatusTimeline";
 import { GitCommits } from "@/components/task/GitCommits";
-import { FileUpload } from "@/components/task/FileUpload";
+import { TaskAttachments } from "@/components/task/TaskAttachments";
+import { DescriptionEditor } from "@/components/task/DescriptionEditor";
 import { AddLinkForm } from "@/components/task/AddLinkForm";
 import { ConfirmActionButton } from "@/components/task/ConfirmActionButton";
 import { Checklist } from "@/components/task/Checklist";
@@ -37,15 +38,16 @@ import { NewTaskDialog } from "@/components/NewTaskDialog";
 import { SubProjects } from "@/components/task/SubProjects";
 import { getAttachableProjects, getSubProjects } from "@/lib/subprojects";
 import { googleCalendarUrl } from "@/lib/calendar";
+import { stripFileEmbeds } from "@/lib/attachments";
 import {
   deletePatchLogAction,
   deleteTimeEntryAction,
-  deleteAttachmentAction,
   removeTaskLinkAction,
   deleteTaskAction,
   updateTaskFieldsAction,
 } from "@/lib/actions/tasks";
 import { canAccessProject, canManageProject } from "@/lib/access";
+import type { AttachmentDTO } from "@/lib/types";
 
 export default async function TaskPage({
   params,
@@ -158,12 +160,28 @@ export default async function TaskPage({
     },
   });
 
+  // Вложения для клиентских блоков: и для плиток с превью, и для вставок
+  // в описании. canDelete считаем здесь — на клиенте роли нет.
+  const attachments: AttachmentDTO[] = task.attachments.map((a) => ({
+    id: a.id,
+    taskId: a.taskId,
+    filename: a.filename,
+    url: a.url,
+    mime: a.mime,
+    size: a.size,
+    storage: a.storage,
+    createdAt: a.createdAt.toISOString(),
+    uploadedBy: { id: a.uploadedById, name: a.uploadedBy.name },
+    canDelete: a.uploadedById === user.id || user.role === "ADMIN",
+  }));
+
   // Ссылка «в Google Calendar» — только если у задачи есть даты
   const h = await headers();
   const origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host") ?? "localhost:3000"}`;
   const gcalUrl = googleCalendarUrl({
     title: `${task.project.key}-${task.number}: ${task.title}`,
-    details: task.description ?? "",
+    // В ссылке на календарь показать вложение нечем — вставки убираем
+    details: stripFileEmbeds(task.description ?? ""),
     start: task.startDate,
     due: task.dueDate,
     url: `${origin}/tasks/${task.id}`,
@@ -272,13 +290,11 @@ export default async function TaskPage({
               <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
                 Описание
               </h3>
-              <EditableText
+              <DescriptionEditor
+                taskId={task.id}
                 value={task.description ?? ""}
-                multiline
-                markdown
-                placeholder="Добавьте описание… (поддерживается markdown)"
+                attachments={attachments}
                 onSave={updateTaskFieldsAction.bind(null, task.id)}
-                field="description"
               />
             </div>
           </div>
@@ -436,38 +452,11 @@ export default async function TaskPage({
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
               Файлы ({task.attachments.length})
             </h2>
-            <FileUpload taskId={task.id} />
-            {task.attachments.length > 0 && (
-              <ul className="mt-4 space-y-2">
-                {task.attachments.map((a) => (
-                  <li
-                    key={a.id}
-                    className="flex items-center gap-3 rounded-xl border border-edge bg-surface-2/50 px-4 py-2.5"
-                  >
-                    <svg className="h-4 w-4 shrink-0 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
-                    </svg>
-                    <a
-                      href={a.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="min-w-0 flex-1 truncate text-sm font-medium hover:text-accent-hover"
-                    >
-                      {a.filename}
-                    </a>
-                    <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] text-muted">
-                      {a.storage === "S3" ? "S3" : "локально"}
-                    </span>
-                    <span className="text-xs text-muted">{(a.size / 1024).toFixed(0)} КБ</span>
-                    {(a.uploadedById === user.id || user.role === "ADMIN") && (
-                      <ConfirmActionButton
-                        action={deleteAttachmentAction.bind(null, a.id)}
-                        confirmText="Удалить файл?"
-                      />
-                    )}
-                  </li>
-                ))}
-              </ul>
+            <TaskAttachments taskId={task.id} attachments={attachments} />
+            {attachments.length === 0 && (
+              <p className="mt-3 text-sm text-muted">
+                Файлов пока нет — приложите макет, скриншот или документ.
+              </p>
             )}
           </section>
         </div>

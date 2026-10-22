@@ -13,6 +13,8 @@ import { ensureStatusColumn } from "@/lib/board";
 import { notifyTaskWatchers, notifyUsers } from "@/lib/notify";
 import { recordStatusChange } from "@/lib/statusHistory";
 import { deleteStoredFiles } from "@/lib/storage";
+import { bindDraftAttachments } from "@/lib/draftAttachments";
+import { normalizeNewlines } from "@/lib/attachments";
 import { STATUS_LABELS } from "@/lib/labels";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -20,7 +22,7 @@ import type { Priority, TaskStatus, TaskType } from "@prisma/client";
 
 const taskSchema = z.object({
   title: z.string().min(2, "Название — минимум 2 символа"),
-  description: z.string().optional(),
+  description: z.string().transform(normalizeNewlines).optional(),
   projectId: z.string().min(1),
   parentId: z.string().optional(),
   columnId: z.string().optional(),
@@ -32,6 +34,8 @@ const taskSchema = z.object({
   assigneeIds: z.array(z.string()).optional(),
   tagIds: z.array(z.string()).optional(),
   checklist: z.string().optional(),
+  /// Черновые вложения, загруженные в форме до создания задачи.
+  attachmentIds: z.array(z.string()).optional(),
 });
 
 /** «Пункт на строку» → массив непустых пунктов (маркеры -/* и [ ] отбрасываются). */
@@ -52,7 +56,7 @@ function revalidateTask(projectId: string, taskId?: string) {
 export async function createTaskAction(
   _prev: { error?: string } | undefined,
   formData: FormData
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; taskId?: string }> {
   const parsed = taskSchema.safeParse({
     title: formData.get("title"),
     description: formData.get("description") || undefined,
@@ -67,6 +71,7 @@ export async function createTaskAction(
     assigneeIds: formData.getAll("assigneeIds").map(String),
     tagIds: formData.getAll("tagIds").map(String),
     checklist: formData.get("checklist") || undefined,
+    attachmentIds: formData.getAll("attachmentIds").map(String),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
@@ -144,6 +149,16 @@ export async function createTaskAction(
     include: { project: { select: { key: true } } },
   });
 
+  // Файлы, приложенные в форме, ждали задачу черновиками — теперь у них
+  // есть к чему привязаться. Вставки `[[file:id]]` в описании ссылаются
+  // на эти же id, поэтому описание сохранять заново не нужно.
+  await bindDraftAttachments({
+    ids: d.attachmentIds ?? [],
+    taskId: task.id,
+    projectId: d.projectId,
+    userId: user.id,
+  });
+
   // Начальная точка истории статусов («создана»)
   await recordStatusChange(task.id, user.id, null, task.status);
 
@@ -156,7 +171,7 @@ export async function createTaskAction(
   );
 
   revalidateTask(d.projectId, task.parentId ?? undefined);
-  return {};
+  return { taskId: task.id };
 }
 
 export async function updateTaskStatusAction(taskId: string, status: TaskStatus) {
@@ -227,7 +242,9 @@ export async function updateTaskFieldsAction(
     where: { id: taskId },
     data: {
       ...(fields.title !== undefined ? { title: fields.title } : {}),
-      ...(fields.description !== undefined ? { description: fields.description } : {}),
+      ...(fields.description !== undefined
+        ? { description: fields.description && normalizeNewlines(fields.description) }
+        : {}),
       ...(fields.type !== undefined ? { type: fields.type } : {}),
       ...(fields.priority !== undefined ? { priority: fields.priority } : {}),
       ...(fields.estimateHours !== undefined ? { estimateHours: fields.estimateHours } : {}),

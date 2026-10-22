@@ -4,9 +4,17 @@ import { useActionState, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { createTaskAction } from "@/lib/actions/tasks";
 import { PRIORITY_LABELS, TYPE_LABELS } from "@/lib/labels";
-import type { TaskDTO, MemberDTO, TaskTemplateDTO, TagDTO } from "@/lib/types";
+import type {
+  TaskDTO,
+  MemberDTO,
+  TaskTemplateDTO,
+  TagDTO,
+  AttachmentDTO,
+} from "@/lib/types";
 import type { Priority, TaskType } from "@prisma/client";
 import { TagChip } from "./TaskBadges";
+import { DescriptionComposer } from "./task/DescriptionComposer";
+import { normalizeNewlines } from "@/lib/attachments";
 
 export function NewTaskDialog({
   projectId,
@@ -38,17 +46,30 @@ export function NewTaskDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [tpl, setTpl] = useState<TaskTemplateDTO | null>(null);
+  // Описание и файлы держим здесь, а не в форме: форма пересобирается при
+  // смене шаблона (key), и уже загруженные файлы потерялись бы вместе с ней.
+  const [description, setDescription] = useState("");
+  const [attachments, setAttachments] = useState<AttachmentDTO[]>([]);
   const [state, formAction, pending] = useActionState(
     async (prev: { error?: string } | undefined, formData: FormData) => {
       const res = await createTaskAction(prev, formData);
       if (!res.error) {
         setOpen(false);
         setTpl(null);
+        setDescription("");
+        setAttachments([]);
       }
       return res;
     },
     undefined
   );
+
+  /** Закрытие без создания: файлы остаются черновиками и ждут повторного
+      открытия формы, а брошенные уберёт уборка через сутки. */
+  function close() {
+    setOpen(false);
+    setTpl(null);
+  }
 
   const inputCls =
     "w-full rounded-lg border border-edge bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent";
@@ -64,7 +85,7 @@ export function NewTaskDialog({
       {open && typeof document !== "undefined" && createPortal(
         <div
           className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && (setOpen(false), setTpl(null))}
+          onClick={(e) => e.target === e.currentTarget && close()}
         >
           <form
             // remount при смене шаблона — чтобы defaultValue полей применились заново
@@ -81,9 +102,12 @@ export function NewTaskDialog({
                 <span className="mb-1.5 block text-sm text-muted">Шаблон</span>
                 <select
                   value={tpl?.id ?? ""}
-                  onChange={(e) =>
-                    setTpl(templates.find((t) => t.id === e.target.value) ?? null)
-                  }
+                  onChange={(e) => {
+                    const next =
+                      templates.find((t) => t.id === e.target.value) ?? null;
+                    setTpl(next);
+                    setDescription(normalizeNewlines(next?.description ?? ""));
+                  }}
                   className={inputCls}
                 >
                   <option value="">— Без шаблона —</option>
@@ -108,18 +132,14 @@ export function NewTaskDialog({
               />
             </label>
 
-            <label className="mb-4 block">
-              <span className="mb-1.5 block text-sm text-muted">
-                Описание <span className="text-xs">· поддерживается markdown</span>
-              </span>
-              <textarea
-                name="description"
-                rows={3}
-                defaultValue={tpl?.description ?? ""}
-                placeholder="Детали, контекст, критерии приёмки…"
-                className={`${inputCls} resize-none`}
-              />
-            </label>
+            <DescriptionComposer
+              projectId={projectId}
+              description={description}
+              onDescriptionChange={setDescription}
+              attachments={attachments}
+              onAttachmentsChange={setAttachments}
+              inputClassName={inputCls}
+            />
 
             <label className="mb-4 block">
               <span className="mb-1.5 block text-sm text-muted">
@@ -236,10 +256,7 @@ export function NewTaskDialog({
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  setOpen(false);
-                  setTpl(null);
-                }}
+                onClick={close}
                 className="rounded-lg border border-edge px-4 py-2 text-sm text-muted transition hover:bg-surface-2"
               >
                 Отмена
