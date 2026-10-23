@@ -21,6 +21,7 @@ export const STATUS_COLORS: Record<TaskStatus, string> = {
 export const TYPE_LABELS: Record<TaskType, string> = {
   FEATURE: "Фича",
   BUG: "Баг",
+  DEVELOPMENT: "Разработка",
   REFACTOR: "Рефакторинг",
   ANALYTICS: "Аналитика",
   MANAGEMENT: "Менеджмент",
@@ -38,6 +39,7 @@ export const TYPE_COLORS: Record<TaskType, string> = {
   DESIGN: "#a855f7",
   DOCS: "#84cc16",
   RESEARCH: "#14b8a6",
+  DEVELOPMENT: "#2A9D8F"
 };
 
 export const PRIORITY_LABELS: Record<Priority, string> = {

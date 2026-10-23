@@ -44,6 +44,7 @@ enum TaskStatus {
 
 enum TaskType {
   FEATURE
+  DEVELOPMENT
   BUG
   REFACTOR
   ANALYTICS

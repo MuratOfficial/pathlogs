@@ -26,7 +26,7 @@ const taskSchema = z.object({
   projectId: z.string().min(1),
   parentId: z.string().optional(),
   columnId: z.string().optional(),
-  type: z.enum(["FEATURE", "BUG", "REFACTOR", "ANALYTICS", "MANAGEMENT", "DESIGN", "DOCS", "RESEARCH"]),
+  type: z.enum(["FEATURE", "BUG", "REFACTOR", "ANALYTICS", "MANAGEMENT", "DESIGN", "DOCS", "RESEARCH", "DEVELOPMENT"]),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
   estimateHours: z.coerce.number().positive().optional(),
   startDate: z.string().optional(),

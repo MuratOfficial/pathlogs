@@ -9,7 +9,7 @@ import type { Priority, TaskType } from "@prisma/client";
 const templateSchema = z.object({
   projectId: z.string().min(1),
   name: z.string().min(2, "Название шаблона — минимум 2 символа"),
-  type: z.enum(["FEATURE", "BUG", "REFACTOR", "ANALYTICS", "MANAGEMENT", "DESIGN", "DOCS", "RESEARCH"]),
+  type: z.enum(["FEATURE", "BUG", "REFACTOR", "ANALYTICS", "MANAGEMENT", "DESIGN", "DOCS", "RESEARCH", "DEVELOPMENT"]),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
   titlePrefix: z.string().optional(),
   description: z.string().optional(),
