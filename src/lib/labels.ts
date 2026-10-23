@@ -33,13 +33,13 @@ export const TYPE_LABELS: Record<TaskType, string> = {
 export const TYPE_COLORS: Record<TaskType, string> = {
   FEATURE: "#6366f1",
   BUG: "#ef4444",
+  DEVELOPMENT: "#3b82f6",
   REFACTOR: "#f59e0b",
   ANALYTICS: "#06b6d4",
   MANAGEMENT: "#ec4899",
   DESIGN: "#a855f7",
   DOCS: "#84cc16",
   RESEARCH: "#14b8a6",
-  DEVELOPMENT: "#2A9D8F"
 };
 
 export const PRIORITY_LABELS: Record<Priority, string> = {

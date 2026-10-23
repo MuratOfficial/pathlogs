@@ -99,7 +99,7 @@ const TYPE_MAP = buildMap<TaskType>(TYPE_LABELS, {
   documentation: "DOCS",
   research: "RESEARCH",
   исследование: "RESEARCH",
-  разработка: "DEVELOPMENT"
+  dev: "DEVELOPMENT",
 });
 
 const PRIORITY_MAP = buildMap<Priority>(PRIORITY_LABELS, {

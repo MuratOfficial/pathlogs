@@ -36,6 +36,19 @@ describe("Excel import", () => {
     expect(res.tasks[1]).toMatchObject({ status: "DONE", type: "FEATURE", priority: "LOW" });
   });
 
+  it("распознаёт тип «Разработка» по подписи, имени enum и псевдониму", async () => {
+    const buf = await makeXlsx(
+      [
+        { Название: "A", Тип: "Разработка" },
+        { Название: "B", Тип: "DEVELOPMENT" },
+        { Название: "C", Тип: "dev" },
+      ],
+      ["Название", "Тип"]
+    );
+    const res = await parseImportFile("проект.xlsx", buf);
+    expect(res.tasks.map((t) => t.type)).toEqual(["DEVELOPMENT", "DEVELOPMENT", "DEVELOPMENT"]);
+  });
+
   it("распознаёт английские заголовки и колонки/исполнителей/родителя", async () => {
     const buf = await makeXlsx(
       [
