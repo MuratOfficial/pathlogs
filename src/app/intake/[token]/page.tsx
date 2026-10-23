@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { IntakeForm } from "@/components/IntakeForm";
 import { AuthorLinks, DevelopedBy } from "@/components/AuthorCredits";
+import { Card, SectionTitle } from "@/components/ui/Card";
 
 async function getForm(token: string) {
   return prisma.intakeForm.findFirst({
@@ -42,10 +43,10 @@ export default async function IntakePage({
 
   return (
     <div className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-4 py-12">
-      <div className="animate-fade-up rounded-2xl border border-edge bg-surface p-6 sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+      <Card className="animate-fade-up sm:p-8">
+        <SectionTitle as="p">
           {form.project.name}
-        </p>
+        </SectionTitle>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">{form.title}</h1>
         <p className="mt-2 text-sm text-muted">
           {form.hint ??
@@ -54,7 +55,7 @@ export default async function IntakePage({
         <div className="mt-6">
           <IntakeForm token={form.token} />
         </div>
-      </div>
+      </Card>
 
       <footer className="mt-8 flex flex-col items-center gap-3">
         <p className="text-xs text-muted">Форма приёма заявок · PathLogs</p>

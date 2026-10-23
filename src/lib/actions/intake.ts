@@ -32,6 +32,7 @@ export async function enableIntakeAction(projectId: string, columnId?: string | 
     create: { projectId, token: randomBytes(16).toString("hex"), columnId: columnId ?? null },
   });
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/settings`);
   return { token: form.token };
 }
 
@@ -42,6 +43,7 @@ export async function disableIntakeAction(projectId: string) {
   }
   await prisma.intakeForm.update({ where: { projectId }, data: { active: false } });
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/settings`);
 }
 
 /**
@@ -112,5 +114,6 @@ export async function submitIntakeAction(
   );
 
   revalidatePath(`/projects/${form.projectId}`);
+  revalidatePath(`/projects/${form.projectId}/settings`);
   return { ok: true };
 }

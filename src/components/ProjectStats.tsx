@@ -9,6 +9,7 @@ import {
   formatHours,
 } from "@/lib/labels";
 import type { Priority, TaskStatus, TaskType } from "@prisma/client";
+import { Card, SectionTitle } from "@/components/ui/Card";
 
 function countBy<K extends string>(items: TaskDTO[], key: (t: TaskDTO) => K) {
   const map = new Map<K, number>();
@@ -43,14 +44,14 @@ function BarList({
   );
 }
 
-function Card({ label, value, accent }: { label: string; value: string; accent?: string }) {
+function StatTile({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
-    <div className="rounded-2xl border border-edge bg-surface p-4 text-center">
+    <Card className="text-center">
       <p className="text-2xl font-bold" style={accent ? { color: accent } : undefined}>
         {value}
       </p>
       <p className="mt-0.5 text-xs uppercase tracking-wide text-muted">{label}</p>
-    </div>
+    </Card>
   );
 }
 
@@ -68,12 +69,12 @@ function CompletionChart({
           <div key={i} className="flex flex-1 flex-col items-center gap-1">
             <div className="flex h-32 w-full items-end justify-center gap-0.5">
               <div
-                className="w-1/2 rounded-t bg-indigo-500/70"
+                className="w-1/2 rounded-t bg-accent/70"
                 style={{ height: `${(d.created / max) * 100}%` }}
                 data-tip={`Создано: ${d.created}`}
               />
               <div
-                className="w-1/2 rounded-t bg-emerald-500/70"
+                className="w-1/2 rounded-t bg-success/70"
                 style={{ height: `${(d.closed / max) * 100}%` }}
                 data-tip={`Закрыто: ${d.closed}`}
               />
@@ -84,10 +85,10 @@ function CompletionChart({
       </div>
       <div className="mt-3 flex justify-center gap-4 text-xs text-muted">
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-indigo-500/70" /> создано
+          <span className="h-2.5 w-2.5 rounded-sm bg-accent/70" /> создано
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500/70" /> закрыто
+          <span className="h-2.5 w-2.5 rounded-sm bg-success/70" /> закрыто
         </span>
       </div>
     </div>
@@ -125,22 +126,22 @@ export function ProjectStats({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Card label="Всего задач" value={String(tasks.length)} />
-        <Card label="Открыто" value={String(open.length)} />
-        <Card label="Завершено" value={`${donePct}%`} accent="#4ade80" />
-        <Card
+        <StatTile label="Всего задач" value={String(tasks.length)} />
+        <StatTile label="Открыто" value={String(open.length)} />
+        <StatTile label="Завершено" value={`${donePct}%`} accent="var(--success-text)" />
+        <StatTile
           label="Просрочено"
           value={String(overdue.length)}
-          accent={overdue.length ? "#ef4444" : undefined}
+          accent={overdue.length ? "var(--danger-text)" : undefined}
         />
-        <Card label="Потрачено" value={formatHours(spent)} />
+        <StatTile label="Потрачено" value={formatHours(spent)} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <section className="rounded-2xl border border-edge bg-surface p-5">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
+        <Card as="section">
+          <SectionTitle className="mb-4">
             По статусам
-          </h2>
+          </SectionTitle>
           <BarList
             rows={(Object.keys(STATUS_LABELS) as TaskStatus[])
               .filter((s) => byStatus.get(s))
@@ -150,12 +151,12 @@ export function ProjectStats({
                 color: STATUS_COLORS[s],
               }))}
           />
-        </section>
+        </Card>
 
-        <section className="rounded-2xl border border-edge bg-surface p-5">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
+        <Card as="section">
+          <SectionTitle className="mb-4">
             По типам
-          </h2>
+          </SectionTitle>
           <BarList
             rows={(Object.keys(TYPE_LABELS) as TaskType[])
               .filter((t) => byType.get(t))
@@ -165,12 +166,12 @@ export function ProjectStats({
                 color: TYPE_COLORS[t],
               }))}
           />
-        </section>
+        </Card>
 
-        <section className="rounded-2xl border border-edge bg-surface p-5">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
+        <Card as="section">
+          <SectionTitle className="mb-4">
             По приоритетам
-          </h2>
+          </SectionTitle>
           <BarList
             rows={(Object.keys(PRIORITY_LABELS) as Priority[])
               .filter((p) => byPriority.get(p))
@@ -180,21 +181,21 @@ export function ProjectStats({
                 color: PRIORITY_COLORS[p],
               }))}
           />
-        </section>
+        </Card>
       </div>
 
-      <section className="rounded-2xl border border-edge bg-surface p-5">
-        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
+      <Card as="section">
+        <SectionTitle className="mb-4">
           Динамика по неделям
-        </h2>
+        </SectionTitle>
         <CompletionChart data={completion} />
-      </section>
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-edge bg-surface p-5">
-          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+        <Card as="section">
+          <SectionTitle className="mb-1">
             Оценка vs факт
-          </h2>
+          </SectionTitle>
           <p className="mb-4 text-xs text-muted">
             Суммарно: {formatHours(spent)} из {formatHours(estimate)} оценённых
           </p>
@@ -213,13 +214,13 @@ export function ProjectStats({
                       <span className="truncate">
                         <span className="font-mono text-muted">#{t.number}</span> {t.title}
                       </span>
-                      <span className={`shrink-0 ${over ? "font-semibold text-red-400" : "text-muted"}`}>
+                      <span className={`shrink-0 ${over ? "font-semibold text-danger-text" : "text-muted"}`}>
                         {formatHours(t.spentHours)} / {formatHours(t.estimateHours!)}
                       </span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-surface-2">
                       <div
-                        className={`h-full rounded-full ${over ? "bg-red-500" : "bg-emerald-500"}`}
+                        className={`h-full rounded-full ${over ? "bg-danger" : "bg-success"}`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -228,12 +229,12 @@ export function ProjectStats({
               })}
             </div>
           )}
-        </section>
+        </Card>
 
-        <section className="rounded-2xl border border-edge bg-surface p-5">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
+        <Card as="section">
+          <SectionTitle className="mb-4">
             Часы по сотрудникам
-          </h2>
+          </SectionTitle>
           {hoursByUser.length === 0 ? (
             <p className="text-sm text-muted">Время ещё не списывалось.</p>
           ) : (
@@ -246,7 +247,7 @@ export function ProjectStats({
               }))}
             />
           )}
-        </section>
+        </Card>
       </div>
     </div>
   );

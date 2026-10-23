@@ -9,11 +9,11 @@ const inputCls =
 function Feedback({ state }: { state?: { error?: string; success?: string } }) {
   if (!state?.error && !state?.success) return null;
   return state.error ? (
-    <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+    <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger-text">
       {state.error}
     </p>
   ) : (
-    <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
+    <p className="rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success-text">
       {state.success}
     </p>
   );

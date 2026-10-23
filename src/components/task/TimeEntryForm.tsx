@@ -59,7 +59,7 @@ export function TimeEntryForm({ taskId }: { taskId: string }) {
       >
         {pending ? "Добавляем…" : "Добавить запись"}
       </button>
-      {state?.error && <p className="text-xs text-red-400">{state.error}</p>}
+      {state?.error && <p className="text-xs text-danger-text">{state.error}</p>}
     </form>
   );
 }

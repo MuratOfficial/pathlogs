@@ -35,7 +35,7 @@ export function ApiTokens({ tokens }: { tokens: ApiTokenDTO[] }) {
             <button
               type="button"
               onClick={() => revokeApiTokenAction(t.id)}
-              className="shrink-0 rounded-lg border border-edge px-2.5 py-1 text-xs text-muted transition hover:border-red-500/40 hover:text-red-400"
+              className="shrink-0 rounded-lg border border-edge px-2.5 py-1 text-xs text-muted transition hover:border-danger/40 hover:text-danger-text"
             >
               Отозвать
             </button>
@@ -50,8 +50,8 @@ export function ApiTokens({ tokens }: { tokens: ApiTokenDTO[] }) {
       </ul>
 
       {state?.token && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-          <p className="mb-2 text-sm font-medium text-emerald-400">
+        <div className="rounded-xl border border-success/30 bg-success/10 p-4">
+          <p className="mb-2 text-sm font-medium text-success-text">
             Токен создан. Скопируйте его сейчас — больше он не покажется:
           </p>
           <div className="flex items-center gap-2">
@@ -92,7 +92,7 @@ export function ApiTokens({ tokens }: { tokens: ApiTokenDTO[] }) {
           {pending ? "Создаём…" : "Создать"}
         </button>
       </form>
-      {state?.error && <p className="text-sm text-red-400">{state.error}</p>}
+      {state?.error && <p className="text-sm text-danger-text">{state.error}</p>}
     </div>
   );
 }

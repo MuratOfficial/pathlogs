@@ -1,10 +1,11 @@
 "use client";
 
-import { useTransition } from "react";
+import { useTransition, type ReactNode } from "react";
 import type { Priority, TaskStatus, TaskType } from "@prisma/client";
 import { updateTaskFieldsAction, updateTaskStatusAction } from "@/lib/actions/tasks";
 import { PRIORITY_LABELS, STATUS_LABELS, TYPE_LABELS } from "@/lib/labels";
 import type { MemberDTO } from "@/lib/types";
+import { Card, SectionTitle } from "@/components/ui/Card";
 
 interface Meta {
   id: string;
@@ -17,7 +18,16 @@ interface Meta {
   assigneeIds: string[];
 }
 
-export function TaskMetaPanel({ task, users }: { task: Meta; users: MemberDTO[] }) {
+/** Поля задачи. children — то, что живёт в той же карточке ниже полей: метки, сведения о задаче. */
+export function TaskMetaPanel({
+  task,
+  users,
+  children,
+}: {
+  task: Meta;
+  users: MemberDTO[];
+  children?: ReactNode;
+}) {
   const [pending, startTransition] = useTransition();
 
   const selectCls =
@@ -28,12 +38,10 @@ export function TaskMetaPanel({ task, users }: { task: Meta; users: MemberDTO[] 
   }
 
   return (
-    <section
-      className={`rounded-2xl border border-edge bg-surface p-5 ${pending ? "opacity-70" : ""}`}
-    >
-      <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
+    <Card as="section" className={pending ? "opacity-70" : undefined}>
+      <SectionTitle className="mb-4">
         Параметры
-      </h2>
+      </SectionTitle>
 
       <label className="mb-3 block">
         <span className="mb-1 block text-xs text-muted">Статус</span>
@@ -124,7 +132,7 @@ export function TaskMetaPanel({ task, users }: { task: Meta; users: MemberDTO[] 
             >
               <input
                 type="checkbox"
-                className="accent-indigo-500"
+                className="accent-accent"
                 checked={task.assigneeIds.includes(u.id)}
                 onChange={(e) => {
                   const next = e.target.checked
@@ -138,6 +146,7 @@ export function TaskMetaPanel({ task, users }: { task: Meta; users: MemberDTO[] 
           ))}
         </div>
       </fieldset>
-    </section>
+      {children}
+    </Card>
   );
 }

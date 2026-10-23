@@ -50,6 +50,7 @@ export async function createTemplateAction(
     },
   });
   revalidatePath(`/projects/${d.projectId}`);
+  revalidatePath(`/projects/${d.projectId}/settings`);
   return {};
 }
 
@@ -61,4 +62,5 @@ export async function deleteTemplateAction(id: string) {
   await requireProjectManager(tpl.projectId);
   await prisma.taskTemplate.delete({ where: { id } });
   revalidatePath(`/projects/${tpl.projectId}`);
+  revalidatePath(`/projects/${tpl.projectId}/settings`);
 }

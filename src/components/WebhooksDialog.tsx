@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { createPortal } from "react-dom";
+import { Dialog, useDialogInline } from "./Dialog";
 import {
   createWebhookAction,
   deleteWebhookAction,
@@ -9,6 +9,7 @@ import {
   testWebhooksAction,
 } from "@/lib/actions/webhooks";
 import type { WebhookKind } from "@prisma/client";
+import { Icon } from "@/components/ui/Icon";
 
 export interface WebhookDTO {
   id: string;
@@ -34,6 +35,7 @@ export function WebhooksDialog({
   canManage: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const inline = useDialogInline();
   const [kind, setKind] = useState<WebhookKind>("SLACK");
   const [state, formAction, pending] = useActionState(createWebhookAction, undefined);
 
@@ -44,142 +46,122 @@ export function WebhooksDialog({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        data-tip="Интеграции: Slack / Telegram / webhooks"
-        aria-label="Интеграции"
-        className="flex items-center gap-1.5 rounded-lg border border-edge px-3 py-2 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
-      >
-        <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-        </svg>
-        <span className="hidden sm:inline">Интеграции</span>
-        {webhooks.length > 0 && (
-          <span className="text-accent-hover">{webhooks.length}</span>
-        )}
-      </button>
+      {!inline && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          data-tip="Интеграции: Slack / Telegram / webhooks"
+          aria-label="Интеграции"
+          className="flex items-center gap-1.5 rounded-lg border border-edge px-3 py-2 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
+        >
+          <Icon name="link" className="h-4 w-4 shrink-0" />
+          <span className="hidden sm:inline">Интеграции</span>
+          {webhooks.length > 0 && (
+            <span className="text-accent-hover">{webhooks.length}</span>
+          )}
+        </button>
+      )}
 
       {/* Через портал в <body>: у меню «Ещё» анимация на transform, а такой
           предок становится containing block для position: fixed — окно
           сжималось до ширины выпадающей панели */}
-      {open &&
-        typeof document !== "undefined" &&
-        createPortal(
-        <div
-          className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && setOpen(false)}
-        >
-          <div className="animate-pop-in max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-edge bg-surface p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Интеграции и вебхуки</h2>
-              <button onClick={() => setOpen(false)} className="text-muted hover:text-foreground">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+      <Dialog open={open} onClose={() => setOpen(false)} title="Интеграции и вебхуки">
+        <p className="mb-4 text-xs text-muted">
+          События задач (назначения, комментарии, патч-логи, смена статуса)
+          отправляются в подключённые каналы.
+        </p>
 
-            <p className="mb-4 text-xs text-muted">
-              События задач (назначения, комментарии, патч-логи, смена статуса)
-              отправляются в подключённые каналы.
-            </p>
-
-            <ul className="mb-4 space-y-2">
-              {webhooks.map((w) => (
-                <li
-                  key={w.id}
-                  className="flex items-center gap-3 rounded-xl border border-edge bg-surface-2/50 px-4 py-2.5"
-                >
-                  <span className="rounded bg-surface px-2 py-0.5 text-xs font-semibold">
-                    {KIND_LABELS[w.kind]}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted">
-                    {w.url}
-                    {w.target ? ` · ${w.target}` : ""}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => toggleWebhookAction(w.id)}
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                      w.active
-                        ? "bg-emerald-500/15 text-emerald-400"
-                        : "bg-surface text-muted"
-                    }`}
-                  >
-                    {w.active ? "вкл" : "выкл"}
-                  </button>
-                  <button
-                    type="button"
-                    data-tip="Удалить"
-                    onClick={() => deleteWebhookAction(w.id)}
-                    className="shrink-0 text-muted transition hover:text-red-400"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </li>
-              ))}
-              {webhooks.length === 0 && (
-                <p className="text-sm text-muted">Интеграций пока нет.</p>
-              )}
-            </ul>
-
-            {webhooks.length > 0 && (
+        <ul className="mb-4 space-y-2">
+          {webhooks.map((w) => (
+            <li
+              key={w.id}
+              className="flex items-center gap-3 rounded-xl border border-edge bg-surface-2/50 px-4 py-2.5"
+            >
+              <span className="rounded bg-surface px-2 py-0.5 text-xs font-semibold">
+                {KIND_LABELS[w.kind]}
+              </span>
+              <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted">
+                {w.url}
+                {w.target ? ` · ${w.target}` : ""}
+              </span>
               <button
                 type="button"
-                onClick={() => testWebhooksAction(projectId)}
-                className="mb-4 w-full rounded-lg border border-edge py-2 text-sm text-muted transition hover:bg-surface-2 hover:text-foreground"
+                onClick={() => toggleWebhookAction(w.id)}
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                  w.active
+                    ? "bg-success/15 text-success-text"
+                    : "bg-surface text-muted"
+                }`}
               >
-                Отправить тестовое сообщение
+                {w.active ? "вкл" : "выкл"}
               </button>
-            )}
-
-            <form action={formAction} className="space-y-3 rounded-xl border border-edge bg-surface-2/40 p-4">
-              <input type="hidden" name="projectId" value={projectId} />
-              <label className="block">
-                <span className="mb-1 block text-xs text-muted">Тип</span>
-                <select
-                  name="kind"
-                  value={kind}
-                  onChange={(e) => setKind(e.target.value as WebhookKind)}
-                  className={inputCls}
-                >
-                  {(Object.keys(KIND_LABELS) as WebhookKind[]).map((k) => (
-                    <option key={k} value={k}>{KIND_LABELS[k]}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs text-muted">
-                  {kind === "TELEGRAM"
-                    ? "URL Bot API (https://api.telegram.org/bot<token>/sendMessage)"
-                    : kind === "SLACK"
-                      ? "Slack Incoming Webhook URL"
-                      : "URL приёмника (POST JSON)"}
-                </span>
-                <input name="url" required placeholder="https://…" className={inputCls} />
-              </label>
-              {kind === "TELEGRAM" && (
-                <label className="block">
-                  <span className="mb-1 block text-xs text-muted">chat_id</span>
-                  <input name="target" placeholder="-1001234567890" className={inputCls} />
-                </label>
-              )}
-              {state?.error && <p className="text-sm text-red-400">{state.error}</p>}
               <button
-                type="submit"
-                disabled={pending}
-                className="w-full rounded-lg bg-accent py-2 text-sm font-semibold transition hover:bg-accent-hover disabled:opacity-50"
+                type="button"
+                data-tip="Удалить"
+                onClick={() => deleteWebhookAction(w.id)}
+                className="shrink-0 text-muted transition hover:text-danger-text"
               >
-                {pending ? "Добавляем…" : "Добавить интеграцию"}
+                <Icon name="close" className="h-4 w-4" />
               </button>
-            </form>
-          </div>
-        </div>,
-          document.body
+            </li>
+          ))}
+          {webhooks.length === 0 && (
+            <p className="text-sm text-muted">Интеграций пока нет.</p>
+          )}
+        </ul>
+
+        {webhooks.length > 0 && (
+          <button
+            type="button"
+            onClick={() => testWebhooksAction(projectId)}
+            className="mb-4 w-full rounded-lg border border-edge py-2 text-sm text-muted transition hover:bg-surface-2 hover:text-foreground"
+          >
+            Отправить тестовое сообщение
+          </button>
         )}
+
+        <form action={formAction} className="space-y-3 rounded-xl border border-edge bg-surface-2/40 p-4">
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">Тип</span>
+            <select
+              name="kind"
+              value={kind}
+              onChange={(e) => setKind(e.target.value as WebhookKind)}
+              className={inputCls}
+            >
+              {(Object.keys(KIND_LABELS) as WebhookKind[]).map((k) => (
+                <option key={k} value={k}>{KIND_LABELS[k]}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs text-muted">
+              {kind === "TELEGRAM"
+                ? "URL Bot API (https://api.telegram.org/bot<token>/sendMessage)"
+                : kind === "SLACK"
+                  ? "Slack Incoming Webhook URL"
+                  : "URL приёмника (POST JSON)"}
+            </span>
+            <input name="url" required placeholder="https://…" className={inputCls} />
+          </label>
+          {kind === "TELEGRAM" && (
+            <label className="block">
+              <span className="mb-1 block text-xs text-muted">chat_id</span>
+              <input name="target" placeholder="-1001234567890" className={inputCls} />
+            </label>
+          )}
+          {state?.error && <p className="text-sm text-danger-text">{state.error}</p>}
+          <button
+            type="submit"
+            disabled={pending}
+            className="w-full rounded-lg bg-accent py-2 text-sm font-semibold transition hover:bg-accent-hover disabled:opacity-50"
+          >
+            {pending ? "Добавляем…" : "Добавить интеграцию"}
+          </button>
+          {/* Скрытые поля — в конце формы: Dialog ставит фокус на первый input, и скрытый, стоя первым, забрал бы его у видимых полей */}
+          <input type="hidden" name="projectId" value={projectId} />
+        </form>
+      </Dialog>
     </>
   );
 }

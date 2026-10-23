@@ -10,6 +10,7 @@ import {
 import { linkHost } from "@/lib/url";
 import { formatDate } from "@/lib/labels";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Icon } from "@/components/ui/Icon";
 
 const inputCls =
   "w-full rounded-lg border border-edge bg-surface-2 px-3 py-2 text-sm outline-none transition focus:border-accent";
@@ -90,7 +91,7 @@ function LinkForm({
       </label>
 
       {state?.error && (
-        <p className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+        <p className="mb-3 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger-text">
           {state.error}
         </p>
       )}
@@ -149,9 +150,7 @@ function LinkRow({
       }`}
     >
       <div className="flex items-start gap-2.5">
-        <svg className="mt-0.5 h-4 w-4 shrink-0 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-        </svg>
+        <Icon name="link" className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
         <div className="min-w-0 flex-1">
           <a
             href={link.url}
@@ -180,20 +179,16 @@ function LinkRow({
               aria-label="Редактировать ссылку"
               className="rounded p-1.5 text-muted transition hover:bg-surface hover:text-foreground"
             >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-              </svg>
+              <Icon name="pencil" className="h-3.5 w-3.5" />
             </button>
             <button
               type="button"
               onClick={() => setAsking(true)}
               data-tip="Удалить ссылку"
               aria-label="Удалить ссылку"
-              className="rounded p-1.5 text-muted transition hover:bg-red-500/10 hover:text-red-400"
+              className="rounded p-1.5 text-muted transition hover:bg-danger/10 hover:text-danger-text"
             >
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-              </svg>
+              <Icon name="trash" className="h-3.5 w-3.5" />
             </button>
           </div>
         )}
@@ -252,9 +247,7 @@ export function ResourceLinks({
           onClick={() => setAdding(true)}
           className="mb-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-edge py-2.5 text-sm font-medium text-muted transition hover:border-accent/50 hover:bg-surface-2/50 hover:text-foreground"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
+          <Icon name="plus" className="h-4 w-4" />
           Добавить ссылку
         </button>
       )}

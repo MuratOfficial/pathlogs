@@ -1,7 +1,7 @@
 import { formatHours, initials } from "@/lib/labels";
 import type { WorkloadRow } from "@/lib/workload";
-import { DragScroll } from "./DragScroll";
-import { PageHint } from "@toimetdev/pathlogs-core";
+import { DragScroll, PageHint } from "@toimetdev/pathlogs-core";
+import { Card } from "@/components/ui/Card";
 
 /**
  * Кто чем занят: открытые задачи, часы и просрочки по каждому участнику.
@@ -39,24 +39,24 @@ export function WorkloadPanel({
             { label: "Просрочено", value: String(totals.overdue), alarm: totals.overdue > 0 },
             { label: "Списано часов", value: formatHours(totals.spent) },
           ].map((c) => (
-            <div key={c.label} className="rounded-2xl border border-edge bg-surface p-4">
+            <Card key={c.label}>
               <div className="text-xs text-muted">{c.label}</div>
               <div
-                className={`mt-1 text-2xl font-bold ${c.alarm ? "text-red-400" : ""}`}
+                className={`mt-1 text-2xl font-bold ${c.alarm ? "text-danger-text" : ""}`}
               >
                 {c.value}
               </div>
-            </div>
+            </Card>
           ))}
         </div>
 
         {unassigned > 0 && (
-          <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+          <div className="rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
             <b>{unassigned}</b> открытых задач никому не назначены — в сводке ниже их нет.
           </div>
         )}
 
-        <DragScroll className="overflow-x-auto rounded-2xl border border-edge bg-surface">
+        <Card as={DragScroll} flush className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-surface-2/60 text-left text-xs text-muted">
               <tr>
@@ -90,7 +90,7 @@ export function WorkloadPanel({
                   <td className="px-5 py-3 font-semibold tabular-nums">{r.openTasks}</td>
                   <td className="px-5 py-3 tabular-nums">{r.inProgress}</td>
                   <td
-                    className={`px-5 py-3 tabular-nums ${r.overdue > 0 ? "font-semibold text-red-400" : "text-muted"}`}
+                    className={`px-5 py-3 tabular-nums ${r.overdue > 0 ? "font-semibold text-danger-text" : "text-muted"}`}
                   >
                     {r.overdue || "—"}
                   </td>
@@ -111,7 +111,7 @@ export function WorkloadPanel({
               )}
             </tbody>
           </table>
-        </DragScroll>
+        </Card>
       </div>
     </div>
   );

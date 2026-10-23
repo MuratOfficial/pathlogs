@@ -18,7 +18,8 @@ import { ProjectBackdrop } from "@/components/ProjectBackdrop";
 import { BackButton } from "@/components/BackButton";
 import { getProjectBackground } from "@/lib/appearance";
 import { TaskTags } from "@/components/task/TaskTags";
-import { TaskSectionNav, type TaskSectionDTO } from "@/components/task/TaskSectionNav";
+import { MoreMenu } from "@/components/MoreMenu";
+import { SectionTabs } from "@/components/ui/SectionTabs";
 import { EditableText } from "@/components/task/EditableText";
 import { PatchLogForm } from "@/components/task/PatchLogForm";
 import { TimeEntryForm } from "@/components/task/TimeEntryForm";
@@ -31,7 +32,7 @@ import { ConfirmActionButton } from "@/components/task/ConfirmActionButton";
 import { Checklist } from "@/components/task/Checklist";
 import { CommentForm } from "@/components/task/CommentForm";
 import { CommentThreads } from "@/components/task/CommentThreads";
-import { Markdown } from "@/components/Markdown";
+import { Markdown } from "@toimetdev/pathlogs-core";
 import { ResourceLinks } from "@/components/ResourceLinks";
 import { getResourceLinks } from "@/lib/links";
 import { NewTaskDialog } from "@/components/NewTaskDialog";
@@ -48,6 +49,7 @@ import {
 } from "@/lib/actions/tasks";
 import { canAccessProject, canManageProject } from "@/lib/access";
 import type { AttachmentDTO } from "@/lib/types";
+import { Card, SectionTitle } from "@/components/ui/Card";
 
 export default async function TaskPage({
   params,
@@ -187,42 +189,15 @@ export default async function TaskPage({
     url: `${origin}/tasks/${task.id}`,
   });
 
-  // Разделы для липкой навигации по карточке. Блоки, которых на странице нет
-  // (коммиты, календарь), в навигацию не попадают.
-  const sections: TaskSectionDTO[] = [
-    { id: "task-overview", label: "Описание" },
-    { id: "task-checklist", label: "Чек-лист", count: task.checklist.length },
-    {
-      id: "task-subtasks",
-      label: "Подзадачи",
-      count: task.children.length + subProjects.length,
-    },
-    { id: "task-patchlog", label: "Патч-лог", count: task.patchLogs.length },
-    { id: "task-comments", label: "Обсуждение", count: task.comments.length },
-    { id: "task-links", label: "Ссылки", count: resourceLinks.length },
-    { id: "task-files", label: "Файлы", count: task.attachments.length },
-    { id: "task-meta", label: "Параметры" },
-    { id: "task-tags", label: "Метки", count: task.tags.length },
-    { id: "task-time", label: "Трудозатраты", count: task.timeEntries.length },
-    { id: "task-history", label: "История статусов" },
-    ...(commits.length > 0
-      ? [{ id: "task-commits", label: "Коммиты", count: commits.length }]
-      : []),
-    ...(gcalUrl ? [{ id: "task-calendar", label: "Календарь" }] : []),
-    {
-      id: "task-relations",
-      label: "Связи",
-      count: task.linksFrom.length + task.linksTo.length,
-    },
-    { id: "task-info", label: "Информация" },
-  ];
-
   // Право удаления: автор задачи, владелец проекта, менеджер или админ
   const canDeleteTask =
     task.creatorId === user.id ||
     task.project.owner.id === user.id ||
     user.role === "ADMIN" ||
     user.role === "MANAGER";
+
+  const menuItemCls =
+    "block rounded-lg px-3 py-2 text-sm text-foreground/90 transition hover:bg-surface-2";
 
   return (
     <div className="mx-auto max-w-full">
@@ -250,12 +225,13 @@ export default async function TaskPage({
         </span>
       </div>
 
-      <TaskSectionNav sections={sections} />
-
+      {/* Разделы сгруппированы по смыслу — по пять в колонке задачи и по три
+          в боковой. Пустые разделы прячутся во вкладках, а не стоят отдельными
+          карточками с нулём, поэтому липкая навигация по странице не нужна. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
         {/* ОСНОВНАЯ КОЛОНКА */}
         <div className="min-w-0 space-y-6">
-          <div id="task-overview" className="rounded-2xl border border-edge bg-surface p-6">
+          <Card id="task-overview">
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <TypeBadge type={task.type} />
               <PriorityBadge priority={task.priority} />
@@ -275,8 +251,20 @@ export default async function TaskPage({
                   ))}
                 </span>
               )}
-              {/* Отметить выполненной прямо здесь — не открывая «Параметры» */}
-              <span className="ml-auto">
+              {/* Отметить выполненной прямо здесь — не открывая «Параметры».
+                  Выгрузка в календарь — рядом, в меню: две ссылки не стоят
+                  отдельной карточки */}
+              <span className="ml-auto flex items-center gap-2">
+                {gcalUrl && (
+                  <MoreMenu label="Календарь">
+                    <a href={gcalUrl} target="_blank" rel="noopener noreferrer" className={menuItemCls}>
+                      В Google Calendar
+                    </a>
+                    <a href={`/api/tasks/${task.id}/ics`} className={menuItemCls}>
+                      Скачать .ics (Outlook / Apple)
+                    </a>
+                  </MoreMenu>
+                )}
                 <TaskDoneButton taskId={task.id} status={task.status} />
               </span>
             </div>
@@ -287,9 +275,9 @@ export default async function TaskPage({
               field="title"
             />
             <div className="mt-4">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+              <SectionTitle as="h3" className="mb-2">
                 Описание
-              </h3>
+              </SectionTitle>
               <DescriptionEditor
                 taskId={task.id}
                 value={task.description ?? ""}
@@ -297,126 +285,87 @@ export default async function TaskPage({
                 onSave={updateTaskFieldsAction.bind(null, task.id)}
               />
             </div>
-          </div>
+          </Card>
 
-          {/* Чек-лист */}
-          <section id="task-checklist" className="rounded-2xl border border-edge bg-surface p-6">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
-              Чек-лист (
-              {task.checklist.filter((i) => i.done).length}/{task.checklist.length})
-            </h2>
+          {/* Состав: из чего задача складывается — пункты, ветки, проекты */}
+          <Card as="section" id="task-structure">
+            <SectionTitle className="mb-4">
+              Чек-лист ({task.checklist.filter((i) => i.done).length}/{task.checklist.length})
+            </SectionTitle>
             <Checklist
               taskId={task.id}
               items={task.checklist.map((i) => ({ id: i.id, text: i.text, done: i.done }))}
             />
-          </section>
 
-          {/* Подзадачи */}
-          <section id="task-subtasks" className="rounded-2xl border border-edge bg-surface p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-                Подзадачи · ветки ({task.children.length + subProjects.length})
-              </h2>
-              <NewTaskDialog
-                projectId={task.projectId}
-                tasks={[{ id: task.id, number: task.number, title: task.title }, ...projectTasks]}
-                members={projectMembers}
-                projectTags={projectTags}
-                defaultParentId={task.id}
-                triggerLabel="+ Подзадача"
-                triggerClassName="rounded-lg border border-edge px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
-              />
+            <div className="mt-5 border-t border-edge pt-5">
+              <div className="mb-4 flex items-center justify-between">
+                <SectionTitle>
+                  Подзадачи · ветки ({task.children.length})
+                </SectionTitle>
+                <NewTaskDialog
+                  projectId={task.projectId}
+                  tasks={[{ id: task.id, number: task.number, title: task.title }, ...projectTasks]}
+                  members={projectMembers}
+                  projectTags={projectTags}
+                  defaultParentId={task.id}
+                  triggerLabel="+ Подзадача"
+                  triggerClassName="rounded-lg border border-edge px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-foreground"
+                />
+              </div>
+              {task.children.length === 0 ? (
+                <p className="text-sm text-muted">Подзадач пока нет — создайте ветку</p>
+              ) : (
+                <ul className="space-y-2">
+                  {task.children.map((c) => (
+                    <li key={c.id}>
+                      <Link
+                        href={`/tasks/${c.id}`}
+                        className="flex items-center gap-3 rounded-xl border border-edge bg-surface-2/50 px-4 py-2.5 transition hover:border-accent/50"
+                      >
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: STATUS_COLORS[c.status] }}
+                        />
+                        <span className="font-mono text-xs text-muted">
+                          {task.project.key}-{c.number}
+                        </span>
+                        <span className="text-sm font-medium">{c.title}</span>
+                        <span className="ml-auto flex -space-x-1.5">
+                          {c.assignees.slice(0, 3).map((a) => (
+                            <span
+                              key={a.id}
+                              data-tip={a.name}
+                              className="flex h-6 w-6 items-center justify-center rounded-full border border-surface bg-accent/25 text-[9px] font-bold text-accent-hover"
+                            >
+                              {initials(a.name)}
+                            </span>
+                          ))}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            {task.children.length === 0 ? (
-              <p className="text-sm text-muted">Подзадач пока нет — создайте ветку</p>
-            ) : (
-              <ul className="space-y-2">
-                {task.children.map((c) => (
-                  <li key={c.id}>
-                    <Link
-                      href={`/tasks/${c.id}`}
-                      className="flex items-center gap-3 rounded-xl border border-edge bg-surface-2/50 px-4 py-2.5 transition hover:border-accent/50"
-                    >
-                      <span
-                        className="h-2 w-2 rounded-full"
-                        style={{ backgroundColor: STATUS_COLORS[c.status] }}
-                      />
-                      <span className="font-mono text-xs text-muted">
-                        {task.project.key}-{c.number}
-                      </span>
-                      <span className="text-sm font-medium">{c.title}</span>
-                      <span className="ml-auto flex -space-x-1.5">
-                        {c.assignees.slice(0, 3).map((a) => (
-                          <span
-                            key={a.id}
-                            data-tip={a.name}
-                            className="flex h-6 w-6 items-center justify-center rounded-full border border-surface bg-accent/25 text-[9px] font-bold text-accent-hover"
-                          >
-                            {initials(a.name)}
-                          </span>
-                        ))}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
 
             {/* Проекты-подзадачи: ветка, выросшая до отдельного проекта */}
             <div className="mt-5 border-t border-edge pt-5">
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+              <SectionTitle as="h3" className="mb-3">
                 Проекты ({subProjects.length})
-              </h3>
+              </SectionTitle>
               <SubProjects
                 taskId={task.id}
                 projects={subProjects}
                 attachable={attachableProjects}
               />
             </div>
-          </section>
-
-          {/* Патч-лог */}
-          <section id="task-patchlog" className="rounded-2xl border border-edge bg-surface p-6">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
-              Патч-лог · история реализации ({task.patchLogs.length})
-            </h2>
-            <PatchLogForm taskId={task.id} />
-            <div className="mt-5 space-y-4">
-              {task.patchLogs.map((log) => (
-                <article
-                  key={log.id}
-                  className="relative rounded-xl border border-edge bg-surface-2/50 p-4 pl-5"
-                >
-                  <span className="absolute inset-y-3 left-0 w-1 rounded-full bg-accent/60" />
-                  <div className="mb-1.5 flex items-center gap-2">
-                    <h3 className="text-sm font-semibold">{log.title}</h3>
-                    <span className="ml-auto text-xs text-muted">
-                      {formatDateTime(log.createdAt)}
-                    </span>
-                    {(log.authorId === user.id || user.role === "ADMIN") && (
-                      <ConfirmActionButton
-                        action={deletePatchLogAction.bind(null, log.id)}
-                        confirmText="Удалить запись патч-лога?"
-                      />
-                    )}
-                  </div>
-                  <Markdown text={log.content} />
-                  <p className="mt-2 text-xs text-muted">— {log.author.name}</p>
-                </article>
-              ))}
-              {task.patchLogs.length === 0 && (
-                <p className="text-sm text-muted">
-                  Записей нет. Фиксируйте здесь, что и как было реализовано.
-                </p>
-              )}
-            </div>
-          </section>
+          </Card>
 
           {/* Обсуждение */}
-          <section id="task-comments" className="rounded-2xl border border-edge bg-surface p-6">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
+          <Card as="section" id="task-comments">
+            <SectionTitle className="mb-4">
               Обсуждение ({task.comments.length})
-            </h2>
+            </SectionTitle>
             <CommentThreads
               taskId={task.id}
               comments={task.comments.map((c) => ({
@@ -432,69 +381,162 @@ export default async function TaskPage({
               canModerate={user.role === "ADMIN"}
             />
             <CommentForm taskId={task.id} members={projectMembers} />
-          </section>
+          </Card>
 
-          {/* Ссылки */}
-          <section id="task-links" className="rounded-2xl border border-edge bg-surface p-6">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
-              Ссылки ({resourceLinks.length})
-            </h2>
-            <ResourceLinks
-              projectId={task.projectId}
-              taskId={task.id}
-              links={resourceLinks}
-              emptyHint="Ссылок пока нет — добавьте макет, тикет, спеку или пул-реквест."
+          {/* Хронология: что сделано (патч-лог), как двигался статус, какие
+              коммиты пришли из git — три истории одной задачи в одной карточке */}
+          <Card as="section" id="task-history">
+            <SectionTabs
+              label="Хронология"
+              tabs={[
+                {
+                  id: "patchlog",
+                  label: "Патч-лог",
+                  count: task.patchLogs.length,
+                  content: (
+                    <>
+                      <PatchLogForm taskId={task.id} />
+                      <div className="mt-5 space-y-4">
+                        {task.patchLogs.map((log) => (
+                          <article
+                            key={log.id}
+                            className="relative rounded-xl border border-edge bg-surface-2/50 p-4 pl-5"
+                          >
+                            <span className="absolute inset-y-3 left-0 w-1 rounded-full bg-accent/60" />
+                            <div className="mb-1.5 flex items-center gap-2">
+                              <h3 className="text-sm font-semibold">{log.title}</h3>
+                              <span className="ml-auto text-xs text-muted">
+                                {formatDateTime(log.createdAt)}
+                              </span>
+                              {(log.authorId === user.id || user.role === "ADMIN") && (
+                                <ConfirmActionButton
+                                  action={deletePatchLogAction.bind(null, log.id)}
+                                  confirmText="Удалить запись патч-лога?"
+                                />
+                              )}
+                            </div>
+                            <Markdown text={log.content} />
+                            <p className="mt-2 text-xs text-muted">— {log.author.name}</p>
+                          </article>
+                        ))}
+                        {task.patchLogs.length === 0 && (
+                          <p className="text-sm text-muted">
+                            Записей нет. Фиксируйте здесь, что и как было реализовано.
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  ),
+                },
+                {
+                  id: "statuses",
+                  label: "Статусы",
+                  count: statusEvents.length,
+                  content: <TaskStatusTimeline events={statusEvents} />,
+                },
+                ...(commits.length > 0
+                  ? [
+                      {
+                        id: "commits",
+                        label: "Коммиты",
+                        count: commits.length,
+                        content: <GitCommits commits={commits} />,
+                      },
+                    ]
+                  : []),
+              ]}
             />
-          </section>
+          </Card>
 
-          {/* Файлы */}
-          <section id="task-files" className="rounded-2xl border border-edge bg-surface p-6">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
-              Файлы ({task.attachments.length})
-            </h2>
-            <TaskAttachments taskId={task.id} attachments={attachments} />
-            {attachments.length === 0 && (
-              <p className="mt-3 text-sm text-muted">
-                Файлов пока нет — приложите макет, скриншот или документ.
-              </p>
-            )}
-          </section>
+          {/* Материалы: ссылки и файлы задачи */}
+          <Card as="section" id="task-materials">
+            <SectionTabs
+              label="Материалы"
+              tabs={[
+                {
+                  id: "links",
+                  label: "Ссылки",
+                  count: resourceLinks.length,
+                  content: (
+                    <ResourceLinks
+                      projectId={task.projectId}
+                      taskId={task.id}
+                      links={resourceLinks}
+                      emptyHint="Ссылок пока нет — добавьте макет, тикет, спеку или пул-реквест."
+                    />
+                  ),
+                },
+                {
+                  id: "files",
+                  label: "Файлы",
+                  count: task.attachments.length,
+                  content: (
+                    <>
+                      <TaskAttachments taskId={task.id} attachments={attachments} />
+                      {attachments.length === 0 && (
+                        <p className="mt-3 text-sm text-muted">
+                          Файлов пока нет — приложите макет, скриншот или документ.
+                        </p>
+                      )}
+                    </>
+                  ),
+                },
+              ]}
+            />
+          </Card>
         </div>
 
         {/* САЙДБАР */}
         <div className="space-y-6">
-          <div id="task-meta">
-            <TaskMetaPanel
-              task={{
-                id: task.id,
-                status: task.status,
-                type: task.type,
-                priority: task.priority,
-                estimateHours: task.estimateHours,
-                startDate: task.startDate?.toISOString().slice(0, 10) ?? null,
-                dueDate: task.dueDate?.toISOString().slice(0, 10) ?? null,
-                assigneeIds: task.assignees.map((a) => a.id),
-              }}
-              users={projectMembers}
-            />
-          </div>
-
-          {/* Метки */}
-          <div id="task-tags">
-            <TaskTags
-              taskId={task.id}
-              projectId={task.projectId}
-              tags={task.tags}
-              projectTags={projectTags}
-              canManage={canManageTags}
-            />
-          </div>
+          {/* Поля задачи; в той же карточке — метки и сведения о задаче */}
+          <TaskMetaPanel
+            task={{
+              id: task.id,
+              status: task.status,
+              type: task.type,
+              priority: task.priority,
+              estimateHours: task.estimateHours,
+              startDate: task.startDate?.toISOString().slice(0, 10) ?? null,
+              dueDate: task.dueDate?.toISOString().slice(0, 10) ?? null,
+              assigneeIds: task.assignees.map((a) => a.id),
+            }}
+            users={projectMembers}
+          >
+            <div className="mt-5 border-t border-edge pt-5">
+              <TaskTags
+                taskId={task.id}
+                projectId={task.projectId}
+                tags={task.tags}
+                projectTags={projectTags}
+                canManage={canManageTags}
+              />
+            </div>
+            <div className="mt-5 border-t border-edge pt-4 text-xs text-muted">
+              <p className="mb-1">
+                Создал: <span className="text-foreground">{task.creator.name}</span>
+              </p>
+              <p className="mb-1">Создана: {formatDateTime(task.createdAt)}</p>
+              <p className="mb-1">Обновлена: {formatDateTime(task.updatedAt)}</p>
+              {task.closedAt && <p>Закрыта: {formatDateTime(task.closedAt)}</p>}
+              {canDeleteTask && (
+                <div className="mt-3">
+                  <ConfirmActionButton
+                    action={deleteTaskAction.bind(null, task.id)}
+                    confirmTitle={`Удалить задачу ${task.project.key}-${task.number}?`}
+                    confirmText="Вместе с задачей будут удалены её патч-логи, комментарии, файлы и записи времени. Действие необратимо."
+                    label="Удалить задачу"
+                    redirectTo={`/projects/${task.projectId}`}
+                  />
+                </div>
+              )}
+            </div>
+          </TaskMetaPanel>
 
           {/* Трудозатраты */}
-          <section id="task-time" className="rounded-2xl border border-edge bg-surface p-5">
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+          <Card as="section" id="task-time">
+            <SectionTitle className="mb-3">
               Трудозатраты
-            </h2>
+            </SectionTitle>
             <div className="mb-3 flex items-baseline gap-2">
               <span className="text-2xl font-bold">{formatHours(spent)}</span>
               {task.estimateHours && (
@@ -504,7 +546,7 @@ export default async function TaskPage({
             {task.estimateHours && (
               <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-surface-2">
                 <div
-                  className={`h-full rounded-full ${spent > task.estimateHours ? "bg-red-500" : "bg-emerald-500"}`}
+                  className={`h-full rounded-full ${spent > task.estimateHours ? "bg-danger" : "bg-success"}`}
                   style={{ width: `${Math.min(100, (spent / task.estimateHours) * 100)}%` }}
                 />
               </div>
@@ -547,67 +589,18 @@ export default async function TaskPage({
                 показаны последние 8 из {task.timeEntries.length}
               </p>
             )}
-          </section>
-
-          {/* История статусов (машина времени) */}
-          <section id="task-history" className="rounded-2xl border border-edge bg-surface p-5">
-            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
-              История статусов
-            </h2>
-            <TaskStatusTimeline events={statusEvents} />
-          </section>
-
-          {/* Git-коммиты */}
-          {commits.length > 0 && (
-            <section id="task-commits" className="rounded-2xl border border-edge bg-surface p-5">
-              <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
-                Коммиты
-              </h2>
-              <GitCommits commits={commits} />
-            </section>
-          )}
-
-          {/* Календарь */}
-          {gcalUrl && (
-            <section id="task-calendar" className="rounded-2xl border border-edge bg-surface p-5">
-              <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
-                Календарь
-              </h2>
-              <div className="flex flex-col gap-2">
-                <a
-                  href={gcalUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 rounded-lg border border-edge px-3 py-2 text-sm font-medium transition hover:border-accent/50 hover:bg-surface-2"
-                >
-                  <svg className="h-4 w-4 shrink-0 text-accent-hover" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" />
-                  </svg>
-                  В Google Calendar
-                </a>
-                <a
-                  href={`/api/tasks/${task.id}/ics`}
-                  className="flex items-center gap-2 rounded-lg border border-edge px-3 py-2 text-sm font-medium transition hover:border-accent/50 hover:bg-surface-2"
-                >
-                  <svg className="h-4 w-4 shrink-0 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                  </svg>
-                  Скачать .ics (Outlook / Apple)
-                </a>
-              </div>
-            </section>
-          )}
+          </Card>
 
           {/* Связи */}
-          <section id="task-relations" className="rounded-2xl border border-edge bg-surface p-5">
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+          <Card as="section" id="task-relations">
+            <SectionTitle className="mb-3">
               Связи
-            </h2>
+            </SectionTitle>
             <AddLinkForm taskId={task.id} tasks={projectTasks} />
             <ul className="mt-3 space-y-1.5">
               {task.linksFrom.map((l) => (
                 <li key={l.id} className="flex items-center gap-2 text-xs">
-                  <span className="shrink-0 rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] text-red-400">
+                  <span className="shrink-0 rounded bg-danger/15 px-1.5 py-0.5 text-[10px] text-danger-text">
                     {l.type === "BLOCKS" ? "блокирует" : l.type === "RELATES" ? "связана с" : "дублирует"}
                   </span>
                   <Link href={`/tasks/${l.to.id}`} className="truncate hover:text-accent-hover">
@@ -631,28 +624,7 @@ export default async function TaskPage({
                 </li>
               ))}
             </ul>
-          </section>
-
-          {/* Информация */}
-          <section id="task-info" className="rounded-2xl border border-edge bg-surface p-5 text-xs text-muted">
-            <p className="mb-1">
-              Создал: <span className="text-foreground">{task.creator.name}</span>
-            </p>
-            <p className="mb-1">Создана: {formatDateTime(task.createdAt)}</p>
-            <p className="mb-1">Обновлена: {formatDateTime(task.updatedAt)}</p>
-            {task.closedAt && <p>Закрыта: {formatDateTime(task.closedAt)}</p>}
-            {canDeleteTask && (
-              <div className="mt-4 border-t border-edge pt-3">
-                <ConfirmActionButton
-                  action={deleteTaskAction.bind(null, task.id)}
-                  confirmTitle={`Удалить задачу ${task.project.key}-${task.number}?`}
-                  confirmText="Вместе с задачей будут удалены её патч-логи, комментарии, файлы и записи времени. Действие необратимо."
-                  label="Удалить задачу"
-                  redirectTo={`/projects/${task.projectId}`}
-                />
-              </div>
-            )}
-          </section>
+          </Card>
         </div>
       </div>
     </div>

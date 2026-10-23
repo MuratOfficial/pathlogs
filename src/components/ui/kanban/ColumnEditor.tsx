@@ -193,7 +193,7 @@ export function ColumnEditor({
               onClose();
               onDelete();
             }}
-            className="mt-2 w-full rounded-lg border border-red-500/30 py-1.5 text-xs font-medium text-red-400 transition hover:bg-red-500/10"
+            className="mt-2 w-full rounded-lg border border-danger/30 py-1.5 text-xs font-medium text-danger-text transition hover:bg-danger/10"
           >
             {labels.delete ?? "Delete column"}
           </button>

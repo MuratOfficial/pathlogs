@@ -4,9 +4,9 @@ import { ROLE_LABELS, formatDate, formatDateTime, formatHours, initials } from "
 import { ProfileNameForm, PasswordForm } from "@/components/ProfileForms";
 import { ApiTokens } from "@/components/ApiTokens";
 import { TrelloConnection } from "@/components/TrelloConnection";
-import { SkinPicker } from "@/components/SkinPicker";
 import { ContributionCalendar } from "@/components/ContributionCalendar";
 import { getContributions } from "@/lib/contributions";
+import { Card, SectionTitle } from "@/components/ui/Card";
 
 export default async function ProfilePage() {
   const sessionUser = await requireUser();
@@ -54,17 +54,17 @@ export default async function ProfilePage() {
           ["Патч-логов", String(user._count.patchLogs)],
           ["Часов списано", formatHours(spent._sum.hours ?? 0)],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-2xl border border-edge bg-surface p-4 text-center">
+          <Card key={label} className="text-center">
             <p className="text-xl font-bold">{value}</p>
             <p className="mt-0.5 text-xs uppercase tracking-wide text-muted">{label}</p>
-          </div>
+          </Card>
         ))}
       </div>
 
-      <section className="rounded-2xl border border-edge bg-surface p-6">
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
+      <Card as="section">
+        <SectionTitle className="mb-1">
           Активность за год
-        </h2>
+        </SectionTitle>
         <p className="mb-4 text-xs text-muted">
           Патч-логи, комментарии, созданные задачи, списанное время и переводы
           статуса — всё, что и так записывается, просто собрано по дням.
@@ -74,38 +74,26 @@ export default async function ProfilePage() {
           from={contributions.from.toISOString()}
           to={contributions.to.toISOString()}
         />
-      </section>
+      </Card>
 
-      <section className="rounded-2xl border border-edge bg-surface p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
+      <Card as="section">
+        <SectionTitle className="mb-4">
           Данные
-        </h2>
+        </SectionTitle>
         <ProfileNameForm name={user.name} />
-      </section>
+      </Card>
 
-      <section className="rounded-2xl border border-edge bg-surface p-6">
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
-          Оформление
-        </h2>
-        <p className="mb-4 text-xs text-muted">
-          Палитра, скругления и шрифт интерфейса. Выбор хранится в браузере —
-          на каждом устройстве свой. Светлая и тёмная тема переключаются
-          отдельно, значком внизу бокового меню.
-        </p>
-        <SkinPicker />
-      </section>
-
-      <section className="rounded-2xl border border-edge bg-surface p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
+      <Card as="section">
+        <SectionTitle className="mb-4">
           {user.passwordHash ? "Смена пароля" : "Установка пароля"}
-        </h2>
+        </SectionTitle>
         <PasswordForm hasPassword={Boolean(user.passwordHash)} />
-      </section>
+      </Card>
 
-      <section className="rounded-2xl border border-edge bg-surface p-6">
-        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted">
+      <Card as="section">
+        <SectionTitle className="mb-1">
           API-токены
-        </h2>
+        </SectionTitle>
         <p className="mb-4 text-xs text-muted">
           Для git-вебхука и интеграций. Передавайте в заголовке{" "}
           <code className="rounded bg-surface-2 px-1">Authorization: Bearer …</code>
@@ -119,14 +107,14 @@ export default async function ProfilePage() {
             createdAt: formatDate(t.createdAt),
           }))}
         />
-      </section>
+      </Card>
 
-      <section className="rounded-2xl border border-edge bg-surface p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">
+      <Card as="section">
+        <SectionTitle className="mb-4">
           Интеграция с Trello
-        </h2>
+        </SectionTitle>
         <TrelloConnection connected={trelloConnected} />
-      </section>
+      </Card>
     </div>
   );
 }

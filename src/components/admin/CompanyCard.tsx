@@ -10,6 +10,7 @@ import {
   setProjectCompanyAction,
   setUserCompanyAction,
 } from "@/lib/actions/companies";
+import { Card, SectionTitle } from "@/components/ui/Card";
 
 export type CompanyUserDTO = {
   id: string;
@@ -80,7 +81,7 @@ export function CompanyCard({
     "min-w-0 flex-1 rounded-lg border border-edge bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent disabled:opacity-50";
 
   return (
-    <section className="rounded-2xl border border-edge bg-surface p-5">
+    <Card as="section">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         {renaming ? (
           <form action={renameAction} className="flex flex-1 items-center gap-2">
@@ -126,7 +127,7 @@ export function CompanyCard({
                 <button
                   type="button"
                   onClick={() => setAsking(true)}
-                  className="rounded-lg border border-edge px-3 py-1.5 text-xs text-muted transition hover:bg-red-500/10 hover:text-red-400"
+                  className="rounded-lg border border-edge px-3 py-1.5 text-xs text-muted transition hover:bg-danger/10 hover:text-danger-text"
                 >
                   Удалить
                 </button>
@@ -137,7 +138,7 @@ export function CompanyCard({
       </div>
 
       {renameState?.error && (
-        <p className="mb-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
+        <p className="mb-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger-text">
           {renameState.error}
         </p>
       )}
@@ -145,9 +146,9 @@ export function CompanyCard({
       <div className={`grid gap-5 md:grid-cols-2 ${pending ? "opacity-60" : ""}`}>
         {/* Сотрудники компании */}
         <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+          <SectionTitle as="h3" className="mb-2">
             Сотрудники
-          </h3>
+          </SectionTitle>
           {company.users.length === 0 ? (
             <p className="mb-3 text-sm text-muted">Пока никого — добавьте сотрудников</p>
           ) : (
@@ -176,7 +177,7 @@ export function CompanyCard({
                     onClick={() => startTransition(() => setUserCompanyAction(u.id, null))}
                     data-tip="Убрать из компании"
                     aria-label={"Убрать из компании: " + u.name}
-                    className="shrink-0 rounded-lg px-2 py-1 text-xs text-muted transition hover:bg-red-500/10 hover:text-red-400"
+                    className="shrink-0 rounded-lg px-2 py-1 text-xs text-muted transition hover:bg-danger/10 hover:text-danger-text"
                   >
                     ✕
                   </button>
@@ -216,9 +217,9 @@ export function CompanyCard({
 
         {/* Проекты компании */}
         <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+          <SectionTitle as="h3" className="mb-2">
             Проекты
-          </h3>
+          </SectionTitle>
           {company.projects.length === 0 ? (
             <p className="mb-3 text-sm text-muted">Проектов пока нет</p>
           ) : (
@@ -238,7 +239,7 @@ export function CompanyCard({
                     onClick={() => startTransition(() => setProjectCompanyAction(p.id, null))}
                     data-tip="Открепить от компании"
                     aria-label={"Открепить от компании: " + p.name}
-                    className="shrink-0 rounded-lg px-2 py-1 text-xs text-muted transition hover:bg-red-500/10 hover:text-red-400"
+                    className="shrink-0 rounded-lg px-2 py-1 text-xs text-muted transition hover:bg-danger/10 hover:text-danger-text"
                   >
                     ✕
                   </button>
@@ -287,6 +288,6 @@ export function CompanyCard({
         }}
         onCancel={() => setAsking(false)}
       />
-    </section>
+    </Card>
   );
 }

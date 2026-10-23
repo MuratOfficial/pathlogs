@@ -163,7 +163,7 @@ export function BulkActionBar({
         type="button"
         disabled={pending}
         onClick={() => setConfirmDelete(true)}
-        className="rounded-lg border border-red-500/40 px-3 py-1.5 text-sm text-red-400 transition hover:bg-red-500/10 disabled:opacity-50"
+        className="rounded-lg border border-danger/40 px-3 py-1.5 text-sm text-danger-text transition hover:bg-danger/10 disabled:opacity-50"
       >
         Удалить
       </button>

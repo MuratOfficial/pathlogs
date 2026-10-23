@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { themeScript } from "@toimetdev/pathlogs-tokens";
-import { skinScript } from "@/lib/skin";
 import { ErrorAction, ErrorScreen } from "@/components/ErrorScreen";
 import "./globals.css";
 
@@ -35,7 +34,6 @@ export default function GlobalError({
       <head>
         <title>Сбой приложения — PathLogs</title>
         <script dangerouslySetInnerHTML={{ __html: themeScript() }} />
-        <script dangerouslySetInnerHTML={{ __html: skinScript() }} />
       </head>
       <body className="min-h-full flex flex-col">
         <ErrorScreen

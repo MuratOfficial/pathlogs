@@ -106,7 +106,7 @@ export function PatchLogForm({ taskId }: { taskId: string }) {
         className="mb-3"
       />
       {state?.error && (
-        <p className="mb-3 text-sm text-red-400">{state.error}</p>
+        <p className="mb-3 text-sm text-danger-text">{state.error}</p>
       )}
       <button
         type="submit"

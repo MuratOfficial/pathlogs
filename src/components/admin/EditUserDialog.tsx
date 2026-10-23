@@ -4,6 +4,8 @@ import { useActionState, useState } from "react";
 import type { Role } from "@prisma/client";
 import { resetUserPasswordAction, updateUserAction } from "@/lib/actions/admin";
 import { ROLE_LABELS } from "@/lib/labels";
+import { Dialog } from "@/components/Dialog";
+import { Icon } from "@/components/ui/Icon";
 
 const inputCls =
   "w-full rounded-lg border border-edge bg-surface-2 px-3 py-2 text-sm outline-none transition focus:border-accent";
@@ -71,7 +73,7 @@ function ProfileTab({
           name="active"
           defaultChecked={user.active}
           disabled={isSelf}
-          className="accent-indigo-500"
+          className="accent-accent"
         />
         Активен (может входить в систему)
       </label>
@@ -83,7 +85,7 @@ function ProfileTab({
         </p>
       )}
       {state?.error && (
-        <p className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+        <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger-text">
           {state.error}
         </p>
       )}
@@ -136,12 +138,12 @@ function PasswordTab({ userId, userName }: { userId: string; userName: string })
       </label>
 
       {state?.error && (
-        <p className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+        <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger-text">
           {state.error}
         </p>
       )}
       {state?.ok && (
-        <p className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
+        <p className="mb-4 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success-text">
           Пароль обновлён.
         </p>
       )}
@@ -187,61 +189,38 @@ export function EditUserDialog({
         aria-label={`Редактировать ${user.name}`}
         className="rounded-lg p-1.5 text-muted transition hover:bg-surface-2 hover:text-foreground"
       >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-        </svg>
+        <Icon name="pencil" className="h-4 w-4" />
       </button>
 
-      {open && (
-        <div
-          className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && setOpen(false)}
-        >
-          <div className="animate-pop-in w-full max-w-md rounded-2xl border border-edge bg-surface p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Пользователь</h2>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Закрыть"
-                className="text-muted transition hover:text-foreground"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="mb-5 flex gap-1 rounded-xl border border-edge bg-surface-2/60 p-1">
-              {(
-                [
-                  ["profile", "Профиль"],
-                  ["password", "Пароль"],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setTab(id)}
-                  className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                    tab === id
-                      ? "bg-accent text-white"
-                      : "text-muted hover:bg-surface hover:text-foreground"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {tab === "profile" ? (
-              <ProfileTab user={user} isSelf={isSelf} onDone={() => setOpen(false)} />
-            ) : (
-              <PasswordTab userId={user.id} userName={user.name} />
-            )}
-          </div>
+      <Dialog open={open} onClose={() => setOpen(false)} title="Пользователь">
+        <div className="mb-5 flex gap-1 rounded-xl border border-edge bg-surface-2/60 p-1">
+          {(
+            [
+              ["profile", "Профиль"],
+              ["password", "Пароль"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTab(id)}
+              className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                tab === id
+                  ? "bg-accent text-white"
+                  : "text-muted hover:bg-surface hover:text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-      )}
+
+        {tab === "profile" ? (
+          <ProfileTab user={user} isSelf={isSelf} onDone={() => setOpen(false)} />
+        ) : (
+          <PasswordTab userId={user.id} userName={user.name} />
+        )}
+      </Dialog>
     </>
   );
 }

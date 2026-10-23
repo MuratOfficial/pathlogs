@@ -100,7 +100,7 @@ export function DescriptionComposer({
           <span className="text-xs">· можно вставить в описание</span>
         </span>
         <AttachmentUploader target={target} onUploaded={added} />
-        {pasted.error && <p className="mt-2 text-sm text-red-400">{pasted.error}</p>}
+        {pasted.error && <p className="mt-2 text-sm text-danger-text">{pasted.error}</p>}
         {attachments.length > 0 && (
           <div className="mt-3">
             <AttachmentGallery

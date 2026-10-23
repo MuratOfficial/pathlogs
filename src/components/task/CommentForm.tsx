@@ -46,7 +46,7 @@ export function CommentForm({
         placeholder={placeholder}
         className="w-full resize-y rounded-lg border border-edge bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent"
       />
-      {state?.error && <p className="text-sm text-red-400">{state.error}</p>}
+      {state?.error && <p className="text-sm text-danger-text">{state.error}</p>}
       <button
         type="submit"
         disabled={pending}

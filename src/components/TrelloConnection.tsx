@@ -26,7 +26,7 @@ export function TrelloConnection({ connected }: { connected: boolean }) {
     return (
       <div className="flex items-center justify-between gap-3">
         <p className="flex items-center gap-2 text-sm">
-          <span className="h-2 w-2 rounded-full bg-emerald-400" />
+          <span className="h-2 w-2 rounded-full bg-success" />
           Trello подключён — при импорте доски не нужно вводить ключ и токен.
         </p>
         <div className="flex shrink-0 gap-2">
@@ -40,7 +40,7 @@ export function TrelloConnection({ connected }: { connected: boolean }) {
           <button
             type="button"
             onClick={() => deleteTrelloCredentialsAction()}
-            className="rounded-lg border border-edge px-2.5 py-1 text-xs text-muted transition hover:border-red-500/40 hover:text-red-400"
+            className="rounded-lg border border-edge px-2.5 py-1 text-xs text-muted transition hover:border-danger/40 hover:text-danger-text"
           >
             Отключить
           </button>
@@ -87,7 +87,7 @@ export function TrelloConnection({ connected }: { connected: boolean }) {
         <span className="mb-1 block text-xs text-muted">Token *</span>
         <input name="token" placeholder="ATTA…" className={`${inputCls} font-mono`} />
       </label>
-      {state?.error && <p className="text-sm text-red-400">{state.error}</p>}
+      {state?.error && <p className="text-sm text-danger-text">{state.error}</p>}
       <div className="flex justify-end gap-2">
         {connected && (
           <button

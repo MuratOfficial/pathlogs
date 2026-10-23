@@ -6,9 +6,12 @@ import { createTagAction, deleteTagAction, setTaskTagsAction } from "@/lib/actio
 import { BOARD_PALETTE } from "@/lib/labels";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { TagChip } from "@/components/TaskBadges";
+import { SectionTitle } from "@/components/ui/Card";
+import { Icon } from "@/components/ui/Icon";
 
 /**
- * Панель меток задачи: назначение из меток проекта + создание новых.
+ * Метки задачи: назначение из меток проекта + создание новых. Своей карточки
+ * нет — блок живёт внутри карточки полей задачи (TaskMetaPanel).
  * Удалять метку из проекта целиком может только менеджер (canManage).
  */
 export function TaskTags({
@@ -77,9 +80,9 @@ export function TaskTags({
   }
 
   return (
-    <section className={`rounded-2xl border border-edge bg-surface p-5 ${pending ? "opacity-70" : ""}`}>
+    <section className={pending ? "opacity-70" : undefined}>
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Метки</h2>
+        <SectionTitle>Метки</SectionTitle>
         <button
           type="button"
           onClick={() => {
@@ -124,7 +127,7 @@ export function TaskTags({
               />
             ))}
           </div>
-          {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+          {error && <p className="mt-2 text-xs text-danger-text">{error}</p>}
           <button
             type="button"
             disabled={!name.trim() || pending}
@@ -161,9 +164,7 @@ export function TaskTags({
                     style={on ? { backgroundColor: t.color } : undefined}
                   >
                     {on && (
-                      <svg className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 10.5l3.5 3.5L15 6.5" />
-                      </svg>
+                      <Icon name="check" className="h-3 w-3 text-white" strokeWidth={3} />
                     )}
                   </span>
                   <TagChip tag={t} />
@@ -174,11 +175,9 @@ export function TaskTags({
                     onClick={() => setRemoving(t)}
                     data-tip="Удалить метку из проекта"
                     aria-label={`Удалить метку ${t.name}`}
-                    className="shrink-0 rounded p-1 text-muted transition hover:bg-red-500/10 hover:text-red-400"
+                    className="shrink-0 rounded p-1 text-muted transition hover:bg-danger/10 hover:text-danger-text"
                   >
-                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <Icon name="close" className="h-3.5 w-3.5" />
                   </button>
                 )}
               </li>

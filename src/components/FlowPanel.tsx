@@ -2,6 +2,7 @@ import { Sparkline } from "@toimetdev/pathlogs-core";
 import type { TaskStatus } from "@prisma/client";
 import { STATUS_COLORS, STATUS_LABELS } from "@/lib/labels";
 import { formatDuration, type FlowSummary, type FlowWeek } from "@/lib/flow";
+import { Card, SectionTitle } from "@/components/ui/Card";
 
 /**
  * Метрики потока: сколько времени задача реально идёт и где стоит.
@@ -23,13 +24,13 @@ function Metric({
   accent?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-edge bg-surface p-[var(--app-card-p)]">
+    <Card flush className="p-[var(--app-card-p)]">
       <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
       <p className="mt-1 text-2xl font-bold" style={accent ? { color: accent } : undefined}>
         {value}
       </p>
       <p className="mt-1 text-xs leading-relaxed text-muted">{hint}</p>
-    </div>
+    </Card>
   );
 }
 
@@ -60,16 +61,16 @@ export function FlowPanel({
 
   if (summary.measured === 0 && throughput.every((n) => n === 0)) {
     return (
-      <section className="rounded-2xl border border-edge bg-surface p-[var(--app-card-p)]">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
+      <Card as="section" flush className="p-[var(--app-card-p)]">
+        <SectionTitle>
           Время работы
-        </h2>
+        </SectionTitle>
         <p className="mt-2 text-sm text-muted">
           Пока нечего считать: метрики берутся из истории переходов на доске.
           Подвигайте карточки между колонками — через неделю здесь появится
           время цикла, разброс и пропускная способность.
         </p>
-      </section>
+      </Card>
     );
   }
 
@@ -110,11 +111,11 @@ export function FlowPanel({
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-edge bg-surface p-[var(--app-card-p)]">
+        <Card as="section" flush className="p-[var(--app-card-p)]">
           <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
+            <SectionTitle>
               Завершено по неделям
-            </h2>
+            </SectionTitle>
             <span className="text-xs text-muted">
               всего {throughput.reduce((a, b) => a + b, 0)}
             </span>
@@ -134,13 +135,13 @@ export function FlowPanel({
             <span>{weeks[0]?.label}</span>
             <span>{weeks[weeks.length - 1]?.label}</span>
           </div>
-        </section>
+        </Card>
 
-        <section className="rounded-2xl border border-edge bg-surface p-[var(--app-card-p)]">
+        <Card as="section" flush className="p-[var(--app-card-p)]">
           <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
+            <SectionTitle>
               Время цикла по неделям
-            </h2>
+            </SectionTitle>
             <span className="text-xs text-muted">{hasCycleData ? "медиана, часы" : ""}</span>
           </div>
           {hasCycleData ? (
@@ -170,14 +171,14 @@ export function FlowPanel({
               Как только карточка пройдёт всю доску, здесь появится линия.
             </p>
           )}
-        </section>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-edge bg-surface p-[var(--app-card-p)]">
-          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+        <Card as="section" flush className="p-[var(--app-card-p)]">
+          <SectionTitle className="mb-1">
             Где стоят задачи
-          </h2>
+          </SectionTitle>
           <p className="mb-3 text-[11px] text-muted">
             Среднее время в статусе по незакрытым задачам
           </p>
@@ -206,12 +207,12 @@ export function FlowPanel({
               ))}
             </div>
           )}
-        </section>
+        </Card>
 
-        <section className="rounded-2xl border border-edge bg-surface p-[var(--app-card-p)]">
-          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
+        <Card as="section" flush className="p-[var(--app-card-p)]">
+          <SectionTitle className="mb-1">
             Дольше всего в работе
-          </h2>
+          </SectionTitle>
           <p className="mb-3 text-[11px] text-muted">
             Завершённые задачи с самым долгим циклом — кандидаты на разбор
           </p>
@@ -235,7 +236,7 @@ export function FlowPanel({
               ))}
             </ul>
           )}
-        </section>
+        </Card>
       </div>
     </div>
   );

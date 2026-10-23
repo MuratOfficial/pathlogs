@@ -10,23 +10,21 @@ import {
 } from "@/lib/sidebar";
 
 /**
- * Кнопка «свернуть меню». Рисуется дважды:
+ * Кнопка «свернуть / развернуть меню» в шапке сайдбара. Только на десктопе:
+ * на узком экране меню и так выезжающее.
  *
- * - `inline` — в шапке меню, рядом с логотипом; прячется вместе с меню;
- * - `floating` — прижата к левому краю и видна только когда меню свёрнуто,
- *   иначе развернуть его было бы нечем.
- *
- * Видимостью управляет CSS по атрибуту [data-sidebar], а не React: состояние
- * ставится до гидратации, и кнопка не должна мигать вместе с ней.
+ * Свёрнутое меню не исчезает, а сжимается в рейку с иконками (globals.css,
+ * [data-sidebar="hidden"]), и кнопка остаётся в ней — второй, плавающей
+ * кнопки для разворачивания не нужно.
  */
-export function SidebarToggle({ variant }: { variant: "inline" | "floating" }) {
+export function SidebarToggle() {
   const state = useSyncExternalStore<SidebarState>(
     subscribeSidebar,
     getSidebar,
     () => DEFAULT_SIDEBAR
   );
   const hidden = state === "hidden";
-  const label = hidden ? "Показать меню" : "Свернуть меню";
+  const label = hidden ? "Развернуть меню" : "Свернуть меню";
 
   return (
     <button
@@ -35,11 +33,7 @@ export function SidebarToggle({ variant }: { variant: "inline" | "floating" }) {
       data-tip={`${label} (Ctrl+B)`}
       aria-label={label}
       aria-expanded={!hidden}
-      className={
-        variant === "inline"
-          ? "app-sidebar-collapse hidden h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-foreground lg:flex"
-          : "app-sidebar-expand fixed left-2 top-2 z-30 hidden h-8 w-8 items-center justify-center rounded-lg border border-edge bg-surface text-muted shadow transition hover:bg-surface-2 hover:text-foreground"
-      }
+      className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-foreground lg:flex"
     >
       <svg
         className="h-4 w-4"

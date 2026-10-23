@@ -15,6 +15,7 @@ import {
   type GanttEdge,
   type GanttItemLike,
 } from "@/components/ui/gantt/ganttLayout";
+import { Card, SectionTitle } from "@/components/ui/Card";
 
 /** Высота строки. Фиксированная — по ней SVG-связи ложатся точно на полосы. */
 const ROW_H = 37;
@@ -194,20 +195,20 @@ export function Gantt<I extends GanttItem>({
         </div>
       )}
 
-      <div
+      <Card flush
         ref={scrollRef}
         role="region"
         aria-label={labels.region}
-        className="min-h-0 flex-1 overflow-auto rounded-2xl border border-edge bg-surface"
+        className="min-h-0 flex-1 overflow-auto"
       >
         <div style={{ width: LABEL_W + chartW, minWidth: "100%" }}>
           <div className="sticky top-0 z-10 flex border-b border-edge bg-surface">
-            <div
-              className="shrink-0 border-r border-edge px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted"
+            <SectionTitle as="div"
+              className="shrink-0 border-r border-edge px-4 py-2"
               style={{ width: LABEL_W }}
             >
               {labels.header ?? "Item"}
-            </div>
+            </SectionTitle>
             <div className="relative" style={{ width: chartW, height: 32 }}>
               {months.map((m, i) => (
                 <span
@@ -331,7 +332,7 @@ export function Gantt<I extends GanttItem>({
             })}
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

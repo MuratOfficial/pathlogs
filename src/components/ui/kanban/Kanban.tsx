@@ -178,7 +178,7 @@ function WipBadge({ count, limit }: { count: number; limit: number | null | unde
   return (
     <span
       className={`rounded-full px-2 py-0.5 text-xs ${
-        over ? "bg-red-500/20 font-semibold text-red-400" : "bg-surface-2 text-muted"
+        over ? "bg-danger/20 font-semibold text-danger-text" : "bg-surface-2 text-muted"
       }`}
     >
       {limit != null ? `${count}/${limit}` : count}

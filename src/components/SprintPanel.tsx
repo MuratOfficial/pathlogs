@@ -7,6 +7,7 @@ import { buildBurndown, sprintProgress, type SprintTask } from "@/lib/sprint";
 import { STATUS_COLORS, STATUS_LABELS, formatDate, formatHours } from "@/lib/labels";
 import type { TaskDTO } from "@/lib/types";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { Card, SectionTitle } from "@/components/ui/Card";
 
 export interface SprintDTO {
   id: string;
@@ -132,7 +133,7 @@ export function SprintPanel({
         )}
 
         {showForm && (
-          <form action={formAction} className="grid gap-3 rounded-2xl border border-edge bg-surface p-4 sm:grid-cols-2">
+          <Card as="form" action={formAction} className="grid gap-3 sm:grid-cols-2">
             <input type="hidden" name="projectId" value={projectId} />
             <label className="block sm:col-span-2">
               <span className="mb-1 block text-xs text-muted">Название</span>
@@ -150,7 +151,7 @@ export function SprintPanel({
               <span className="mb-1 block text-xs text-muted">Цель спринта (необязательно)</span>
               <input name="goal" placeholder="Что должно быть готово к концу" className="w-full rounded-lg border border-edge bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent" />
             </label>
-            {state?.error && <p className="text-sm text-red-400 sm:col-span-2">{state.error}</p>}
+            {state?.error && <p className="text-sm text-danger-text sm:col-span-2">{state.error}</p>}
             <button
               type="submit"
               disabled={creating}
@@ -158,7 +159,7 @@ export function SprintPanel({
             >
               {creating ? "Создаём…" : "Создать спринт"}
             </button>
-          </form>
+          </Card>
         )}
 
         {!active && (
@@ -170,13 +171,13 @@ export function SprintPanel({
 
         {active && progress && (
           <>
-            <div className="rounded-2xl border border-edge bg-surface p-5">
+            <Card>
               <div className="mb-3 flex flex-wrap items-center gap-3">
                 <h2 className="text-lg font-bold">{active.name}</h2>
                 {active.closedAt ? (
                   <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs text-muted">закрыт</span>
                 ) : progress.overdue ? (
-                  <span className="rounded-full bg-red-500/20 px-2.5 py-0.5 text-xs font-semibold text-red-400">
+                  <span className="rounded-full bg-danger/20 px-2.5 py-0.5 text-xs font-semibold text-danger-text">
                     просрочен
                   </span>
                 ) : (
@@ -199,7 +200,7 @@ export function SprintPanel({
                     <button
                       type="button"
                       onClick={() => setToDelete(active)}
-                      className="rounded-lg border border-red-500/30 px-3 py-1.5 text-xs text-red-400 transition hover:bg-red-500/10"
+                      className="rounded-lg border border-danger/30 px-3 py-1.5 text-xs text-danger-text transition hover:bg-danger/10"
                     >
                       Удалить
                     </button>
@@ -227,17 +228,17 @@ export function SprintPanel({
                   style={{ width: `${Math.round(progress.ratio * 100)}%` }}
                 />
               </div>
-            </div>
+            </Card>
 
-            <div className="rounded-2xl border border-edge bg-surface p-5">
-              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">
+            <Card>
+              <SectionTitle as="h3" className="mb-2">
                 Сгорание · {progress.unit}
-              </h3>
+              </SectionTitle>
               <Burndown tasks={sprintTasks} sprint={active} />
               <p className="mt-1 text-xs text-muted">
                 Пунктир — идеальное равномерное сгорание, сплошная — как идёт на самом деле.
               </p>
-            </div>
+            </Card>
 
             {picking && (
               <div className="rounded-2xl border border-accent/50 bg-surface p-4">
@@ -283,10 +284,10 @@ export function SprintPanel({
               </div>
             )}
 
-            <div className="rounded-2xl border border-edge bg-surface">
-              <h3 className="border-b border-edge px-5 py-3 text-sm font-semibold uppercase tracking-wide text-muted">
+            <Card flush>
+              <SectionTitle as="h3" className="border-b border-edge px-5 py-3">
                 Задачи спринта
-              </h3>
+              </SectionTitle>
               <ul>
                 {sprintTasks.map((t) => (
                   <li key={t.id} className="flex items-center gap-3 border-b border-edge/60 px-5 py-2.5 last:border-0">
@@ -307,7 +308,7 @@ export function SprintPanel({
                         type="button"
                         data-tip="Убрать из спринта"
                         onClick={() => startTransition(async () => { await setTasksSprintAction([t.id], null); })}
-                        className="text-xs text-muted transition hover:text-red-400"
+                        className="text-xs text-muted transition hover:text-danger-text"
                       >
                         ✕
                       </button>
@@ -320,15 +321,15 @@ export function SprintPanel({
                   </li>
                 )}
               </ul>
-            </div>
+            </Card>
           </>
         )}
 
         {sprints.length > 1 && (
-          <div className="rounded-2xl border border-edge bg-surface p-4">
-            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">
+          <Card>
+            <SectionTitle as="h3" className="mb-2">
               Прошлые спринты
-            </h3>
+            </SectionTitle>
             <ul className="space-y-1 text-sm">
               {sprints
                 .filter((s) => s.id !== active?.id)
@@ -348,7 +349,7 @@ export function SprintPanel({
                   );
                 })}
             </ul>
-          </div>
+          </Card>
         )}
 
         <ConfirmDialog

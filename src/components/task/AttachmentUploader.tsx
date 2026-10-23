@@ -87,7 +87,7 @@ export function AttachmentUploader({
           }}
         />
       </div>
-      {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+      {error && <p className="mt-2 text-sm text-danger-text">{error}</p>}
     </div>
   );
 }

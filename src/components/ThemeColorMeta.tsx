@@ -2,19 +2,18 @@
 
 import { useEffect } from "react";
 import { subscribeTheme } from "@toimetdev/pathlogs-tokens";
-import { subscribeSkin } from "@/lib/skin";
 
 /**
- * Держит <meta name="theme-color"> в согласии с выбранным оформлением.
+ * Держит <meta name="theme-color"> в согласии с выбранной темой.
  *
  * Зачем: этим цветом браузер красит свою обвязку — строку состояния на
  * Android и шапку установленного PWA (манифест у нас есть, appleWebApp тоже).
  * Значение в layout.tsx статично, потому что метаданные Next считаются на
- * сервере, а скин живёт в браузере, — и под Linear тёмно-синяя полоса
- * оказывалась бы чужой над почти чёрной страницей.
+ * сервере, а тема живёт в браузере, — и в светлой теме тёмно-синяя полоса
+ * оказывалась бы чужой над белой страницей.
  *
  * Цвет не перечисляем списком, а читаем из той же переменной, что красит
- * body: так любой новый скин и светлая тема подхватываются сами.
+ * body: так любая тема подхватывается сама.
  */
 export function ThemeColorMeta() {
   useEffect(() => {
@@ -28,12 +27,7 @@ export function ThemeColorMeta() {
     };
 
     apply();
-    const stopTheme = subscribeTheme(apply);
-    const stopSkin = subscribeSkin(apply);
-    return () => {
-      stopTheme();
-      stopSkin();
-    };
+    return subscribeTheme(apply);
   }, []);
 
   return null;

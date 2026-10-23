@@ -173,7 +173,7 @@ export function FilterBar<T>({
                   type="button"
                   onClick={() => setToDelete(preset)}
                   aria-label={`${labels.deletePreset ?? "Delete preset"}: ${preset.name}`}
-                  className="px-1.5 py-1 text-muted/60 transition hover:text-red-400"
+                  className="px-1.5 py-1 text-muted/60 transition hover:text-danger-text"
                 >
                   ✕
                 </button>

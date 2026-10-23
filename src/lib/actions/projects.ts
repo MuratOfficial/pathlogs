@@ -102,6 +102,7 @@ export async function updateProjectAction(
 
   revalidatePath("/dashboard");
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/settings`);
   return { ok: true };
 }
 
@@ -133,6 +134,7 @@ export async function setProjectBackgroundAction(
 
   revalidatePath("/dashboard");
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/settings`);
   return {};
 }
 
@@ -155,6 +157,7 @@ export async function toggleProjectPinAction(
   }
   revalidatePath("/dashboard");
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/settings`);
   return { pinned: !existing };
 }
 
@@ -167,6 +170,7 @@ export async function toggleProjectArchiveAction(projectId: string) {
   });
   revalidatePath("/dashboard");
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/settings`);
 }
 
 /**
@@ -187,6 +191,7 @@ export async function togglePublicRoadmapAction(
     data: { publicToken: token },
   });
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/settings`);
   return { token };
 }
 
@@ -216,6 +221,7 @@ export async function addProjectMemberAction(projectId: string, userId: string) 
     create: { projectId, userId },
   });
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/settings`);
 }
 
 export async function removeProjectMemberAction(projectId: string, userId: string) {
@@ -229,4 +235,5 @@ export async function removeProjectMemberAction(projectId: string, userId: strin
   }
   await prisma.projectMember.deleteMany({ where: { projectId, userId } });
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/settings`);
 }

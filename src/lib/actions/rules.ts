@@ -57,6 +57,7 @@ export async function createBoardRuleAction(
     },
   });
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/settings`);
 }
 
 export async function toggleBoardRuleAction(ruleId: string) {
@@ -70,6 +71,7 @@ export async function toggleBoardRuleAction(ruleId: string) {
     data: { active: !rule.active },
   });
   revalidatePath(`/projects/${rule.projectId}`);
+  revalidatePath(`/projects/${rule.projectId}/settings`);
 }
 
 export async function deleteBoardRuleAction(ruleId: string) {
@@ -80,4 +82,5 @@ export async function deleteBoardRuleAction(ruleId: string) {
   await requireManager(rule.projectId);
   await prisma.boardRule.delete({ where: { id: ruleId } });
   revalidatePath(`/projects/${rule.projectId}`);
+  revalidatePath(`/projects/${rule.projectId}/settings`);
 }

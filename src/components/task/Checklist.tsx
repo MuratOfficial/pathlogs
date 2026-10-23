@@ -7,7 +7,8 @@ import {
   updateChecklistItemAction,
   deleteChecklistItemAction,
 } from "@/lib/actions/tasks";
-import { MarkdownInline } from "@/components/Markdown";
+import { MarkdownInline } from "@toimetdev/pathlogs-core";
+import { Icon } from "@/components/ui/Icon";
 
 export interface ChecklistItemDTO {
   id: string;
@@ -38,7 +39,7 @@ function Item({ item }: { item: ChecklistItemDTO }) {
         onChange={(e) =>
           startTransition(() => toggleChecklistItemAction(item.id, e.target.checked))
         }
-        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-indigo-500"
+        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-accent"
       />
       {editing ? (
         <input
@@ -70,11 +71,9 @@ function Item({ item }: { item: ChecklistItemDTO }) {
         type="button"
         data-tip="Удалить пункт"
         onClick={() => startTransition(() => deleteChecklistItemAction(item.id))}
-        className="invisible shrink-0 rounded p-0.5 text-muted transition hover:text-red-400 group-hover:visible"
+        className="invisible shrink-0 rounded p-0.5 text-muted transition hover:text-danger-text group-hover:visible"
       >
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
+        <Icon name="close" className="h-3.5 w-3.5" />
       </button>
     </li>
   );
@@ -106,7 +105,7 @@ export function Checklist({
         <div className="mb-3 flex items-center gap-3">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
             <div
-              className={`h-full rounded-full transition-all ${pct === 100 ? "bg-emerald-500" : "bg-accent"}`}
+              className={`h-full rounded-full transition-all ${pct === 100 ? "bg-success" : "bg-accent"}`}
               style={{ width: `${pct}%` }}
             />
           </div>

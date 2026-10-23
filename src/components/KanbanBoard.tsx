@@ -28,6 +28,7 @@ import { EMPTY_FILTER, isFilterActive, matchesTaskFilter, type TaskFilter } from
 import { UndoToaster } from "@toimetdev/pathlogs-core";
 import { shouldOfferUndo, snapshotMove, type TaskMove } from "@/lib/boardUndo";
 import { Kanban } from "@/components/ui/kanban/Kanban";
+import { Icon } from "@/components/ui/Icon";
 
 export type { SavedFilterDTO };
 
@@ -302,9 +303,7 @@ export function KanbanBoard({
           projectTags={projectTags}
           triggerLabel={
             <>
-              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
+              <Icon name="plus" className="h-4 w-4 shrink-0" />
               Задача
             </>
           }
@@ -348,13 +347,11 @@ export function KanbanBoard({
                 }}
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition ${
                   isDone
-                    ? "border-green-500 bg-green-500 text-white"
-                    : "border-edge text-transparent opacity-0 hover:border-green-500 hover:text-green-500 group-hover:opacity-100 focus-visible:opacity-100"
+                    ? "border-success bg-success text-white"
+                    : "border-edge text-transparent opacity-0 hover:border-success hover:text-success-text group-hover:opacity-100 focus-visible:opacity-100"
                 }`}
               >
-                <svg className="h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 10.5l3.5 3.5L15 6.5" />
-                </svg>
+                <Icon name="check" className="h-3 w-3" strokeWidth={2.5} />
               </button>
               <span className="font-mono text-[11px] font-semibold text-muted">
                 {projectKey}-{t.number}
@@ -369,9 +366,7 @@ export function KanbanBoard({
                   style={{ backgroundColor: t.color ?? "transparent" }}
                 >
                   {!t.color && (
-                    <svg className="h-full w-full text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
+                    <Icon name="plus" className="h-full w-full text-muted" />
                   )}
                 </button>
                 {paletteFor === t.id && paletteRect && (
@@ -403,12 +398,10 @@ export function KanbanBoard({
                 <span
                   data-tip={`Подзадачи: выполнено ${t.childrenDoneCount} из ${t.childrenCount}`}
                   className={`flex items-center gap-0.5 tabular-nums ${
-                    t.childrenDoneCount === t.childrenCount ? "text-emerald-400" : ""
+                    t.childrenDoneCount === t.childrenCount ? "text-success-text" : ""
                   }`}
                 >
-                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
-                  </svg>
+                  <Icon name="share" className="h-3 w-3" />
                   {t.childrenDoneCount}/{t.childrenCount}
                 </span>
               )}
@@ -416,7 +409,7 @@ export function KanbanBoard({
                 <span
                   data-tip={`Чек-лист: отмечено ${t.checklistDoneCount} из ${t.checklistCount}`}
                   className={`flex items-center gap-0.5 tabular-nums ${
-                    t.checklistDoneCount === t.checklistCount ? "text-emerald-400" : ""
+                    t.checklistDoneCount === t.checklistCount ? "text-success-text" : ""
                   }`}
                 >
                   <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

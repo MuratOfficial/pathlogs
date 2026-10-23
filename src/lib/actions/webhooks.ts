@@ -41,6 +41,7 @@ export async function createWebhookAction(
     },
   });
   revalidatePath(`/projects/${d.projectId}`);
+  revalidatePath(`/projects/${d.projectId}/settings`);
   return {};
 }
 
@@ -49,6 +50,7 @@ export async function deleteWebhookAction(id: string) {
   await requireProjectManager(wh.projectId);
   await prisma.webhookEndpoint.delete({ where: { id } });
   revalidatePath(`/projects/${wh.projectId}`);
+  revalidatePath(`/projects/${wh.projectId}/settings`);
 }
 
 export async function toggleWebhookAction(id: string) {
@@ -59,6 +61,7 @@ export async function toggleWebhookAction(id: string) {
     data: { active: !wh.active },
   });
   revalidatePath(`/projects/${wh.projectId}`);
+  revalidatePath(`/projects/${wh.projectId}/settings`);
 }
 
 /** Отправляет тестовое сообщение во все активные вебхуки проекта. */

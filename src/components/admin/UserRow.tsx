@@ -105,8 +105,8 @@ export function UserRow({
           onClick={() => startTransition(() => toggleUserActiveAction(user.id))}
           className={`rounded-full px-3 py-1 text-xs font-medium transition disabled:cursor-not-allowed ${
             user.active
-              ? "bg-emerald-500/15 text-emerald-400 hover:bg-red-500/15 hover:text-red-400"
-              : "bg-red-500/15 text-red-400 hover:bg-emerald-500/15 hover:text-emerald-400"
+              ? "bg-success/15 text-success-text hover:bg-danger/15 hover:text-danger-text"
+              : "bg-danger/15 text-danger-text hover:bg-success/15 hover:text-success-text"
           }`}
           data-tip={isSelf ? "Нельзя деактивировать себя" : user.active ? "Деактивировать" : "Активировать"}
         >

@@ -5,7 +5,7 @@ import { buildCommentThreads } from "@/lib/comments";
 import { deleteCommentAction } from "@/lib/actions/tasks";
 import { formatDateTime, initials } from "@/lib/labels";
 import type { MemberDTO } from "@/lib/types";
-import { Markdown } from "../Markdown";
+import { Markdown } from "@toimetdev/pathlogs-core";
 import { CommentForm } from "./CommentForm";
 import { ConfirmActionButton } from "./ConfirmActionButton";
 

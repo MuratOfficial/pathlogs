@@ -17,11 +17,16 @@ export function MoreMenu({
   children,
   label = "Ещё",
   count,
+  trigger,
+  triggerClassName,
 }: {
   children: ReactNode;
   label?: string;
   /** Сколько действий спрятано — показывается на кнопке. */
   count?: number;
+  /** Своё содержимое кнопки вместо «⋯ Ещё» — например, «+ Новый проект ▾». */
+  trigger?: ReactNode;
+  triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -29,13 +34,15 @@ export function MoreMenu({
   useEffect(() => {
     if (!open) return;
     // Открытое модальное окно — сигнал не трогать меню: клик и Escape
-    // адресованы окну, а не нам
-    // Модальные окна приложения — это перекрывающая экран подложка
-    const modalOpen = () => Boolean(document.querySelector(".fixed.inset-0"));
+    // адресованы окну, а не нам. Окна приложения — Dialog из pathlogs-core,
+    // его подложка помечена data-pl-overlay; окно рендерится порталом в body,
+    // поэтому клик по нему для меню выглядит как клик снаружи.
+    const OVERLAY = "[data-pl-overlay]";
+    const modalOpen = () => Boolean(document.querySelector(OVERLAY));
 
     function onDown(e: MouseEvent) {
       const target = e.target as Element | null;
-      if (target?.closest(".fixed")) return;
+      if (target?.closest(OVERLAY)) return;
       if (!box.current?.contains(e.target as Node)) setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
@@ -56,18 +63,27 @@ export function MoreMenu({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="true"
-        data-tip={open ? undefined : "Остальные действия"}
-        className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition ${
-          open
-            ? "border-accent/60 bg-surface-2 text-foreground"
-            : "border-edge text-muted hover:bg-surface-2 hover:text-foreground"
-        }`}
+        data-tip={open || trigger ? undefined : "Остальные действия"}
+        // На узком экране подпись скрыта — имя кнопки даёт aria-label
+        aria-label={trigger ? undefined : label}
+        className={
+          triggerClassName ??
+          `flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition ${
+            open
+              ? "border-accent/60 bg-surface-2 text-foreground"
+              : "border-edge text-muted hover:bg-surface-2 hover:text-foreground"
+          }`
+        }
       >
-        <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M5 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM11.5 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM18 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-        </svg>
-        <span className="hidden sm:inline">{label}</span>
-        {count ? <span className="text-[10px] tabular-nums opacity-70">{count}</span> : null}
+        {trigger ?? (
+          <>
+            <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden>
+              <path d="M5 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM11.5 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM18 10a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+            </svg>
+            <span className="hidden sm:inline">{label}</span>
+            {count ? <span className="text-[10px] tabular-nums opacity-70">{count}</span> : null}
+          </>
+        )}
       </button>
 
       {open && (

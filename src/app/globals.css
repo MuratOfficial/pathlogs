@@ -10,40 +10,53 @@
 @import "@toimetdev/pathlogs-tokens/styles/tailwind.css";
 
 /* Шрифты проекта — фреймворковый tailwind.css мост цветов не трогает шрифты.
-   Через промежуточную переменную, чтобы шрифт можно было сменить скином
-   (см. ниже): сам мост в @theme объявляется один раз и не пересобирается. */
+   Через промежуточную переменную (см. ниже): сам мост в @theme объявляется
+   один раз и не пересобирается. */
 @theme inline {
   --font-sans: var(--app-font-sans);
   --font-mono: var(--app-font-mono);
+  --color-danger-text: var(--danger-text);
+  --color-success-text: var(--success-text);
 }
 
-/* ═════════════════════ Оформление (скины) ═════════════════════
-   Второй переключатель вида, независимый от светлой/тёмной темы: он
-   подменяет только значения токенов. Ни один компонент об этом не знает —
-   и цветовые утилиты (bg-surface, border-edge), и радиусы (rounded-lg),
-   и шрифт собраны через var(), поэтому меняются вместе с токенами.
+/* Цвет текста для ошибок и успеха. --danger и --success подобраны как
+   заливка: текстом на собственной подложке (bg-danger/10) они не дотягивают
+   до контраста 4.5:1 ни в тёмной теме, ни в светлой. Текстовый вариант
+   выводится из того же токена — светлее на тёмном фоне, темнее на светлом, —
+   поэтому следует за темой без отдельных значений. */
+:root {
+  --danger-text: color-mix(in srgb, var(--danger) 70%, #fff);
+  --success-text: color-mix(in srgb, var(--success) 70%, #fff);
+}
+[data-theme="light"] {
+  --danger-text: color-mix(in srgb, var(--danger) 70%, #000);
+  --success-text: color-mix(in srgb, var(--success) 70%, #000);
+}
+@media (prefers-color-scheme: light) {
+  [data-theme="system"] {
+    --danger-text: color-mix(in srgb, var(--danger) 70%, #000);
+    --success-text: color-mix(in srgb, var(--success) 70%, #000);
+  }
+}
 
-   Атрибут [data-skin] ставит на <html> скрипт skinScript() из src/lib/skin.ts
-   — до первой отрисовки, иначе страница мигнёт чужой палитрой.
-
-   Специфичность: правила тёмного варианта — [data-skin=…] (0,1,0), ровно
-   как [data-theme="light"] в tokens.css, но объявлены позже и потому
-   выигрывают. Светлый вариант поэтому пишем парой [data-skin][data-theme]
-   (0,2,0) — он должен побеждать собственный тёмный. */
+/* ═════════════════════ Шрифты и плотность ═════════════════════
+   Цвета, радиусы и тени — токены pathlogs-tokens (тёмная тема по умолчанию,
+   светлая — [data-theme="light"]). Здесь только то, что задаёт приложение. */
 
 :root {
   --app-font-sans: var(--font-geist-sans), system-ui, sans-serif;
   --app-font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
   /* ── Плотность ──
-     Скин меняет не только цвет, но и то, сколько влезает на экран. Значения
-     ниже — нынешние отступы приложения; их подставляют через произвольные
+     Сколько влезает на экран. Значения ниже — отступы приложения; их подставляют через произвольные
      значения Tailwind (p-[var(--app-card-p)]) там, где плотность заметна
      глазом: боковое меню, карточки, колонки доски, строки таблицы.
 
      Список намеренно короткий: это не полная шкала отступов, а те несколько
      мест, которые решают, выглядит интерфейс плотным или просторным. */
   --app-sidebar-w: 15rem;
+  /* Свёрнутое меню-рейка: иконка 16px + отступы ссылки и меню. */
+  --app-rail-w: 4rem;
   --app-nav-py: 0.5rem;
   --app-brand-py: 1.25rem;
   --app-card-p: 1.25rem;
@@ -73,192 +86,44 @@
   width: var(--app-sidebar-w);
 }
 @media (min-width: 1024px) {
+  /* Те же 0.3s ease, что у самого меню в CSS фреймворка: разъехавшиеся
+     длительности читаются как подтормаживание, а не как анимация. */
+  .pl-shell__sidebar {
+    transition: width 0.3s ease;
+  }
   .pl-shell__main {
     margin-left: var(--app-sidebar-w);
-    /* Те же 0.3s ease, что у самого меню в CSS фреймворка: разъехавшиеся
-       длительности читаются как подтормаживание, а не как анимация. */
     transition: margin-left 0.3s ease;
   }
 
-  /* Свёрнутое меню: уезжает за левый край, содержимое занимает его место.
-     Только на широком экране — на узком меню и так выезжающее, и прятать
-     его там нечего. Состояние ставит sidebarScript() до первой отрисовки. */
+  /* Свёрнутое меню — узкая рейка с иконками разделов, а не пустое место:
+     разделы остаются в один клик, и кнопка «развернуть» живёт в самой рейке.
+     Только на широком экране — на узком меню и так выезжающее. Состояние
+     ставит sidebarScript() до первой отрисовки. Классы app-rail-* — в
+     разметке сайдбара, (app)/layout.tsx. */
   [data-sidebar="hidden"] .pl-shell__sidebar {
-    transform: translateX(-100%);
+    width: var(--app-rail-w);
   }
   [data-sidebar="hidden"] .pl-shell__main {
-    margin-left: 0;
+    margin-left: var(--app-rail-w);
   }
-  /* Развернуть меню нечем, пока его не видно, — поэтому вторая кнопка
-     появляется ровно тогда, когда исчезает первая. */
-  [data-sidebar="hidden"] .app-sidebar-expand {
-    display: flex;
+  [data-sidebar="hidden"] .app-rail-hide {
+    display: none;
   }
-}
-
-/* ── Linear: почти чёрный фон, границы на грани видимости, малые радиусы ── */
-[data-skin="linear"] {
-  --background: #08090b;
-  --surface: #0f1011;
-  --surface-2: #17181a;
-  --border: #1f2023;
-
-  --foreground: #e6e6e6;
-  --muted: #8a8f98;
-
-  --accent: #5e6ad2;
-  --accent-hover: #737cdb;
-  --accent-2: #8b7fd9;
-  --accent-3: #4ea7c9;
-  --accent-pink: #c77fd9;
-
-  --danger: #eb5757;
-  --danger-hover: #d94a4a;
-  --success: #4cb782;
-  --warning: #f2994a;
-  --info: #4ea7c9;
-
-  /* Скругления Linear почти не читаются: один и тот же мелкий радиус
-     от кнопки до диалога. Имена --radius-* совпадают со шкалой Tailwind,
-     поэтому rounded-lg и rounded-2xl меняются заодно. */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius: 0.375rem;
-  --radius-lg: 0.375rem;
-  --radius-xl: 0.5rem;
-  --radius-2xl: 0.625rem;
-
-  --app-font-sans: var(--font-inter), system-ui, sans-serif;
-  --app-font-mono: var(--font-inter), ui-monospace, monospace;
-
-  /* Главное, чем Linear отличается от нынешнего вида, — не цвет, а плотность:
-     узкое меню, строки почти без воздуха, компактные карточки. */
-  --app-sidebar-w: 13rem;
-  --app-nav-py: 0.3125rem;
-  --app-brand-py: 0.875rem;
-  --app-card-p: 0.875rem;
-  --app-panel-p: 0.625rem;
-  --app-grid-gap: 0.625rem;
-  --app-column-w: 17.5rem;
-  --app-stack-gap: 0.375rem;
-  --app-row-py: 0.4375rem;
-}
-
-[data-skin="linear"][data-theme="light"] {
-  --background: #fbfbfb;
-  --surface: #ffffff;
-  --surface-2: #f4f5f8;
-  --border: #e4e5e8;
-
-  --foreground: #1c1d20;
-  --muted: #6b6f76;
-
-  --accent: #5e6ad2;
-  --accent-hover: #4d58c0;
-  --accent-2: #7c6ad2;
-  --accent-3: #2f8fb5;
-  --accent-pink: #b55fc9;
-
-  --danger: #d64545;
-  --danger-hover: #bd3838;
-  --success: #3a9e6e;
-  --warning: #d9822b;
-  --info: #2f8fb5;
-}
-
-/* ── Railway: фиолетовый фон, крупные скругления, мягкий свет ── */
-[data-skin="railway"] {
-  --background: #13111c;
-  --surface: #1b1825;
-  --surface-2: #241f31;
-  --border: #2c2839;
-
-  --foreground: #eae6f5;
-  --muted: #9b93b4;
-
-  --accent: #a855f7;
-  --accent-hover: #c084fc;
-  --accent-2: #8b5cf6;
-  --accent-3: #22d3ee;
-  --accent-pink: #ec4899;
-
-  --danger: #ef4444;
-  --danger-hover: #dc2626;
-  --success: #4ade80;
-  --warning: #f59e0b;
-  --info: #38bdf8;
-
-  --radius-sm: 0.5rem;
-  --radius-md: 0.625rem;
-  --radius: 0.625rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 0.875rem;
-  --radius-2xl: 1.125rem;
-
-  --app-font-sans: var(--font-inter), system-ui, sans-serif;
-  --app-font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
-}
-
-[data-skin="railway"][data-theme="light"] {
-  --background: #faf8ff;
-  --surface: #ffffff;
-  --surface-2: #f3f0fa;
-  --border: #e4dff0;
-
-  --foreground: #1e1a2b;
-  --muted: #6b6385;
-
-  --accent: #9333ea;
-  --accent-hover: #7e22ce;
-  --accent-2: #7c3aed;
-  --accent-3: #0891b2;
-  --accent-pink: #db2777;
-
-  --danger: #dc2626;
-  --danger-hover: #b91c1c;
-  --success: #16a34a;
-  --warning: #d97706;
-  --info: #0284c7;
-}
-
-/* Системная тема: [data-theme="system"] отдаёт решение медиазапросу, и
-   светлый вариант скина должен включаться там же. Пара селекторов даёт
-   ту же специфичность (0,2,0), что и явный выбор светлой. */
-@media (prefers-color-scheme: light) {
-  [data-skin="linear"][data-theme="system"] {
-    --background: #fbfbfb;
-    --surface: #ffffff;
-    --surface-2: #f4f5f8;
-    --border: #e4e5e8;
-    --foreground: #1c1d20;
-    --muted: #6b6f76;
-    --accent-hover: #4d58c0;
-    --accent-2: #7c6ad2;
-    --accent-3: #2f8fb5;
-    --accent-pink: #b55fc9;
-    --danger: #d64545;
-    --danger-hover: #bd3838;
-    --success: #3a9e6e;
-    --warning: #d9822b;
-    --info: #2f8fb5;
+  [data-sidebar="hidden"] .app-rail-center {
+    justify-content: center;
+    padding-inline: 0;
   }
-  [data-skin="railway"][data-theme="system"] {
-    --background: #faf8ff;
-    --surface: #ffffff;
-    --surface-2: #f3f0fa;
-    --border: #e4dff0;
-    --foreground: #1e1a2b;
-    --muted: #6b6385;
-    --accent: #9333ea;
-    --accent-hover: #7e22ce;
-    --accent-2: #7c3aed;
-    --accent-3: #0891b2;
-    --accent-pink: #db2777;
-    --danger: #dc2626;
-    --danger-hover: #b91c1c;
-    --success: #16a34a;
-    --warning: #d97706;
-    --info: #0284c7;
+  [data-sidebar="hidden"] .app-rail-stack {
+    flex-direction: column;
+    padding-inline: 0;
+  }
+  /* Счётчик непрочитанного — уголком на иконке, а не справа от подписи */
+  [data-sidebar="hidden"] .app-rail-badge {
+    position: absolute;
+    top: 0;
+    right: 0.25rem;
+    margin: 0;
   }
 }
 
@@ -359,13 +224,6 @@
 }
 .btn-gradient:hover:not(:disabled) { background-position: 100% 50%; box-shadow: 0 12px 30px -8px color-mix(in srgb, var(--accent-2) 70%, transparent); }
 .btn-gradient:active:not(:disabled) { transform: scale(0.98); }
-
-/* Адаптивный сайдбар: на десктопе всегда виден (перекрывает инлайн-transform),
-   на узких экранах — выезжающий drawer с плавным переходом. */
-.app-sidebar { transition: transform 0.3s ease; }
-@media (min-width: 1024px) {
-  .app-sidebar { transform: translateX(0) !important; }
-}
 
 /* ── Экраны авторизации ── */
 .auth-aurora { position: absolute; inset: 0; overflow: hidden; background: var(--background); }

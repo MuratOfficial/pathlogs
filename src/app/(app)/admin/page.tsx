@@ -5,8 +5,8 @@ import { formatDate, initials } from "@/lib/labels";
 import { UserRow } from "@/components/admin/UserRow";
 import Link from "next/link";
 import { CreateUserDialog } from "@/components/admin/CreateUserDialog";
-import { DragScroll } from "@/components/DragScroll";
-import { PageHint } from "@toimetdev/pathlogs-core";
+import { DragScroll, PageHint } from "@toimetdev/pathlogs-core";
+import { Card } from "@/components/ui/Card";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -55,14 +55,14 @@ export default async function AdminPage() {
           { label: "Патч-логов", value: totals[2] },
           { label: "Часов учтено", value: Math.round(totals[3]._sum.hours ?? 0) },
         ].map((s) => (
-          <div key={s.label} className="rounded-2xl border border-edge bg-surface p-4">
+          <Card key={s.label}>
             <p className="text-2xl font-bold">{s.value}</p>
             <p className="text-xs text-muted">{s.label}</p>
-          </div>
+          </Card>
         ))}
       </div>
 
-      <DragScroll className="overflow-x-auto rounded-2xl border border-edge bg-surface">
+      <Card as={DragScroll} flush className="overflow-x-auto">
         <table className="w-full min-w-180 text-sm">
           <thead className="bg-surface-2/60 text-left text-xs text-muted">
             <tr>
@@ -101,7 +101,7 @@ export default async function AdminPage() {
             ))}
           </tbody>
         </table>
-      </DragScroll>
+      </Card>
     </div>
   );
 }

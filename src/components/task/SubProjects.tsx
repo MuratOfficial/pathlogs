@@ -73,7 +73,7 @@ export function SubProjects({
                       }
                       data-tip="Отвязать проект"
                       aria-label={"Отвязать проект " + p.name}
-                      className="pointer-events-auto rounded-lg px-1.5 py-0.5 text-xs text-muted transition hover:bg-red-500/10 hover:text-red-400"
+                      className="pointer-events-auto rounded-lg px-1.5 py-0.5 text-xs text-muted transition hover:bg-danger/10 hover:text-danger-text"
                     >
                       ✕
                     </button>
@@ -121,7 +121,7 @@ export function SubProjects({
       </div>
 
       {error && (
-        <p className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</p>
+        <p className="mt-2 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger-text">{error}</p>
       )}
     </div>
   );

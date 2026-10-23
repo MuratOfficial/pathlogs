@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/auth";
 import { formatDateTime } from "@/lib/labels";
 import type { NotificationType } from "@prisma/client";
+import { Card } from "@/components/ui/Card";
 
 const TYPE_META: Record<NotificationType, { label: string; color: string }> = {
   ASSIGNED: { label: "Назначение", color: "#6366f1" },
@@ -34,10 +35,10 @@ export default async function NotificationsPage() {
       <h1 className="mb-6 text-xl font-bold tracking-tight">Уведомления</h1>
 
       {notifications.length === 0 ? (
-        <p className="rounded-2xl border border-edge bg-surface p-6 text-sm text-muted">
+        <Card as="p" className="text-sm text-muted">
           Уведомлений пока нет. Они появятся, когда вас назначат на задачу или
           прокомментируют вашу.
-        </p>
+        </Card>
       ) : (
         <ul className="space-y-2">
           {notifications.map((n) => {

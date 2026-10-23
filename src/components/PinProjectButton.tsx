@@ -43,7 +43,7 @@ export function PinProjectButton({
         });
       }}
       className={`rounded-lg p-1.5 transition hover:bg-surface-2 disabled:opacity-50 ${
-        pinned ? "text-amber-400" : "text-muted hover:text-foreground"
+        pinned ? "text-warning" : "text-muted hover:text-foreground"
       }`}
     >
       <svg

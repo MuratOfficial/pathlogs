@@ -11,6 +11,8 @@ import {
 } from "@/lib/actions/polls";
 import { formatDateTime, initials, plural } from "@/lib/labels";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Card } from "@/components/ui/Card";
+import { Icon } from "@/components/ui/Icon";
 
 /** Столько же, сколько принимает createPollAction: лишнее там отрезается молча. */
 const MAX_POLL_OPTIONS = 20;
@@ -40,9 +42,9 @@ function NewPollForm({
     "w-full rounded-lg border border-edge bg-surface-2 px-3 py-2 text-sm outline-none transition focus:border-accent";
 
   return (
-    <form
+    <Card as="form"
       action={formAction}
-      className="animate-pop-in mb-5 rounded-2xl border border-edge bg-surface p-5"
+      className="animate-pop-in mb-5"
     >
       <input type="hidden" name="projectId" value={projectId} />
       <h3 className="mb-4 text-sm font-semibold">Новый опрос</h3>
@@ -104,17 +106,17 @@ function NewPollForm({
 
       <div className="mb-5 flex flex-wrap gap-5">
         <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <input type="checkbox" name="multiple" className="accent-indigo-500" />
+          <input type="checkbox" name="multiple" className="accent-accent" />
           Можно выбрать несколько
         </label>
         <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <input type="checkbox" name="anonymous" className="accent-indigo-500" />
+          <input type="checkbox" name="anonymous" className="accent-accent" />
           Анонимно (не показывать, кто как проголосовал)
         </label>
       </div>
 
       {state?.error && (
-        <p className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+        <p className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger-text">
           {state.error}
         </p>
       )}
@@ -135,7 +137,7 @@ function NewPollForm({
           {pending ? "Создаём…" : "Создать опрос"}
         </button>
       </div>
-    </form>
+    </Card>
   );
 }
 
@@ -164,8 +166,9 @@ function PollCard({ poll }: { poll: PollDTO }) {
   }
 
   return (
-    <article
-      className={`rounded-2xl border border-edge bg-surface p-5 transition ${
+    <Card
+      as="article"
+      className={`transition ${
         pending ? "opacity-70" : ""
       } ${poll.closed ? "opacity-80" : ""}`}
     >
@@ -204,11 +207,9 @@ function PollCard({ poll }: { poll: PollDTO }) {
               disabled={pending}
               data-tip="Удалить опрос"
               aria-label="Удалить опрос"
-              className="rounded p-1.5 text-muted transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+              className="rounded p-1.5 text-muted transition hover:bg-danger/10 hover:text-danger-text disabled:opacity-50"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-              </svg>
+              <Icon name="trash" className="h-4 w-4" />
             </button>
           </div>
         )}
@@ -272,9 +273,7 @@ function PollCard({ poll }: { poll: PollDTO }) {
                   >
                     {on &&
                       (poll.multiple ? (
-                        <svg className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 10.5l3.5 3.5L15 6.5" />
-                        </svg>
+                        <Icon name="check" className="h-3 w-3 text-white" strokeWidth={3} />
                       ) : (
                         <span className="h-1.5 w-1.5 rounded-full bg-white" />
                       ))}
@@ -322,7 +321,7 @@ function PollCard({ poll }: { poll: PollDTO }) {
               setChosen([]);
               startTransition(() => votePollAction(poll.id, []));
             }}
-            className="text-muted transition hover:text-red-400 disabled:opacity-50"
+            className="text-muted transition hover:text-danger-text disabled:opacity-50"
           >
             Отозвать голос
           </button>
@@ -356,7 +355,7 @@ function PollCard({ poll }: { poll: PollDTO }) {
         }
         onCancel={() => setConfirm(null)}
       />
-    </article>
+    </Card>
   );
 }
 

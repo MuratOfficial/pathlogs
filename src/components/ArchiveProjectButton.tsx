@@ -7,9 +7,12 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 export function ArchiveProjectButton({
   projectId,
   archived,
+  withLabel = false,
 }: {
   projectId: string;
   archived: boolean;
+  /** Кнопка с подписью (страница настроек), а не одна иконка (карточка проекта). */
+  withLabel?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [asking, setAsking] = useState(false);
@@ -24,7 +27,7 @@ export function ArchiveProjectButton({
   return (
     <>
       <button
-        data-tip={archived ? "Восстановить из архива" : "В архив"}
+        data-tip={withLabel ? undefined : archived ? "Восстановить из архива" : "В архив"}
         aria-label={archived ? "Восстановить из архива" : "В архив"}
         disabled={pending}
         onClick={(e) => {
@@ -33,7 +36,11 @@ export function ArchiveProjectButton({
           if (archived) run();
           else setAsking(true);
         }}
-        className="rounded-lg p-1.5 text-muted transition hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
+        className={
+          withLabel
+            ? "flex items-center gap-2 rounded-lg border border-edge px-4 py-2 text-sm text-muted transition hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
+            : "rounded-lg p-1.5 text-muted transition hover:bg-surface-2 hover:text-foreground disabled:opacity-50"
+        }
       >
         {archived ? (
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -44,6 +51,7 @@ export function ArchiveProjectButton({
             <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
           </svg>
         )}
+        {withLabel && (archived ? "Восстановить из архива" : "Отправить в архив")}
       </button>
 
       <ConfirmDialog

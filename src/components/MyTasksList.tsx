@@ -6,6 +6,7 @@ import { QueryInput, matchesQuery, parseQuery } from "@toimetdev/pathlogs-core";
 import { STATUS_COLORS, STATUS_LABELS, formatDate, formatHours } from "@/lib/labels";
 import { MY_TASK_STATUSES, myTaskFields, myTaskText, type MyTask } from "@/lib/myTaskQuery";
 import { PriorityBadge, TypeBadge } from "@/components/TaskBadges";
+import { Card, SectionTitle } from "@/components/ui/Card";
 
 export type { MyTask };
 
@@ -70,15 +71,15 @@ export function MyTasksList({ tasks }: { tasks: MyTask[] }) {
       </div>
 
       {tasks.length === 0 && (
-        <p className="rounded-2xl border border-edge bg-surface p-6 text-sm text-muted">
+        <Card as="p" className="text-sm text-muted">
           На вас не назначено открытых задач. Отличный момент взять что-то с доски.
-        </p>
+        </Card>
       )}
 
       {tasks.length > 0 && visible.length === 0 && (
-        <p className="rounded-2xl border border-edge bg-surface p-6 text-sm text-muted">
+        <Card as="p" className="text-sm text-muted">
           Под запрос ничего не подошло.
-        </p>
+        </Card>
       )}
 
       {MY_TASK_STATUSES.map((status) => {
@@ -86,13 +87,13 @@ export function MyTasksList({ tasks }: { tasks: MyTask[] }) {
         if (group.length === 0) return null;
         return (
           <section key={status} className="mb-6">
-            <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted">
+            <SectionTitle className="mb-2 flex items-center gap-2">
               <span
                 className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: STATUS_COLORS[status] }}
               />
               {STATUS_LABELS[status]} ({group.length})
-            </h2>
+            </SectionTitle>
             <ul className="space-y-2">
               {group.map((t) => {
                 const isOverdue = t.dueDate && new Date(t.dueDate) < now;

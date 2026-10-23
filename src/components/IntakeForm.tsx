@@ -13,7 +13,7 @@ export function IntakeForm({ token }: { token: string }) {
 
   if (state?.ok) {
     return (
-      <div className="animate-pop-in rounded-xl border border-green-500/40 bg-green-500/10 p-5 text-center">
+      <div className="animate-pop-in rounded-xl border border-success/40 bg-success/10 p-5 text-center">
         <p className="text-lg font-semibold">Заявка отправлена</p>
         <p className="mt-1 text-sm text-muted">
           Мы получили её и свяжемся с вами по оставленному контакту.
@@ -76,7 +76,7 @@ export function IntakeForm({ token }: { token: string }) {
         />
       </label>
 
-      {state?.error && <p className="text-sm text-red-400">{state.error}</p>}
+      {state?.error && <p className="text-sm text-danger-text">{state.error}</p>}
 
       <button
         type="submit"
