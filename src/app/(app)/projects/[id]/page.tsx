@@ -349,7 +349,9 @@ export default async function ProjectPage({
     <div className="mx-auto flex h-[calc(100vh-3rem)] min-w-0 max-w-full flex-col">
       <ProjectBackdrop background={background} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        {/* min-w-0 + flex-wrap: на телефоне кнопки у заголовка переносятся на
+            вторую строку, а не выталкивают страницу вбок за край экрана */}
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
           <BackButton />
           {/* <Link href="/dashboard" data-tip="Все проекты" className="text-muted transition hover:text-foreground">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
